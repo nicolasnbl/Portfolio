@@ -59,16 +59,29 @@ body.intro-playing {
 
 /* Le troisième titre arrive dans l'espace, sous la fusée. */
 .intro-title:nth-of-type(3) {
-  top: 64%;
+  top: 44%;
+  left: 30%;
   color: var(--text);
   text-shadow: 0 2px 24px rgba(0, 0, 0, 0.6);
 }
 
+@media (max-aspect-ratio: 1/1) {
+  .intro-title:nth-of-type(3) {
+    top: 14%;
+    left: 50%;
+  }
+}
+
+/* Le bord droit du bloc est posé sur la coiffe : le nom en sort en glissant vers la gauche. */
 .intro-name {
   position: absolute;
   text-align: center;
   opacity: 0;
-  transform-origin: center;
+  transform: translate(-100%, -50%);
+}
+
+.intro-name-slide {
+  will-change: transform;
 }
 
 .intro-name-main {
@@ -108,6 +121,7 @@ body.intro-playing {
   text-transform: uppercase;
   text-shadow: 0 1px 8px rgba(0, 0, 0, 0.9);
   opacity: 0;
+  white-space: nowrap;
 }
 
 .intro-done .intro-hint {

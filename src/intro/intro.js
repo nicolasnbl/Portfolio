@@ -1,36 +1,53 @@
 import * as THREE from 'three';
 import { INTRO, T } from '../config.js';
 import { PATH, PLANET_RADIUS, buildPlanet, updateSmoke } from './planet.js';
-import { buildRocket, setFairingOpen, setThrust } from './rocket.js';
+import { FAIRING_CENTER, buildRocket, setFairingOpen, setThrust } from './rocket.js';
 import { clamp01, easeInOutCubic, easeOutCubic, lerp, progress, seededRandom, smoothstep } from './math.js';
 
-// Trajectoire : la fusée part à la verticale puis s'incline progressivement (virage gravitationnel).
-const CLIMB_HEIGHT = 40;
-const CLIMB_ARC = 0.2; // angle parcouru autour de la planète, en radians
-const PAYLOAD_HEIGHT = 2.8; // hauteur de la charge utile dans le repère de la fusée
-const NAME_EXIT = 0.9; // distance dont le nom sort de la coiffe
+// Trajectoire : départ à la verticale, puis la fusée s'incline vers la caméra (virage gravitationnel).
+const CLIMB_LENGTH = 32;
+const CLIMB_TURN = THREE.MathUtils.degToRad(20); // inclinaison en fin de montée, par rapport à la verticale
 
 const SKY = new THREE.Color('#bfe6ff');
 const SPACE = new THREE.Color('#05060f');
 
 // Cadrages successifs de la caméra.
 // space "world" : offset et look dans le repère de la scène, relatifs à la fusée (ou au pas de tir avant le décollage).
-// space "rocket" : [le long de la fusée, au-dessus d'elle, sur le côté], pour suivre son inclinaison.
-// toPlanet : part du regard tirée vers le centre de la planète. roll : rotation de l'image, en degrés.
+// space "rocket" : [le long de la fusée, au-dessus d'elle, sur le côté], pour la suivre de près. « Au-dessus »
+//   est le côté opposé à la planète en fin de montée. tilt : angle de la fusée à l'écran, en degrés (90 = droite).
+// shift : décalage de l'image, en fraction de la demi-largeur et de la demi-hauteur de l'écran.
+// portrait : réglages qui remplacent les autres sur écran vertical, dont scale, le recul de la caméra (1.5 par défaut).
 const CAMERA_KEYS = [
   // Ouverture en plongée sur la centrale : l'eau remplit tout le fond, l'horizon reste hors champ.
-  { t: 0, space: 'world', offset: [0, 5.6, 3.1], look: [0, 0.2, 0], toPlanet: 0, roll: 0, fov: 40 },
-  { t: 2.2, space: 'world', offset: [0, 5.2, 3.0], look: [0, 0.2, 0], toPlanet: 0, roll: 0, fov: 40 },
-  { t: 4.3, space: 'world', offset: [3.4, 2.8, 8.2], look: [0, 0.8, 0], toPlanet: 0, roll: 0, fov: 42 },
-  { t: 5.2, space: 'world', offset: [2.8, 1.6, 6.8], look: [0, 1.6, 0], toPlanet: 0, roll: 0, fov: 45 },
-  { t: 6.4, space: 'world', offset: [4, 7, 13], look: [0, 0, 0], toPlanet: 0.08, roll: 0, fov: 52 },
-  // Plan large de côté : on voit la courbe de la trajectoire et la planète.
-  { t: 8.4, space: 'world', offset: [-6, 6, 34], look: [0, 0, 0], toPlanet: 0.22, roll: 0, fov: 55 },
-  // Plan final, comme l'image de référence : fusée inclinée, coiffe ouverte, planète en arrière-plan.
-  // La caméra est devant la fusée, au-dessus d'elle : la coiffe au premier plan, la planète derrière la base.
-  // L'image est tournée d'un quart de tour pour que la fusée monte vers la droite, la planète en bas à gauche.
-  { t: 9.6, space: 'rocket', offset: [4.6, 4.6, -1.2], look: [PAYLOAD_HEIGHT + NAME_EXIT, 0, 0], toPlanet: 0, roll: 90, fov: 50 },
-  { t: 11.6, space: 'rocket', offset: [4, 4, -1], look: [PAYLOAD_HEIGHT + NAME_EXIT, 0, 0], toPlanet: 0, roll: 90, fov: 50 },
+  { t: 0, space: 'world', offset: [0, 5.6, 3.1], look: [0, 0.2, 0], fov: 40 },
+  { t: 2.2, space: 'world', offset: [0, 5.2, 3.0], look: [0, 0.2, 0], fov: 40 },
+  { t: 4.3, space: 'world', offset: [3.4, 2.8, 8.2], look: [0, 0.8, 0], fov: 42 },
+  { t: 5.2, space: 'world', offset: [2.8, 1.6, 6.8], look: [0, 1.6, 0], fov: 45 },
+  // La fusée monte et s'incline vers nous : la caméra l'accompagne, puis passe devant elle sans changer de côté.
+  { t: 6.6, space: 'rocket', offset: [4.5, -5, 2], look: [1.5, 0, 0], tilt: 80, fov: 50, shift: [0.3, -0.1] },
+  { t: 8.0, space: 'rocket', offset: [7.5, -3.2, 1], look: [2.2, 0, 0], tilt: 55, fov: 48, shift: [0.25, 0.1] },
+  // Plan de l'image de référence : la fusée pointe vers nous, la coiffe en grand en haut à droite,
+  // la planète derrière elle en bas à gauche. Puis la caméra recule un peu pendant que le nom sort.
+  {
+    t: 9.4,
+    space: 'rocket',
+    offset: [4.41, -0.7, 0],
+    look: [FAIRING_CENTER, 0, 0],
+    tilt: 30,
+    fov: 50,
+    shift: [0.3, 0.3],
+    portrait: { tilt: 60, shift: [0.25, 0.05], scale: 1.8 },
+  },
+  {
+    t: 11.6,
+    space: 'rocket',
+    offset: [4.74, -0.95, 0],
+    look: [FAIRING_CENTER, 0, 0],
+    tilt: 30,
+    fov: 50,
+    shift: [0.3, 0.3],
+    portrait: { tilt: 62, shift: [0.35, -0.12], scale: 3 },
+  },
 ];
 
 function buildStars() {
@@ -102,17 +119,27 @@ export function createIntro({ canvas, overlay, onStart, onEnd }) {
     return { el, ...title };
   });
   const nameEl = overlay.querySelector('.intro-name');
+  const nameSlide = nameEl.querySelector('.intro-name-slide');
   const hintEl = overlay.querySelector('.intro-hint');
 
   const launchRadius = PLANET_RADIUS + padTop;
   const UP = new THREE.Vector3(0, 1, 0);
-  const SIDE = new THREE.Vector3(0, 0, 1);
+  const SIDE = new THREE.Vector3(1, 0, 0);
+
+  // Trajectoire précalculée : la fusée part à la verticale et s'incline peu à peu vers la caméra (+z).
+  const FLIGHT_STEPS = 400;
+  const flightTable = [new THREE.Vector3(0, launchRadius, 0)];
+  for (let i = 1; i <= FLIGHT_STEPS; i++) {
+    const heading = CLIMB_TURN * ((i - 0.5) / FLIGHT_STEPS) ** 1.6;
+    const step = new THREE.Vector3(0, Math.cos(heading), Math.sin(heading)).multiplyScalar(CLIMB_LENGTH / FLIGHT_STEPS);
+    flightTable.push(flightTable[i - 1].clone().add(step));
+  }
 
   // Position sur la trajectoire pour u de 0 (pas de tir) à 1 (fin de la montée).
   function flightPoint(u, out) {
-    const r = launchRadius + CLIMB_HEIGHT * (0.4 * u + 0.6 * (1 - (1 - u) ** 2));
-    const theta = CLIMB_ARC * u * u;
-    return out.set(Math.sin(theta) * r, Math.cos(theta) * r, 0);
+    const f = clamp01(u) * FLIGHT_STEPS;
+    const i = Math.min(FLIGHT_STEPS - 1, Math.floor(f));
+    return out.copy(flightTable[i]).lerp(flightTable[i + 1], f - i);
   }
 
   const rocketPos = new THREE.Vector3();
@@ -120,12 +147,21 @@ export function createIntro({ canvas, overlay, onStart, onEnd }) {
   const rocketUp = new THREE.Vector3();
   const a = new THREE.Vector3();
   const b = new THREE.Vector3();
+  const c = new THREE.Vector3();
   const camPos = new THREE.Vector3();
   const camLook = new THREE.Vector3();
-  const keyPos = new THREE.Vector3();
-  const keyLook = new THREE.Vector3();
+  const camUp = new THREE.Vector3();
   const namePoint = new THREE.Vector3();
   const puff = new THREE.Object3D();
+  const makeView = () => ({
+    pos: new THREE.Vector3(),
+    look: new THREE.Vector3(),
+    up: new THREE.Vector3(),
+    shift: [0, 0],
+    fov: 45,
+  });
+  const viewFrom = makeView();
+  const viewTo = makeView();
 
   function resize() {
     const w = window.innerWidth;
@@ -137,25 +173,36 @@ export function createIntro({ canvas, overlay, onStart, onEnd }) {
   window.addEventListener('resize', resize);
   resize();
 
-  // Position et point visé pour une image clé, dans le repère de la scène.
-  function resolveKey(key, portrait, outPos, outLook) {
-    const scale = portrait ? 1.5 : 1;
-    const [o0, o1, o2] = key.offset;
-    const [l0, l1, l2] = key.look;
-    if (key.space === 'rocket') {
-      outPos
-        .copy(rocketPos)
-        .addScaledVector(rocketDir, o0 * scale)
-        .addScaledVector(rocketUp, o1 * scale)
-        .addScaledVector(SIDE, o2 * scale);
-      outLook.copy(rocketPos).addScaledVector(rocketDir, l0).addScaledVector(rocketUp, l1).addScaledVector(SIDE, l2);
-      outLook.lerp(planet.position, key.toPlanet);
+  // Vecteur « haut » de la caméra pour que la fusée apparaisse inclinée de `tilt` degrés à l'écran, pointe à droite.
+  function upForTilt(pos, look, tilt, out) {
+    const view = a.subVectors(look, pos).normalize();
+    const axis = b.copy(rocketDir).addScaledVector(view, -view.dot(rocketDir));
+    if (axis.lengthSq() < 1e-6) return out.copy(UP);
+    axis.normalize();
+    const across = c.crossVectors(axis, view);
+    const angle = THREE.MathUtils.degToRad(tilt);
+    return out.copy(axis).multiplyScalar(Math.sin(angle)).addScaledVector(across, Math.cos(angle));
+  }
+
+  // Position, point visé, vecteur haut, décalage et champ de vision d'une image clé, dans le repère de la scène.
+  function resolveKey(key, portrait, out) {
+    const k = portrait && key.portrait ? { ...key, ...key.portrait } : key;
+    const scale = portrait ? (k.scale ?? 1.5) : 1;
+    const [o0, o1, o2] = k.offset;
+    const [l0, l1, l2] = k.look;
+    if (k.space === 'rocket') {
+      out.look.copy(rocketPos).addScaledVector(rocketDir, l0).addScaledVector(rocketUp, l1).addScaledVector(SIDE, l2);
+      out.pos.copy(rocketPos).addScaledVector(rocketDir, o0).addScaledVector(rocketUp, o1).addScaledVector(SIDE, o2);
+      // Écran vertical : on recule dans l'axe du regard, l'angle de vue reste le même.
+      out.pos.sub(out.look).multiplyScalar(scale).add(out.look);
+      upForTilt(out.pos, out.look, k.tilt, out.up);
     } else {
-      outPos.set(o0, o1, o2).multiplyScalar(scale).add(rocketPos);
-      outLook.set(l0, l1, l2).add(rocketPos);
-      // Écran large : on regarde moins vers la planète pour garder la fusée dans le cadre.
-      outLook.lerp(planet.position, key.toPlanet * (portrait ? 1 : 0.7));
+      out.pos.set(o0, o1, o2).multiplyScalar(scale).add(rocketPos);
+      out.look.set(l0, l1, l2).add(rocketPos);
+      out.up.copy(UP);
     }
+    out.shift = k.shift ?? [0, 0];
+    out.fov = k.fov;
   }
 
   function placeCamera(t, clock) {
@@ -166,18 +213,23 @@ export function createIntro({ canvas, overlay, onStart, onEnd }) {
     const to = CAMERA_KEYS[Math.min(i + 1, CAMERA_KEYS.length - 1)];
     const k = from === to ? 0 : smoothstep(progress(t, from.t, to.t));
 
-    resolveKey(from, portrait, camPos, camLook);
-    resolveKey(to, portrait, keyPos, keyLook);
-    camPos.lerp(keyPos, k);
-    camLook.lerp(keyLook, k);
-    camPos.x += Math.sin(clock * 0.4) * 0.2;
+    resolveKey(from, portrait, viewFrom);
+    resolveKey(to, portrait, viewTo);
+    camPos.lerpVectors(viewFrom.pos, viewTo.pos, k);
+    camLook.lerpVectors(viewFrom.look, viewTo.look, k);
+    camUp.lerpVectors(viewFrom.up, viewTo.up, k).normalize();
+    camPos.x += Math.sin(clock * 0.4) * 0.15;
 
     camera.position.copy(camPos);
-    camera.up.copy(UP);
+    camera.up.copy(camUp);
     camera.lookAt(camLook);
-    camera.rotateZ(THREE.MathUtils.degToRad(lerp(from.roll, to.roll, k)));
-    camera.fov = lerp(from.fov, to.fov, k);
+    camera.fov = lerp(viewFrom.fov, viewTo.fov, k);
     camera.updateProjectionMatrix();
+    // Décentrement, comme un objectif à bascule : le sujet quitte le centre de l'image sans changer la perspective.
+    const e = camera.projectionMatrix.elements;
+    e[8] = -lerp(viewFrom.shift[0], viewTo.shift[0], k);
+    e[9] = -lerp(viewFrom.shift[1], viewTo.shift[1], k);
+    camera.projectionMatrixInverse.copy(camera.projectionMatrix).invert();
   }
 
   function render(t, clock) {
@@ -200,7 +252,7 @@ export function createIntro({ canvas, overlay, onStart, onEnd }) {
     flightPoint(u, rocketPos);
     flightPoint(Math.min(1, u + 0.002), b).sub(flightPoint(Math.max(0, u - 0.002), a));
     rocketDir.copy(b).normalize();
-    rocketUp.crossVectors(SIDE, rocketDir).normalize();
+    rocketUp.crossVectors(rocketDir, SIDE).normalize();
     if (rocketDetached) {
       rocket.position.copy(rocketPos);
       rocket.quaternion.setFromUnitVectors(UP, rocketDir);
@@ -214,7 +266,9 @@ export function createIntro({ canvas, overlay, onStart, onEnd }) {
         const k = i / (TRAIL_PUFFS - 1);
         // Les bouffées les plus anciennes, près du sol, ont eu le temps de grossir.
         flightPoint(u * k * 0.985, puff.position);
-        puff.scale.setScalar(lerp(0.9, 0.12, k) * (0.5 + 0.5 * clamp01(u * 4)));
+        // Vers la fin, la fumée la plus ancienne se dissipe.
+        const fade = smoothstep(clamp01((k - Math.max(0, u - 0.6) * 0.9) / 0.25));
+        puff.scale.setScalar(lerp(0.9, 0.12, k) * (0.5 + 0.5 * clamp01(u * 4)) * fade);
         puff.rotation.set(i, i * 1.7, 0);
         puff.updateMatrix();
         trail.setMatrixAt(i, puff.matrix);
@@ -224,18 +278,25 @@ export function createIntro({ canvas, overlay, onStart, onEnd }) {
 
     // 3. Le ciel devient l'espace à mesure qu'on s'éloigne.
     const altitude = rocketPos.length() - launchRadius;
-    const space = smoothstep(clamp01(altitude / 26));
+    const space = smoothstep(clamp01((altitude - 6) / 20));
     scene.background.copy(SKY).lerp(SPACE, space);
     stars.material.opacity = space * (0.85 + 0.15 * Math.sin(clock * 2));
 
-    // 4. La coiffe s'ouvre.
-    setFairingOpen(rocketParts.halves, easeOutCubic(progress(t, T.fairingStart, T.fairingEnd)));
-    rocketParts.payload.visible = t > T.fairingStart;
-
-    // 5. Caméra.
+    // 4. Caméra.
     placeCamera(t, clock);
 
-    // 6. Titres, puis le nom qui sort de la coiffe dans l'axe de la fusée.
+    // 5. La coiffe s'ouvre en deux, de part et d'autre d'une jointure tournée vers la caméra.
+    rocket.updateWorldMatrix(true, false);
+    const camLocal = rocket.worldToLocal(a.copy(camera.position));
+    rocketParts.fairing.rotation.y = Math.atan2(camLocal.x, camLocal.z);
+    setFairingOpen(
+      rocketParts,
+      easeOutCubic(progress(t, T.fairingStart, T.fairingEnd)),
+      progress(t, T.fairingEnd - 0.3, T.nameEnd + 0.2) ** 2,
+    );
+    rocketParts.payload.visible = t > T.fairingStart;
+
+    // 6. Titres, puis le nom qui sort de la coiffe en glissant vers la gauche.
     for (const title of titleEls) {
       const fadeIn = progress(t, title.start, title.start + 0.4);
       const fadeOut = 1 - progress(t, title.end - 0.4, title.end);
@@ -244,11 +305,14 @@ export function createIntro({ canvas, overlay, onStart, onEnd }) {
     }
 
     const nameP = easeOutCubic(progress(t, T.nameStart, T.nameEnd));
-    namePoint.copy(rocketPos).addScaledVector(rocketDir, PAYLOAD_HEIGHT + NAME_EXIT * nameP).project(camera);
-    nameEl.style.opacity = clamp01(nameP * 3);
+    namePoint.copy(rocketPos).addScaledVector(rocketDir, FAIRING_CENTER).project(camera);
+    nameEl.style.opacity = progress(t, T.nameStart, T.nameStart + 0.2);
     nameEl.style.left = `${(namePoint.x * 0.5 + 0.5) * 100}%`;
     nameEl.style.top = `${(-namePoint.y * 0.5 + 0.5) * 100}%`;
-    nameEl.style.transform = `translate(-50%, -50%) scale(${lerp(0.05, 1, nameP)})`;
+    // Le nom finit à gauche de la coiffe, avec un écart plus grand sur écran vertical où la fusée prend plus de place.
+    nameSlide.style.transform = `translateX(${lerp(100, camera.aspect < 1 ? -40 : -24, nameP)}%)`;
+    // Pendant la sortie, tout ce qui dépasse à droite de la coiffe est masqué ; à la fin, le halo du texte se libère.
+    nameEl.style.clipPath = `inset(-60% ${-80 * progress(nameP, 0.85, 1)}px -60% -60%)`;
     hintEl.style.opacity = progress(t, T.end - 0.3, T.end + 0.4);
 
     renderer.render(scene, camera);
