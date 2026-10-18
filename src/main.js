@@ -17,6 +17,12 @@ const intro = createIntro({
 document.body.classList.add('intro-playing');
 document.querySelector('.replay').addEventListener('click', () => intro.replay());
 
+const devReplay = document.querySelector('.dev-replay');
+if (import.meta.env.DEV || import.meta.env.VITE_DEV_TOOLS === '1') {
+  devReplay.hidden = false;
+  devReplay.addEventListener('click', () => intro.replay());
+}
+
 // Le nom s'efface quand on descend vers les sections.
 const overlay = document.querySelector('.intro-overlay');
 window.addEventListener(
