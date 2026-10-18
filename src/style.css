@@ -196,3 +196,25 @@ section p {
     margin-right: 16px;
   }
 }
+
+footer {
+  display: flex;
+  justify-content: center;
+  padding: 0 16px 10vh;
+}
+
+.replay {
+  font: inherit;
+  color: var(--text);
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0.7rem 1.4rem;
+  cursor: pointer;
+}
+
+.replay:hover,
+.replay:focus-visible {
+  border-color: var(--accent);
+  color: var(--accent);
+}

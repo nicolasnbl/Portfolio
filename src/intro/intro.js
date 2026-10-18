@@ -53,7 +53,7 @@ function buildStars() {
   );
 }
 
-export function createIntro({ canvas, overlay, onEnd }) {
+export function createIntro({ canvas, overlay, onStart, onEnd }) {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -225,4 +225,13 @@ export function createIntro({ canvas, overlay, onEnd }) {
   nameEl.querySelector('.intro-name-main').textContent = INTRO.name;
   nameEl.querySelector('.intro-name-sub').textContent = INTRO.tagline;
   hintEl.querySelector('span').textContent = INTRO.scrollHint;
+
+  return {
+    replay() {
+      window.scrollTo({ top: 0, behavior: 'instant' });
+      t = 0;
+      ended = false;
+      onStart();
+    },
+  };
 }
