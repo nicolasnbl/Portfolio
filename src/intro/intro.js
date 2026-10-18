@@ -1,24 +1,27 @@
 import * as THREE from 'three';
 import { INTRO, T } from '../config.js';
-import { ANGLES, PLANET_RADIUS, buildPlanet, updateSmoke } from './planet.js';
+import { PATH, PLANET_RADIUS, buildPlanet, updateSmoke } from './planet.js';
 import { buildRocket, setFairingOpen, setThrust } from './rocket.js';
 import { clamp01, easeInOutCubic, easeOutCubic, lerp, progress, seededRandom, smoothstep } from './math.js';
 
-const CLIMB_HEIGHT = 40;
+const CLIMB_HEIGHT = 80;
 const SKY = new THREE.Color('#bfe6ff');
 const SPACE = new THREE.Color('#05060f');
 
 // Cadrages successifs de la caméra, relatifs au sommet de la fusée en vol (ou au sommet de la planète avant).
 // offset : position de la caméra ; look : point visé ; toPlanet : part du regard tirée vers la planète.
 const CAMERA_KEYS = [
-  { t: 0, offset: [3.4, 2.8, 8.2], look: [0, 0.5, 0], toPlanet: 0, fov: 42 },
+  // Ouverture en plongée sur la centrale : l'eau remplit tout le fond, l'horizon reste hors champ.
+  { t: 0, offset: [0, 5.6, 3.1], look: [0, 0.2, 0], toPlanet: 0, fov: 40 },
+  { t: 2.2, offset: [0, 5.2, 3.0], look: [0, 0.2, 0], toPlanet: 0, fov: 40 },
   { t: 4.3, offset: [3.4, 2.8, 8.2], look: [0, 0.8, 0], toPlanet: 0, fov: 42 },
   { t: 5.2, offset: [2.8, 1.6, 6.8], look: [0, 1.6, 0], toPlanet: 0, fov: 45 },
-  { t: 6.2, offset: [4, 5, 11], look: [0, 0, 0], toPlanet: 0.08, fov: 50 },
-  { t: 8.4, offset: [9, 11, 26], look: [0, 0, 0], toPlanet: 0.15, fov: 55 },
+  // En vol, la caméra passe au-dessus de la fusée : la planète apparaît derrière elle.
+  { t: 6.2, offset: [5, 8, 12], look: [0, 0, 0], toPlanet: 0.08, fov: 52 },
+  { t: 8.4, offset: [8, 18, 16], look: [0, 0, 0], toPlanet: 0.2, fov: 58 },
   { t: 9.4, offset: [2.2, 2.2, 5.5], look: [0, 2.4, 0], toPlanet: 0, fov: 45 },
   { t: 10.1, offset: [2.4, 2.4, 6], look: [0, 2.4, 0], toPlanet: 0, fov: 45 },
-  { t: 11.4, offset: [12, 10, 36], look: [0, 0, 0], toPlanet: 0.16, fov: 55 },
+  { t: 11.4, offset: [10, 22, 22], look: [0, 0, 0], toPlanet: 0.17, fov: 58 },
 ];
 
 function cameraAt(t) {
@@ -42,7 +45,7 @@ function buildStars() {
   const positions = new Float32Array(count * 3);
   const v = new THREE.Vector3();
   for (let i = 0; i < count; i++) {
-    v.set(rand() - 0.5, rand() - 0.5, rand() - 0.5).normalize().multiplyScalar(260 + rand() * 80);
+    v.set(rand() - 0.5, rand() - 0.5, rand() - 0.5).normalize().multiplyScalar(600 + rand() * 160);
     v.toArray(positions, i * 3);
   }
   const geometry = new THREE.BufferGeometry();
@@ -60,7 +63,7 @@ export function createIntro({ canvas, overlay, onStart, onEnd }) {
 
   const scene = new THREE.Scene();
   scene.background = SKY.clone();
-  const camera = new THREE.PerspectiveCamera(42, 1, 0.1, 1000);
+  const camera = new THREE.PerspectiveCamera(42, 1, 0.1, 2000);
 
   scene.add(new THREE.HemisphereLight('#ffffff', '#5a6b8c', 1.4));
   const sun = new THREE.DirectionalLight('#fff1d6', 2.4);
@@ -108,9 +111,8 @@ export function createIntro({ canvas, overlay, onStart, onEnd }) {
 
   function render(t, clock) {
     // 1. La planète tourne pour faire défiler le décor jusqu'au pas de tir.
-    const drift = lerp(-0.12, 0, progress(t, 0, T.rollStart));
     const roll = easeInOutCubic(progress(t, T.rollStart, T.rollEnd));
-    planet.rotation.z = drift + roll * ANGLES.pad;
+    planet.rotation.z = (roll * PATH.pad) / PLANET_RADIUS;
 
     // 2. Décollage : la fusée quitte le pas de tir et monte vite, puis ralentit dans l'espace.
     if (t >= T.liftoff && !rocketDetached) {
@@ -133,7 +135,7 @@ export function createIntro({ canvas, overlay, onStart, onEnd }) {
     updateSmoke(smoke, progress(t, T.liftoff - 0.1, T.liftoff + 2.2));
 
     // 3. Le ciel devient l'espace à mesure qu'on s'éloigne.
-    const space = smoothstep(clamp01(altitude / 24));
+    const space = smoothstep(clamp01(altitude / 48));
     scene.background.copy(SKY).lerp(SPACE, space);
     stars.material.opacity = space * (0.85 + 0.15 * Math.sin(clock * 2));
 
@@ -143,7 +145,9 @@ export function createIntro({ canvas, overlay, onStart, onEnd }) {
 
     // 5. Caméra.
     const cam = cameraAt(t);
-    const scale = camera.aspect < 1 ? 1.5 : 1;
+    // Écran vertical : on recule. Écran large : on regarde moins vers la planète pour garder la fusée dans le cadre.
+    const portrait = camera.aspect < 1;
+    const scale = portrait ? 1.5 : 1;
     anchor.copy(top).setY(PLANET_RADIUS + padTop + altitude);
     camera.position.set(
       anchor.x + cam.offset[0] * scale + Math.sin(clock * 0.4) * 0.25,
@@ -151,7 +155,7 @@ export function createIntro({ canvas, overlay, onStart, onEnd }) {
       anchor.z + cam.offset[2] * scale,
     );
     lookTarget.set(anchor.x + cam.look[0], anchor.y + cam.look[1], anchor.z + cam.look[2]);
-    lookTarget.lerp(planet.position, cam.toPlanet);
+    lookTarget.lerp(planet.position, cam.toPlanet * (portrait ? 1 : 0.7));
     camera.lookAt(lookTarget);
     camera.fov = cam.fov;
     camera.updateProjectionMatrix();
@@ -171,7 +175,7 @@ export function createIntro({ canvas, overlay, onStart, onEnd }) {
     const fromY = (-payloadPos.y * 0.5 + 0.5) * 100;
     nameEl.style.opacity = clamp01(nameP * 3);
     nameEl.style.left = `${lerp(fromX, 50, nameP)}%`;
-    nameEl.style.top = `${lerp(fromY, 52, nameP)}%`;
+    nameEl.style.top = `${lerp(fromY, 38, nameP)}%`;
     nameEl.style.transform = `translate(-50%, -50%) scale(${lerp(0.05, 1, nameP)})`;
     hintEl.style.opacity = progress(t, T.end - 0.3, T.end + 0.4);
 
