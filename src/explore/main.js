@@ -1,6 +1,6 @@
 import '../style.css';
 import * as THREE from 'three';
-import { EXPLORE_T } from '../config.js';
+import { EXPLORE, EXPLORE_T } from '../config.js';
 import { buildStars } from '../intro/intro.js';
 import { CLOCK_DIR, createLeave } from '../intro/leave.js';
 import { easeInOutCubic, progress, smoothstep } from '../intro/math.js';
@@ -15,6 +15,9 @@ import { createExplore } from './explore.js';
 
 const canvas = document.querySelector('#scene');
 const ui = document.querySelector('.explore-ui');
+const quoteEl = document.querySelector('.explore-quote');
+quoteEl.textContent = EXPLORE.quote;
+// Elle est déjà visible pendant le chargement (style dans explore.html), comme à la fin de l'accueil.
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -145,7 +148,7 @@ function frame(now) {
   quatFrom.copy(camera.quaternion);
 
   if (phase === 'arrive') {
-    travel(satStart, start.quat, satTo, quatFrom, easeInOutCubic(progress(u, 0, EXPLORE_T.arrive)));
+    travel(satStart, start.quat, satTo, quatFrom, easeInOutCubic(progress(u, EXPLORE_T.hold, EXPLORE_T.arrive)));
     if (u >= EXPLORE_T.arrive) {
       phase = 'explore';
       explore.start(goBack);
@@ -166,6 +169,8 @@ function frame(now) {
   bob.setFromEuler(euler.set(Math.sin(time * 0.9) * 0.08 * alive, 0, Math.sin(time * 0.7) * 0.05 * alive));
   satellite.quaternion.copy(camQuat).multiply(COMPANION_QUAT).multiply(bob);
 
+  // La citation reprise de l'accueil s'efface juste avant que la planète revienne dans le champ.
+  quoteEl.style.opacity = phase === 'arrive' ? 1 - smoothstep(progress(u, EXPLORE_T.hold + 0.4, EXPLORE_T.hold + 1.1)) : 0;
   stars.material.opacity = 0.85 + 0.15 * Math.sin(time * 2);
   renderer.render(scene, camera);
   if (phase === 'explore') explore.place(window.innerWidth, window.innerHeight);

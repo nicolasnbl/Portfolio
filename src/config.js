@@ -35,6 +35,8 @@ export const T = {
 // Les textes sont provisoires.
 export const EXPLORE = {
   hint: 'Glisse pour faire tourner la planète, zoome, clique sur ce qui t’intrigue',
+  // Affichée sur les étoiles, entre l'accueil et la page Explorer.
+  quote: 'C’est en osant rêver l’impossible que l’esprit créatif repousse les frontières du possible.',
   back: 'Retour',
   pageLink: 'Voir la page',
   pageSoon: 'Page à venir',
@@ -72,7 +74,8 @@ export const EXPLORE = {
 // Entrée et sortie du mode Explorer, en secondes.
 export const EXPLORE_T = {
   depart: 1.9, // du clic au passage sur la page Explorer : le satellite se décroche, la caméra pivote vers les étoiles
-  arrive: 2.6, // sur la page Explorer : de l'arrivée à la mise en orbite, la planète revient dans le champ
+  arrive: 3.3, // sur la page Explorer : de l'arrivée à la mise en orbite, la planète revient dans le champ
+  hold: 0.7, // au début de l'arrivée, le temps de finir de lire la citation avant que tout reparte
   back: 1.5, // du clic sur Retour au passage sur la page d'accueil
   focus: 1.1, // approche d'un élément
 };

@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { EXPLORE_T, INTRO, LEAVE, T } from '../config.js';
+import { EXPLORE, EXPLORE_T, INTRO, LEAVE, T } from '../config.js';
 import { PATH, PLANET_RADIUS, buildPlanet, updateSmoke } from './planet.js';
 import { CLOCK_DIR, createLeave } from './leave.js';
 import { COMPANION_FOV, COMPANION_QUAT, companionLocal, saveHandoff } from '../explore/companion.js';
@@ -131,6 +131,8 @@ export function createIntro({ canvas, overlay, onStart, onEnd }) {
   const nameEl = overlay.querySelector('.intro-name');
   const nameSlide = nameEl.querySelector('.intro-name-slide');
   const hintEl = overlay.querySelector('.intro-hint');
+  const quoteEl = overlay.querySelector('.explore-quote');
+  quoteEl.textContent = EXPLORE.quote;
   const navEl = overlay.querySelector('.intro-nav');
   const nav = createNav(navEl, INTRO.nav, {
     onAction: (action, index) => (action === 'explore' ? startDepart() : startLeave(index)),
@@ -574,6 +576,8 @@ export function createIntro({ canvas, overlay, onStart, onEnd }) {
       nameEl.style.opacity *= fade;
       hintEl.style.opacity *= fade;
     }
+    // La citation apparaît quand il ne reste plus que les étoiles ; la page Explorer la reprend telle quelle.
+    quoteEl.style.opacity = departU >= 0 && departDir > 0 ? smoothstep(progress(departU, 1.1, EXPLORE_T.depart)) : 0;
     if (departU >= 0) {
       const fade = 1 - progress(departU, 0, 0.4);
       nameEl.style.opacity *= fade;
