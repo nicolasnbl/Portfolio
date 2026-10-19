@@ -34,8 +34,7 @@ export function createNav(nav, items) {
     link.href = item.href ?? '#';
     link.innerHTML =
       '<span class="intro-nav-dot" aria-hidden="true"></span>' +
-      '<span class="intro-nav-label"><span class="intro-nav-index" aria-hidden="true"></span><span class="intro-nav-text"></span></span>';
-    link.querySelector('.intro-nav-index').textContent = String(i + 1).padStart(2, '0');
+      '<span class="intro-nav-label"><span class="intro-nav-text"></span></span>';
     link.querySelector('.intro-nav-text').textContent = item.label;
     if (item.soon) {
       link.setAttribute('aria-disabled', 'true');
