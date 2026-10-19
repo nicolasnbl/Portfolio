@@ -314,10 +314,23 @@ export function createIntro({ canvas, overlay, onStart, onEnd }) {
     const nameP = easeOutCubic(progress(t, T.nameStart, T.nameEnd));
     namePoint.copy(rocketPos).addScaledVector(rocketDir, FAIRING_CENTER).project(camera);
     nameEl.style.opacity = progress(t, T.nameStart, T.nameStart + 0.2);
-    nameEl.style.left = `${(namePoint.x * 0.5 + 0.5) * 100}%`;
-    nameEl.style.top = `${(-namePoint.y * 0.5 + 0.5) * 100}%`;
-    // Le nom finit à gauche de la coiffe, avec un écart plus grand sur écran vertical où la fusée prend plus de place.
-    nameSlide.style.transform = `translateX(${lerp(100, camera.aspect < 1 ? -40 : -24, nameP)}%)`;
+    const portrait = camera.aspect < 1;
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    let nameX = (namePoint.x * 0.5 + 0.5) * w;
+    let nameY = (-namePoint.y * 0.5 + 0.5) * h;
+    // Écran large : le nom finit bien à gauche de la coiffe, dans l'espace libre au-dessus de la planète.
+    // Écran vertical : une fois sorti, il monte se poser en haut à gauche, au-dessus du menu, pour dégager la fusée.
+    const slide = portrait ? -40 : -60;
+    if (portrait) {
+      const lift = easeInOutCubic(progress(t, T.nameEnd - 0.2, T.nameEnd + 0.6));
+      const width = nameEl.offsetWidth;
+      nameX = lerp(nameX, 24 + width * (1 - slide / 100), lift);
+      nameY = lerp(nameY, h * 0.11, lift);
+    }
+    nameEl.style.left = `${nameX}px`;
+    nameEl.style.top = `${nameY}px`;
+    nameSlide.style.transform = `translateX(${lerp(100, slide, nameP)}%)`;
     // Pendant la sortie, tout ce qui dépasse à droite de la coiffe est masqué ; à la fin, le halo du texte se libère.
     nameEl.style.clipPath = `inset(-60% ${-80 * progress(nameP, 0.85, 1)}px -60% -60%)`;
     hintEl.style.opacity = progress(t, T.end - 0.3, T.end + 0.4);
@@ -384,7 +397,6 @@ export function createIntro({ canvas, overlay, onStart, onEnd }) {
   requestAnimationFrame(frame);
 
   nameEl.querySelector('.intro-name-main').textContent = INTRO.name;
-  nameEl.querySelector('.intro-name-sub').textContent = INTRO.tagline;
   hintEl.querySelector('span').textContent = INTRO.scrollHint;
 
   return {

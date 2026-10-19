@@ -7,14 +7,24 @@ const SVG_NS = 'http://www.w3.org/2000/svg';
 export function createNav(nav, items) {
   const svg = nav.querySelector('.intro-nav-lines');
   const list = nav.querySelector('.intro-nav-list');
+  const defs = document.createElementNS(SVG_NS, 'defs');
+  svg.append(defs);
   let hovered = -1;
 
   const entries = items.map((item, i) => {
+    // Dégradé le long de la ligne : discret au départ du satellite, lumineux à l'arrivée.
+    const gradient = document.createElementNS(SVG_NS, 'linearGradient');
+    gradient.id = `intro-nav-gradient-${i}`;
+    gradient.setAttribute('gradientUnits', 'userSpaceOnUse');
+    gradient.innerHTML =
+      '<stop offset="0" stop-color="#ffd89a" stop-opacity="0.1"/><stop offset="1" stop-color="#ffd89a" stop-opacity="0.85"/>';
+    defs.append(gradient);
     const line = document.createElementNS(SVG_NS, 'line');
     line.setAttribute('pathLength', '1');
+    line.setAttribute('stroke', `url(#${gradient.id})`);
     line.classList.add('intro-nav-line');
     const signal = document.createElementNS(SVG_NS, 'circle');
-    signal.setAttribute('r', '3');
+    signal.setAttribute('r', '2.5');
     signal.classList.add('intro-nav-signal');
     svg.append(line, signal);
 
@@ -22,8 +32,11 @@ export function createNav(nav, items) {
     const link = document.createElement('a');
     link.className = 'intro-nav-item';
     link.href = item.href ?? '#';
-    link.innerHTML = '<span class="intro-nav-dot" aria-hidden="true"></span><span class="intro-nav-label"></span>';
-    link.querySelector('.intro-nav-label').textContent = item.label;
+    link.innerHTML =
+      '<span class="intro-nav-dot" aria-hidden="true"></span>' +
+      '<span class="intro-nav-label"><span class="intro-nav-index" aria-hidden="true"></span><span class="intro-nav-text"></span></span>';
+    link.querySelector('.intro-nav-index').textContent = String(i + 1).padStart(2, '0');
+    link.querySelector('.intro-nav-text').textContent = item.label;
     if (item.soon) {
       link.setAttribute('aria-disabled', 'true');
       link.dataset.soon = 'Bientôt';
@@ -45,7 +58,7 @@ export function createNav(nav, items) {
     link.addEventListener('blur', leave);
     li.append(link);
     list.append(li);
-    return { li, line, signal, label: link.querySelector('.intro-nav-label') };
+    return { li, line, gradient, signal, label: link.querySelector('.intro-nav-label') };
   });
 
   return {
@@ -91,6 +104,9 @@ export function createNav(nav, items) {
         entry.line.setAttribute('y1', sy);
         entry.line.setAttribute('x2', dotX);
         entry.line.setAttribute('y2', dotY);
+        for (const [key, value] of [['x1', sx], ['y1', sy], ['x2', dotX], ['y2', dotY]]) {
+          entry.gradient.setAttribute(key, value);
+        }
         entry.line.style.strokeDashoffset = 1 - p;
         entry.line.classList.toggle('is-hover', hovered === i);
 
