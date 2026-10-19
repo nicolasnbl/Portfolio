@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Nicolas · Parcours</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body class="timeline-page">
+    <canvas id="scene"></canvas>
+
+    <div class="tl-overlay">
+      <header class="tl-header">
+        <a class="tl-back" href="./index.html">← Accueil</a>
+        <p class="eyebrow">03 · La traction</p>
+        <h1>Parcours</h1>
+      </header>
+
+      <nav class="tl-nav" aria-label="Étapes du parcours">
+        <button class="tl-prev" type="button" aria-label="Étape précédente">‹</button>
+        <ol class="tl-dots"></ol>
+        <button class="tl-next" type="button" aria-label="Étape suivante">›</button>
+      </nav>
+      <p class="tl-hint">Scroll pour avancer dans le temps</p>
+    </div>
+
+    <!-- Outil de développement : affiché avec `npm run dev` ou un build lancé avec VITE_DEV_TOOLS=1. -->
+    <button class="dev-replay" type="button" hidden>Relancer l'animation</button>
+
+    <script type="module" src="/src/timeline/main.js"></script>
+  </body>
+</html>
