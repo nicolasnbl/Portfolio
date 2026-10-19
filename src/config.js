@@ -71,8 +71,9 @@ export const EXPLORE = {
 
 // Entrée et sortie du mode Explorer, en secondes.
 export const EXPLORE_T = {
-  enter: 2.0, // du clic à la planète au centre
-  back: 1.6, // du clic sur Retour au plan final de l'intro
+  depart: 1.9, // du clic au passage sur la page Explorer : le satellite se décroche, la caméra pivote vers les étoiles
+  arrive: 2.6, // sur la page Explorer : de l'arrivée à la mise en orbite, la planète revient dans le champ
+  back: 1.5, // du clic sur Retour au passage sur la page d'accueil
   focus: 1.1, // approche d'un élément
 };
 

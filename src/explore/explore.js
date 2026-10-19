@@ -1,18 +1,27 @@
 import * as THREE from 'three';
 import { EXPLORE, EXPLORE_T } from '../config.js';
-import { PLANET_RADIUS } from './planet.js';
-import { easeInOutCubic, lerp } from './math.js';
+import { PLANET_RADIUS } from '../intro/planet.js';
+import { easeInOutCubic, lerp } from '../intro/math.js';
+import { COMPANION_FOV } from './companion.js';
 
-// Mode « Explorer le monde » : la planète au centre de l'écran, que l'on fait tourner en la glissant. Survoler un
+// Mode « Explorer le monde » : la planète au milieu de l'écran, que l'on fait tourner en la glissant. Survoler un
 // élément l'éclaire et affiche son nom ; cliquer dessus le fait venir devant la caméra, avec sa fiche à côté.
-// La caméra reste sur un axe fixe (FRAME) ; c'est la planète qui tourne.
+// La caméra reste sur un axe fixe (frameDir) ; c'est la planète qui tourne. Le satellite, à droite, voyage avec la
+// caméra (companion.js).
 
-const FOV = 45;
-const ORBIT_FIT = 42; // rayon à faire tenir à l'écran : la planète, son atmosphère et l'orbite du satellite
+const FOV = COMPANION_FOV;
+const TAN = Math.tan(THREE.MathUtils.degToRad(FOV / 2));
+const ATMOSPHERE = PLANET_RADIUS * 1.08;
+// Vue d'ensemble : part de la demi-hauteur de l'écran occupée par la planète (écran large), ou de la demi-largeur
+// (écran vertical), et place de son centre à l'écran, en coordonnées normalisées. Elle laisse la droite au satellite.
+const FIT_LANDSCAPE = { size: 0.6, x: -0.2, y: -0.05 };
+const FIT_PORTRAIT = { size: 0.8, x: 0, y: -0.12 };
+// Élément ciblé : sa place à l'écran, à gauche de la fiche (écran large) ou au-dessus d'elle (écran vertical).
+const FOCUS_LANDSCAPE = { x: -0.3, y: -0.05 };
+const FOCUS_PORTRAIT = { x: 0, y: 0.18 };
 // L'élément ciblé monte un peu au-dessus du centre de l'image, d'autant plus que la caméra est loin : on le voit
 // toujours de biais, à 40° environ de la verticale, avec l'horizon derrière lui.
 const FOCUS_TILT = 0.02; // radians par unité de distance
-const SAT_ORBIT = 41;
 const DRAG_SPEED = 0.005; // radians par pixel
 const IDLE_SPIN = 0.06; // rotation lente quand on ne touche à rien, en radians par seconde
 
@@ -20,16 +29,13 @@ const IDLE_SPIN = 0.06; // rotation lente quand on ne touche à rien, en radians
 const FOCUS_DIST = { solar: 7, forest: 11, pad: 8, clock: 13, house: 6, field: 9 };
 // Un clic sur le sol tout près d'un élément le vise aussi : rayon autour de son ancrage.
 const HIT_RADIUS = { solar: 2, forest: 5, pad: 1.8, clock: 2.5, house: 1.4, field: 3 };
+const HIT_PIXELS = 28;
 
-// Axe de la caméra : de biais par rapport à la fusée, qui reste ainsi hors du cadre.
-const FRAME_DIR = new THREE.Vector3(0.22, 0.31, 0.93).normalize();
-const FRAME_UP = new THREE.Vector3(0, 1, 0).addScaledVector(FRAME_DIR, -FRAME_DIR.y).normalize();
-const FRAME_RIGHT = new THREE.Vector3().crossVectors(FRAME_UP, FRAME_DIR).normalize();
-// En arrivant, la planète bascule vers nous : le pas de tir, la forêt et la centrale passent du bord au milieu.
-const ENTER_TILT = new THREE.Quaternion().setFromAxisAngle(FRAME_RIGHT, 0.7);
-
-export function createExplore({ planet, globe, elements, camera, canvas, ui }) {
-  const user = new THREE.Quaternion(); // rotation donnée à la planète, en plus de son roulis d'intro
+export function createExplore({ planet, globe, elements, camera, canvas, ui, frameDir }) {
+  const FRAME_DIR = frameDir.clone().normalize();
+  const FRAME_UP = new THREE.Vector3(0, 1, 0).addScaledVector(FRAME_DIR, -FRAME_DIR.y).normalize();
+  const FRAME_RIGHT = new THREE.Vector3().crossVectors(FRAME_UP, FRAME_DIR).normalize();
+  const user = new THREE.Quaternion(); // rotation donnée à la planète, en plus de son orientation de départ
   const q = new THREE.Quaternion();
   const a = new THREE.Vector3();
   const b = new THREE.Vector3();
@@ -106,6 +112,12 @@ export function createExplore({ planet, globe, elements, camera, canvas, ui }) {
     });
   }
 
+  // Écart à l'écran, en pixels, entre un point de la scène et le pointeur.
+  function screenOf(world, out, clientX, clientY) {
+    out.copy(world).project(camera);
+    return [(out.x * 0.5 + 0.5) * window.innerWidth - clientX, (-out.y * 0.5 + 0.5) * window.innerHeight - clientY];
+  }
+
   function pick(clientX, clientY) {
     pointer.set((clientX / window.innerWidth) * 2 - 1, -(clientY / window.innerHeight) * 2 + 1);
     raycaster.setFromCamera(pointer, camera);
@@ -117,14 +129,19 @@ export function createExplore({ planet, globe, elements, camera, canvas, ui }) {
       return o === el.root;
     });
     if (direct) return direct;
-    // Le sol : l'élément le plus proche, s'il est assez près.
+    // Le sol : l'élément le plus proche, s'il est assez près, sur la planète ou à l'écran (vue de loin, les éléments
+    // ne font que quelques pixels).
     let best = null;
-    let bestDist = Infinity;
+    let bestScore = 1;
     for (const el of elements) {
-      const d = worldOf(el, a).distanceTo(hit.point);
-      if (d < HIT_RADIUS[el.key] && d < bestDist) {
+      const world = worldOf(el, a);
+      const score = Math.min(
+        world.distanceTo(hit.point) / HIT_RADIUS[el.key],
+        Math.hypot(...screenOf(world, b, clientX, clientY)) / HIT_PIXELS,
+      );
+      if (score < bestScore) {
         best = el;
-        bestDist = d;
+        bestScore = score;
       }
     }
     return best;
@@ -239,14 +256,6 @@ export function createExplore({ planet, globe, elements, camera, canvas, ui }) {
     user.premultiply(q.setFromAxisAngle(FRAME_RIGHT, pitch));
   }
 
-  const satPos = new THREE.Vector3();
-  const satHover = new THREE.Vector3();
-  const satFwd = new THREE.Vector3();
-  const satUp = new THREE.Vector3();
-  const satSide = new THREE.Vector3();
-  const satQuat = new THREE.Quaternion();
-  const satBasis = new THREE.Matrix4();
-
   return {
     user,
     get focused() {
@@ -270,11 +279,6 @@ export function createExplore({ planet, globe, elements, camera, canvas, ui }) {
       canvas.style.touchAction = '';
     },
 
-    // Arrivée : la planète bascule vers la caméra, k de 0 à 1.
-    enter(k) {
-      user.slerpQuaternions(q.identity(), ENTER_TILT, k);
-    },
-
     update(dt, time) {
       if (!active) return;
       if (!drag && !focused) {
@@ -291,44 +295,30 @@ export function createExplore({ planet, globe, elements, camera, canvas, ui }) {
       if (hovered && hovered !== focused) glow(hovered, 0.22 + 0.08 * Math.sin(time * 4));
     },
 
-    // Cadrage : la planète entière au centre, ou l'élément ciblé de près, décalé pour laisser la place à sa fiche.
-    view(out, portrait) {
-      const fit = ORBIT_FIT / (Math.tan(THREE.MathUtils.degToRad(FOV / 2)) * Math.min(1, camera.aspect));
+    // Cadrage : la planète entière, ou l'élément ciblé de près, décalés pour laisser la place au satellite et à la fiche.
+    view(out) {
+      const aspect = camera.aspect;
+      const portrait = aspect < 1;
+      const fit = portrait ? FIT_PORTRAIT : FIT_LANDSCAPE;
+      const far = ATMOSPHERE / (TAN * fit.size * (portrait ? aspect : 1));
       const near = PLANET_RADIUS + focusDist(focused?.key ?? lastKey);
       const k = easeInOutCubic(Math.min(1, focus));
-      out.pos.copy(FRAME_DIR).multiplyScalar(lerp(fit, near, k));
+      const dist = lerp(far, near, k);
+      out.pos.copy(FRAME_DIR).multiplyScalar(dist);
       out.look.set(0, 0, 0);
       if (focused || lastKey) {
         planet.updateWorldMatrix(true, false);
         out.look.lerp(worldOf(focused ?? elements.find((el) => el.key === lastKey), a), k);
       }
       if (focused) lastKey = focused.key;
+      // Regarder à côté du sujet le décale à l'écran du côté opposé.
+      const spot = portrait ? FOCUS_PORTRAIT : FOCUS_LANDSCAPE;
+      const x = lerp(fit.x, spot.x, k);
+      const y = lerp(fit.y, spot.y, k);
+      const range = out.pos.distanceTo(out.look) * TAN;
+      out.look.addScaledVector(FRAME_RIGHT, -x * range * aspect).addScaledVector(FRAME_UP, -y * range);
       out.up.copy(FRAME_UP);
       out.fov = FOV;
-      out.shift = portrait ? [0, 0.32 * k] : [-0.34 * k, 0];
-    },
-
-    // Le satellite tourne autour de la planète, et vient se placer près de l'élément ciblé.
-    satellite(time) {
-      const angle = time * 0.22;
-      satPos
-        .copy(FRAME_RIGHT)
-        .multiplyScalar(Math.cos(angle) * SAT_ORBIT)
-        .addScaledVector(FRAME_DIR, Math.sin(angle) * SAT_ORBIT)
-        .addScaledVector(FRAME_UP, Math.sin(angle * 0.7) * 6);
-      satFwd.copy(FRAME_RIGHT).multiplyScalar(-Math.sin(angle)).addScaledVector(FRAME_DIR, Math.cos(angle));
-      if (focus > 0.01 && (focused || lastKey)) {
-        const el = focused ?? elements.find((e) => e.key === lastKey);
-        worldOf(el, satHover);
-        const up = b.copy(satHover).normalize();
-        satHover.addScaledVector(up, 3.2).addScaledVector(FRAME_RIGHT, 2.2);
-        satPos.lerp(satHover, easeInOutCubic(Math.min(1, focus)));
-      }
-      satUp.copy(satPos).normalize();
-      satSide.crossVectors(satFwd, satUp).normalize();
-      satFwd.crossVectors(satSide, satUp);
-      satQuat.setFromRotationMatrix(satBasis.makeBasis(satSide, satUp, satFwd));
-      return { pos: satPos, quat: satQuat };
     },
 
     // Nom de l'élément survolé et fiche, placés à chaque image.

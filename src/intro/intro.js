@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { EXPLORE_T, INTRO, LEAVE, T } from '../config.js';
 import { PATH, PLANET_RADIUS, buildPlanet, updateSmoke } from './planet.js';
 import { CLOCK_DIR, createLeave } from './leave.js';
-import { createExplore } from './explore.js';
+import { COMPANION_FOV, COMPANION_QUAT, companionLocal, saveHandoff } from '../explore/companion.js';
 import { createNav } from './nav.js';
 import { FAIRING_CENTER, buildRocket, setFairingOpen, setThrust } from './rocket.js';
 import { clamp01, easeInOutCubic, easeOutCubic, lerp, progress, seededRandom, smoothstep } from './math.js';
@@ -10,6 +10,11 @@ import { clamp01, easeInOutCubic, easeOutCubic, lerp, progress, seededRandom, sm
 // Trajectoire : départ à la verticale, puis la fusée s'incline vers la caméra (virage gravitationnel).
 const CLIMB_LENGTH = 32;
 const CLIMB_TURN = THREE.MathUtils.degToRad(20); // inclinaison en fin de montée, par rapport à la verticale
+
+// Départ vers la page Explorer : de combien le satellite s'éloigne de la fusée, et l'écart à atteindre entre le regard
+// et la direction de la planète pour qu'elle sorte du cadre.
+const DEPART_EJECT = 5;
+const DEPART_AWAY = THREE.MathUtils.degToRad(100);
 
 const SKY = new THREE.Color('#bfe6ff');
 const SPACE = new THREE.Color('#05060f');
@@ -101,7 +106,7 @@ export function createIntro({ canvas, overlay, onStart, onEnd }) {
   scene.add(stars);
 
   const isSmall = window.innerWidth < 768;
-  const { planet, globe, pad, padTop, smoke, clockSite, elements } = buildPlanet({ treeCount: isSmall ? 26 : 46, clockDir: CLOCK_DIR });
+  const { planet, pad, padTop, smoke, clockSite } = buildPlanet({ treeCount: isSmall ? 26 : 46, clockDir: CLOCK_DIR });
   const leave = createLeave({ clockSite });
   scene.add(planet);
 
@@ -128,10 +133,8 @@ export function createIntro({ canvas, overlay, onStart, onEnd }) {
   const hintEl = overlay.querySelector('.intro-hint');
   const navEl = overlay.querySelector('.intro-nav');
   const nav = createNav(navEl, INTRO.nav, {
-    onAction: (action, index) => (action === 'explore' ? startExplore(index) : startLeave(index)),
+    onAction: (action, index) => (action === 'explore' ? startDepart() : startLeave(index)),
   });
-  const exploreUi = document.querySelector('.explore-ui');
-  const explore = createExplore({ planet, globe, elements, camera, canvas, ui: exploreUi });
 
   // Départ vers la timeline. leaveU : secondes écoulées depuis le clic (négatif hors transition).
   let leaveU = -1;
@@ -161,7 +164,7 @@ export function createIntro({ canvas, overlay, onStart, onEnd }) {
   }
 
   function startLeave(index) {
-    if (leaveU >= 0) return;
+    if (leaveU >= 0 || departU >= 0) return;
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
       window.location.href = './timeline.html';
       return;
@@ -191,53 +194,54 @@ export function createIntro({ canvas, overlay, onStart, onEnd }) {
   }
   window.addEventListener('pageshow', (e) => e.persisted && resetLeave());
 
-  // Explorer le monde. exploreU : secondes depuis le clic (négatif hors exploration) ; backU : depuis le clic sur Retour.
-  let exploreU = -1;
-  let backU = -1;
-  let exploreIndex = -1;
-  let navRevealAt = -1; // pendant le retour, le menu se redéploie depuis le satellite
-  const backFromPos = new THREE.Vector3();
-  const backFromQuat = new THREE.Quaternion();
-  const backFromUser = new THREE.Quaternion();
-  const identity = new THREE.Quaternion();
+  // Vers « Explorer le monde » : le satellite se décroche, la caméra le suit et pivote autour de lui jusqu'à ne plus
+  // voir que les étoiles, puis la page Explorer prend le relais. departU : secondes depuis le clic (négatif hors
+  // transition). departDir : 1 à l'aller, -1 au retour de la page Explorer, qui rejoue la transition à l'envers.
+  let departU = -1;
+  let departDir = 1;
+  let navRevealAt = -1; // au retour, le menu se redéploie depuis le satellite revenu dans la coiffe
+  const exploreIndex = INTRO.nav.findIndex((item) => item.action === 'explore');
+  const satLocal = new THREE.Vector3();
+  const introQuat = new THREE.Quaternion();
+  const awayQuat = new THREE.Quaternion();
+  const rigQuat = new THREE.Quaternion();
+  const lookMatrix = new THREE.Matrix4();
 
-  function startExplore(index) {
-    if (exploreU >= 0 || leaveU >= 0) return;
-    // La maison, le champ et les arbres du continent de l'horloge sont là ; l'horloge se construit si besoin.
-    leave.buildClock();
-    exploreU = 0;
-    backU = -1;
-    exploreIndex = index;
+  function startDepart() {
+    if (departU >= 0 || leaveU >= 0) return;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      window.location.href = './explore.html';
+      return;
+    }
+    departU = 0;
+    departDir = 1;
+    navigated = false;
     navRevealAt = -1;
     navEl.inert = true;
-    document.body.classList.add('is-exploring');
     onStart();
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) exploreU = EXPLORE_T.enter;
   }
 
-  function startBack() {
-    if (backU >= 0) return;
-    explore.stop();
-    backU = 0;
-    nav.reset();
+  function startReturn() {
+    departU = EXPLORE_T.depart;
+    departDir = -1;
+    navigated = false;
     navRevealAt = Infinity;
-    backFromPos.copy(rocketParts.payload.position);
-    backFromQuat.copy(rocketParts.payload.quaternion);
-    backFromUser.copy(explore.user);
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) backU = EXPLORE_T.back;
+    nav.reset();
+    navEl.inert = true;
+    onStart();
   }
 
-  function endExplore() {
-    exploreU = -1;
-    backU = -1;
-    explore.user.identity();
+  function endReturn(clock) {
+    departU = -1;
     rocketParts.fairing.attach(rocketParts.payload);
     rocketParts.payload.position.set(0, PAYLOAD_Y, 0);
     rocketParts.payload.quaternion.identity();
+    navRevealAt = clock;
     navEl.inert = false;
-    document.body.classList.remove('is-exploring');
     onEnd();
   }
+  // Retour par le bouton Précédent depuis la page Explorer : la page est restée sur le dernier plan, on rejoue à l'envers.
+  window.addEventListener('pageshow', (e) => e.persisted && departU >= 0 && startReturn());
 
   const launchRadius = PLANET_RADIUS + padTop;
   const UP = new THREE.Vector3(0, 1, 0);
@@ -379,23 +383,28 @@ export function createIntro({ canvas, overlay, onStart, onEnd }) {
       shiftY *= 1 - chase;
     }
 
-    // Explorer : la planète vient au centre de l'écran, puis la caméra suit les éléments ciblés.
-    if (exploreU >= 0) {
-      const k = backU >= 0
-        ? 1 - smoothstep(progress(backU, 0, EXPLORE_T.back))
-        : smoothstep(progress(exploreU, 0.3, EXPLORE_T.enter));
-      explore.view(viewTo, portrait);
-      camPos.lerp(viewTo.pos, k);
-      camLook.lerp(viewTo.look, k);
-      camUp.lerp(viewTo.up, k).normalize();
-      fov = lerp(fov, viewTo.fov, k);
-      shiftX = lerp(shiftX, viewTo.shift[0], k);
-      shiftY = lerp(shiftY, viewTo.shift[1], k);
+    // Vers Explorer : la caméra rejoint le satellite et le garde à la même place de l'écran, en pivotant autour de lui
+    // jusqu'à ce que la planète et la fusée sortent du cadre.
+    if (departU >= 0) {
+      introQuat.setFromRotationMatrix(lookMatrix.lookAt(camPos, camLook, camUp));
+      const sat = rocketParts.payload.position;
+      const view = a.set(0, 0, -1).applyQuaternion(introQuat);
+      const toPlanet = b.copy(sat).negate().normalize();
+      const axis = c.crossVectors(toPlanet, view).normalize();
+      awayQuat.setFromAxisAngle(axis, Math.max(0, DEPART_AWAY - view.angleTo(toPlanet))).multiply(introQuat);
+      rigQuat.slerpQuaternions(introQuat, awayQuat, easeInOutCubic(progress(departU, 0.25, EXPLORE_T.depart)));
+      companionLocal(camera.aspect, satLocal).applyQuaternion(rigQuat);
+      const follow = smoothstep(progress(departU, 0, 0.9));
+      camPos.lerp(a.copy(sat).sub(satLocal), follow);
+      fov = lerp(fov, COMPANION_FOV, follow);
+      shiftX *= 1 - follow;
+      shiftY *= 1 - follow;
     }
 
     camera.position.copy(camPos);
     camera.up.copy(camUp);
-    camera.lookAt(camLook);
+    if (departU >= 0) camera.quaternion.copy(rigQuat);
+    else camera.lookAt(camLook);
     camera.fov = fov;
     camera.updateProjectionMatrix();
     // Décentrement, comme un objectif à bascule : le sujet quitte le centre de l'image sans changer la perspective.
@@ -413,12 +422,6 @@ export function createIntro({ canvas, overlay, onStart, onEnd }) {
     if (leaveU >= 0) {
       planet.quaternion.premultiply(leave.planetTurn(easeInOutCubic(progress(leaveU, LEAVE.orbitStart, LEAVE.diveEnd - 0.4))));
     }
-    if (exploreU >= 0) {
-      if (exploreU < EXPLORE_T.enter) explore.enter(easeInOutCubic(progress(exploreU, 1.1, EXPLORE_T.enter)));
-      if (backU >= 0) explore.user.slerpQuaternions(backFromUser, identity, easeInOutCubic(progress(backU, 0, EXPLORE_T.back)));
-      planet.quaternion.premultiply(explore.user);
-    }
-    planet.updateWorldMatrix(true, false);
 
     // 2. Décollage : départ à la verticale, puis la fusée s'incline et ralentit en arrivant dans l'espace.
     if (t >= T.liftoff && !rocketDetached) {
@@ -443,10 +446,7 @@ export function createIntro({ canvas, overlay, onStart, onEnd }) {
     setThrust(rocketParts, t >= T.liftoff - 0.15 && climb < 0.9, clock);
     updateSmoke(smoke, progress(t, T.liftoff - 0.1, T.liftoff + 2.2));
 
-    // En explorant, la planète tourne sous la traînée : elle s'efface pendant ce temps.
-    const exploring = exploreU >= 0 && (backU < 0 ? exploreU > 1.1 : backU < EXPLORE_T.back - 0.3);
-    trail.visible = rocketDetached && !exploring;
-    if (exploreU >= 0) rocket.visible = backU >= 0 || exploreU < 1.1;
+    trail.visible = rocketDetached;
     if (rocketDetached) {
       for (let i = 0; i < TRAIL_PUFFS; i++) {
         const k = i / (TRAIL_PUFFS - 1);
@@ -498,9 +498,8 @@ export function createIntro({ canvas, overlay, onStart, onEnd }) {
       sun.position.lerpVectors(SUN_START, sunTarget, smoothstep(progress(leaveU, LEAVE.orbitEnd, LEAVE.diveEnd)));
     }
 
-    // Explorer : le satellite quitte la coiffe comme pour la timeline, puis tourne autour de la planète.
-    // Au retour, il rejoint sa place dans la coiffe.
-    if (exploreU >= 0) {
+    // Vers Explorer : le satellite se dégage de la coiffe, puis s'éloigne de la fusée, droit devant elle.
+    if (departU >= 0) {
       const payload = rocketParts.payload;
       if (payload.parent !== scene) {
         scene.attach(payload);
@@ -508,25 +507,25 @@ export function createIntro({ canvas, overlay, onStart, onEnd }) {
         detachTo.copy(payload.position).addScaledVector(rocketDir, 0.6);
         satStartQuat.copy(payload.quaternion);
       }
-      const sat = explore.satellite(clock);
-      if (backU >= 0) {
-        rocketParts.fairing.updateWorldMatrix(true, false);
-        a.set(0, PAYLOAD_Y, 0).applyMatrix4(rocketParts.fairing.matrixWorld);
-        rocketParts.fairing.getWorldQuaternion(satQuat);
-        const k = easeInOutCubic(progress(backU, 0.1, EXPLORE_T.back - 0.1));
-        payload.position.lerpVectors(backFromPos, a, k);
-        payload.quaternion.slerpQuaternions(backFromQuat, satQuat, k);
-      } else {
-        const detach = easeOutCubic(progress(exploreU, 0, 0.45));
-        satDetachQuat.copy(satStartQuat).multiply(satSpin.setFromAxisAngle(UP, 0.7 * detach));
-        const k = easeInOutCubic(progress(exploreU, 0.45, EXPLORE_T.enter));
-        payload.position.lerpVectors(detachFrom, detachTo, detach).lerp(sat.pos, k);
-        payload.quaternion.slerpQuaternions(satDetachQuat, sat.quat, k);
-      }
+      const detach = easeOutCubic(progress(departU, 0, 0.45));
+      payload.position
+        .lerpVectors(detachFrom, detachTo, detach)
+        .addScaledVector(rocketDir, DEPART_EJECT * easeInOutCubic(progress(departU, 0.3, EXPLORE_T.depart)));
     }
 
     // 4. Caméra.
     placeCamera(t, clock);
+    // Le satellite prend peu à peu la pose qu'il gardera pendant l'exploration, par rapport à la caméra.
+    if (departU >= 0) {
+      const detach = easeOutCubic(progress(departU, 0, 0.45));
+      satDetachQuat.copy(satStartQuat).multiply(satSpin.setFromAxisAngle(UP, 0.7 * detach));
+      satQuat.copy(rigQuat).multiply(COMPANION_QUAT);
+      rocketParts.payload.quaternion.slerpQuaternions(
+        satDetachQuat,
+        satQuat,
+        easeInOutCubic(progress(departU, 0.2, EXPLORE_T.depart)),
+      );
+    }
 
     // 5. La coiffe s'ouvre en deux, de part et d'autre d'une jointure tournée vers la caméra.
     rocket.updateWorldMatrix(true, false);
@@ -575,8 +574,8 @@ export function createIntro({ canvas, overlay, onStart, onEnd }) {
       nameEl.style.opacity *= fade;
       hintEl.style.opacity *= fade;
     }
-    if (exploreU >= 0) {
-      const fade = backU >= 0 ? progress(backU, EXPLORE_T.back - 0.5, EXPLORE_T.back) : 1 - progress(exploreU, 0, 0.4);
+    if (departU >= 0) {
+      const fade = 1 - progress(departU, 0, 0.4);
       nameEl.style.opacity *= fade;
       hintEl.style.opacity *= fade;
     }
@@ -585,7 +584,7 @@ export function createIntro({ canvas, overlay, onStart, onEnd }) {
     const turnTarget = nav.hovered < 0 ? 0 : (nav.hovered - (INTRO.nav.length - 1) / 2) * 0.35;
     satTurn = lerp(satTurn, turnTarget, 0.08);
     const settled = progress(t, T.nameEnd, T.end);
-    if (leaveU < 0 && exploreU < 0) {
+    if (leaveU < 0 && departU < 0) {
       rocketParts.payload.rotation.z = -satTurn;
       rocketParts.payload.rotation.x = Math.sin(clock * 0.9) * 0.08 * settled;
       rocketParts.payload.position.y = PAYLOAD_Y + Math.sin(clock * 1.3) * 0.03 * settled;
@@ -595,10 +594,10 @@ export function createIntro({ canvas, overlay, onStart, onEnd }) {
     satAnchor.y = (-satPoint.y * 0.5 + 0.5) * window.innerHeight;
     let navReveal = t - T.navStart;
     let navExit = leaveU >= 0 ? { index: leaveIndex, p: progress(leaveU, 0, LEAVE.retract) } : null;
-    if (exploreU >= 0 && backU < 0) navExit = { index: exploreIndex, p: progress(exploreU, 0, LEAVE.retract) };
+    if (departU >= 0 && departDir > 0) navExit = { index: exploreIndex, p: progress(departU, 0, LEAVE.retract) };
     // Au retour, le menu se redéploie depuis le satellite quand il a rejoint la coiffe.
     if (navRevealAt >= 0) navReveal = Math.min(navReveal, clock - navRevealAt);
-    navEl.style.visibility = t > T.navStart && navReveal > 0 && !(exploreU >= 0 && backU < 0 && exploreU > 1) ? 'visible' : 'hidden';
+    navEl.style.visibility = t > T.navStart && navReveal > 0 && !(departU >= 0 && departDir > 0 && departU > 1) ? 'visible' : 'hidden';
     nav.update(satAnchor, navReveal, clock, navExit);
 
     // Fin de la plongée : la planète s'efface autour de l'horloge, qui reste seule sur les étoiles comme sur la page timeline.
@@ -629,15 +628,22 @@ export function createIntro({ canvas, overlay, onStart, onEnd }) {
     startLeave(INTRO.nav.findIndex((item) => item.action === 'timeline'));
     leaveU = Number(params.get('leave'));
   }
-  // ?explore=1 montre l'arrivée dans le mode Explorer à 1 s du clic ; ?explore=9 l'ouvre directement.
-  if (params.has('explore')) {
+  // ?depart=1 montre le départ vers la page Explorer à 1 s du clic.
+  if (params.has('depart')) {
     t = T.end + 0.5;
-    startExplore(INTRO.nav.findIndex((item) => item.action === 'explore'));
-    exploreU = Math.min(EXPLORE_T.enter - 0.001, Number(params.get('explore')));
+    startDepart();
+    departU = Number(params.get('depart'));
   }
   let boost = 0;
   let ended = false;
   let last = performance.now();
+  // Arrivée depuis la page Explorer : on repart du dernier plan du départ.
+  if (params.get('from') === 'explore') {
+    window.history.replaceState(null, '', window.location.pathname);
+    t = T.end + 0.5;
+    ended = true;
+    startReturn();
+  }
 
   const accelerate = () => {
     if (!ended || leaveU >= 0) boost = 6;
@@ -653,21 +659,17 @@ export function createIntro({ canvas, overlay, onStart, onEnd }) {
     last = now;
     if (!paused) t += dt * (1 + boost);
     if (leaveU >= 0 && !paused) leaveU += dt * (1 + boost * 0.4);
-    if (exploreU >= 0 && !paused) {
-      if (exploreU < EXPLORE_T.enter) {
-        exploreU += dt;
-        if (exploreU >= EXPLORE_T.enter) explore.start(startBack);
-      }
-      if (backU >= 0) {
-        if (backU < EXPLORE_T.back - 0.7 && backU + dt >= EXPLORE_T.back - 0.7) navRevealAt = now / 1000;
-        backU += dt;
-      }
-      explore.update(dt, now / 1000);
+    if (departU >= 0 && !paused) {
+      departU += dt * departDir;
+      if (departDir < 0 && departU <= 0) endReturn(now / 1000);
     }
     boost = Math.max(0, boost - dt * 10);
     render(t, now / 1000);
-    if (exploreU >= 0) explore.place(window.innerWidth, window.innerHeight);
-    if (backU >= EXPLORE_T.back) endExplore();
+    if (departDir > 0 && departU >= EXPLORE_T.depart && !navigated) {
+      navigated = true;
+      saveHandoff(camera);
+      window.location.href = './explore.html';
+    }
 
     if (leaveU >= LEAVE.end && !navigated) {
       navigated = true;

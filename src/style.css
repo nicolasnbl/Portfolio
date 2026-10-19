@@ -430,9 +430,9 @@ footer {
   display: none;
 }
 
-/* Explorer le monde : interface par-dessus la planète. */
-body.is-exploring .content {
-  visibility: hidden;
+/* Explorer le monde : page à part, interface par-dessus la planète. */
+body.explore-body {
+  overflow: hidden;
 }
 
 .explore-ui {
@@ -518,10 +518,10 @@ body.is-exploring .content {
   opacity: 1;
 }
 
-/* Fiche de l'élément ciblé : à droite sur grand écran, en bas sur écran vertical. */
+/* Fiche de l'élément ciblé : à droite sous le satellite sur grand écran, en bas sur écran vertical. */
 .explore-card {
   position: absolute;
-  top: 50%;
+  top: 47%;
   right: max(5vw, 24px);
   width: min(360px, 34vw);
   padding: 1.6rem 1.6rem 1.4rem;
@@ -533,14 +533,14 @@ body.is-exploring .content {
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
   opacity: 0;
   visibility: hidden;
-  transform: translate(16px, -50%);
+  transform: translateY(12px);
   transition: opacity 0.4s, transform 0.4s, visibility 0s 0.4s;
 }
 
 .explore-card.is-open {
   opacity: 1;
   visibility: visible;
-  transform: translate(0, -50%);
+  transform: none;
   transition: opacity 0.4s 0.35s, transform 0.4s 0.35s;
 }
 
