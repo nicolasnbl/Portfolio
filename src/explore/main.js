@@ -172,7 +172,7 @@ function frame(now) {
 
   if (phase === 'back' && u >= EXPLORE_T.back) {
     phase = 'gone';
-    window.location.href = './index.html?from=explore';
+    window.location.href = './?from=explore';
   }
   if (phase !== 'gone') requestAnimationFrame(frame);
 }
