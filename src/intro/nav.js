@@ -4,7 +4,7 @@ const SVG_NS = 'http://www.w3.org/2000/svg';
 
 // Menu relié au satellite : chaque entrée est un point au bout d'une ligne que le satellite « émet ».
 // Les éléments sont en HTML par-dessus la scène, repositionnés à chaque image sur le satellite projeté à l'écran.
-export function createNav(nav, items) {
+export function createNav(nav, items, { onAction } = {}) {
   const svg = nav.querySelector('.intro-nav-lines');
   const list = nav.querySelector('.intro-nav-list');
   const defs = document.createElementNS(SVG_NS, 'defs');
@@ -36,6 +36,13 @@ export function createNav(nav, items) {
       '<span class="intro-nav-dot" aria-hidden="true"></span>' +
       '<span class="intro-nav-label"><span class="intro-nav-text"></span></span>';
     link.querySelector('.intro-nav-text').textContent = item.label;
+    if (item.action) {
+      link.href = '#';
+      link.addEventListener('click', (e) => {
+        e.preventDefault();
+        onAction?.(item.action, i);
+      });
+    }
     if (item.soon) {
       link.setAttribute('aria-disabled', 'true');
       link.dataset.soon = 'Bientôt';
@@ -66,8 +73,20 @@ export function createNav(nav, items) {
       return hovered;
     },
 
+    // Oublie l'entrée choisie, au retour sur la page après un départ.
+    reset() {
+      hovered = -1;
+      nav.classList.remove('has-hover');
+    },
+
     // anchor : satellite à l'écran, en pixels. reveal : avancée de l'apparition, en secondes depuis son début.
-    update(anchor, reveal, clock) {
+    // exit : { index, p } pendant un départ vers une autre page : les autres lignes rentrent d'abord dans le satellite,
+    // puis celle de l'entrée choisie.
+    update(anchor, reveal, clock, exit = null) {
+      if (exit) {
+        hovered = exit.index;
+        nav.classList.add('has-hover');
+      }
       const w = window.innerWidth;
       const h = window.innerHeight;
       const portrait = w < h;
@@ -91,8 +110,10 @@ export function createNav(nav, items) {
         const dotX = portrait ? colX : colX - k * k * 18;
         const dotY = portrait ? colY + i * spacing : colY + k * spacing;
 
-        const p = easeOutCubic(progress(reveal, i * 0.16, i * 0.16 + 0.5));
-        const labelP = progress(reveal, i * 0.16 + 0.3, i * 0.16 + 0.7);
+        const hide = !exit ? 0 : i === exit.index ? progress(exit.p, 0.55, 1) : progress(exit.p, 0, 0.55);
+        const p = easeOutCubic(progress(reveal, i * 0.16, i * 0.16 + 0.5)) * (1 - hide);
+        const labelP = progress(reveal, i * 0.16 + 0.3, i * 0.16 + 0.7) * (1 - Math.min(1, hide * 2));
+        entry.li.classList.toggle('is-hover', hovered === i);
 
         const dx = dotX - anchor.x;
         const dy = dotY - anchor.y;

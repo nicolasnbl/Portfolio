@@ -1,6 +1,7 @@
 import * as THREE from 'three';
-import { INTRO, T } from '../config.js';
+import { INTRO, LEAVE, T } from '../config.js';
 import { PATH, PLANET_RADIUS, buildPlanet, updateSmoke } from './planet.js';
+import { CLOCK_DIR, createLeave } from './leave.js';
 import { createNav } from './nav.js';
 import { FAIRING_CENTER, buildRocket, setFairingOpen, setThrust } from './rocket.js';
 import { clamp01, easeInOutCubic, easeOutCubic, lerp, progress, seededRandom, smoothstep } from './math.js';
@@ -99,7 +100,8 @@ export function createIntro({ canvas, overlay, onStart, onEnd }) {
   scene.add(stars);
 
   const isSmall = window.innerWidth < 768;
-  const { planet, pad, padTop, smoke } = buildPlanet({ treeCount: isSmall ? 26 : 46 });
+  const { planet, pad, padTop, smoke, clockSite } = buildPlanet({ treeCount: isSmall ? 26 : 46, clockDir: CLOCK_DIR });
+  const leave = createLeave({ clockSite });
   scene.add(planet);
 
   const trail = buildTrail();
@@ -124,7 +126,65 @@ export function createIntro({ canvas, overlay, onStart, onEnd }) {
   const nameSlide = nameEl.querySelector('.intro-name-slide');
   const hintEl = overlay.querySelector('.intro-hint');
   const navEl = overlay.querySelector('.intro-nav');
-  const nav = createNav(navEl, INTRO.nav);
+  const nav = createNav(navEl, INTRO.nav, { onAction: (action, index) => startLeave(index) });
+
+  // Départ vers la timeline. leaveU : secondes écoulées depuis le clic (négatif hors transition).
+  let leaveU = -1;
+  let leaveIndex = -1;
+  let navigated = false;
+  const SUN_START = sun.position.clone();
+  const sunTarget = new THREE.Vector3();
+  // Lumière qui suit la caméra pendant la plongée, comme sur la page timeline.
+  const headlight = new THREE.DirectionalLight('#ffffff', 0);
+  scene.add(headlight, headlight.target);
+  // Matériaux de la planète (hors horloge), qui s'effacent à la fin pour ne laisser que le cadran sur les étoiles.
+  let planetMaterials = null;
+  function fadePlanet(opacity) {
+    if (!planetMaterials) {
+      if (opacity >= 1) return;
+      const inClock = new Set();
+      clockSite.traverse((o) => inClock.add(o));
+      planetMaterials = [];
+      planet.traverse((o) => {
+        if (o.material && !inClock.has(o)) planetMaterials.push({ mat: o.material, base: o.material.opacity });
+      });
+    }
+    for (const { mat, base } of planetMaterials) {
+      mat.transparent = opacity < 1 || base < 1;
+      mat.opacity = base * opacity;
+    }
+  }
+
+  function startLeave(index) {
+    if (leaveU >= 0) return;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      window.location.href = './timeline.html';
+      return;
+    }
+    leave.buildClock();
+    leaveU = 0;
+    leaveIndex = index;
+    navigated = false;
+    navEl.inert = true;
+    onStart();
+  }
+
+  // Retour sur la page par le bouton Précédent : on retrouve le plan final de l'intro.
+  function resetLeave() {
+    if (leaveU < 0) return;
+    leaveU = -1;
+    rocketParts.fairing.attach(rocketParts.payload);
+    rocketParts.payload.position.set(0, PAYLOAD_Y, 0);
+    rocketParts.payload.quaternion.identity();
+    rocket.visible = true;
+    sun.position.copy(SUN_START);
+    headlight.intensity = 0;
+    fadePlanet(1);
+    nav.reset();
+    navEl.inert = false;
+    onEnd();
+  }
+  window.addEventListener('pageshow', (e) => e.persisted && resetLeave());
 
   const launchRadius = PLANET_RADIUS + padTop;
   const UP = new THREE.Vector3(0, 1, 0);
@@ -158,6 +218,9 @@ export function createIntro({ canvas, overlay, onStart, onEnd }) {
   const namePoint = new THREE.Vector3();
   const satPoint = new THREE.Vector3();
   const satAnchor = { x: 0, y: 0 };
+  const satStartQuat = new THREE.Quaternion();
+  const satQuat = new THREE.Quaternion();
+  const satBasis = new THREE.Matrix4();
   let satTurn = 0;
   const puff = new THREE.Object3D();
   const makeView = () => ({
@@ -226,23 +289,47 @@ export function createIntro({ canvas, overlay, onStart, onEnd }) {
     camLook.lerpVectors(viewFrom.look, viewTo.look, k);
     camUp.lerpVectors(viewFrom.up, viewTo.up, k).normalize();
     camPos.x += Math.sin(clock * 0.4) * 0.15;
+    let fov = lerp(viewFrom.fov, viewTo.fov, k);
+    let shiftX = lerp(viewFrom.shift[0], viewTo.shift[0], k);
+    let shiftY = lerp(viewFrom.shift[1], viewTo.shift[1], k);
+
+    // Vers la timeline : du plan final à la poursuite du satellite, puis plongée sur le cadran.
+    if (leaveU >= 0) {
+      const chase = smoothstep(progress(leaveU, LEAVE.orbitStart, LEAVE.orbitEnd - 0.3));
+      const dive = smoothstep(progress(leaveU, LEAVE.orbitEnd - 0.3, LEAVE.diveEnd));
+      leave.chaseView(viewFrom);
+      leave.clockView(viewTo, portrait);
+      viewFrom.pos.lerp(viewTo.pos, dive);
+      viewFrom.look.lerp(viewTo.look, dive);
+      viewFrom.up.lerp(viewTo.up, dive);
+      camPos.lerp(viewFrom.pos, chase);
+      camLook.lerp(viewFrom.look, chase);
+      camUp.lerp(viewFrom.up, chase).normalize();
+      fov = lerp(fov, lerp(viewFrom.fov, viewTo.fov, dive), chase);
+      shiftX *= 1 - chase;
+      shiftY *= 1 - chase;
+    }
 
     camera.position.copy(camPos);
     camera.up.copy(camUp);
     camera.lookAt(camLook);
-    camera.fov = lerp(viewFrom.fov, viewTo.fov, k);
+    camera.fov = fov;
     camera.updateProjectionMatrix();
     // Décentrement, comme un objectif à bascule : le sujet quitte le centre de l'image sans changer la perspective.
     const e = camera.projectionMatrix.elements;
-    e[8] = -lerp(viewFrom.shift[0], viewTo.shift[0], k);
-    e[9] = -lerp(viewFrom.shift[1], viewTo.shift[1], k);
+    e[8] = -shiftX;
+    e[9] = -shiftY;
     camera.projectionMatrixInverse.copy(camera.projectionMatrix).invert();
   }
 
   function render(t, clock) {
     // 1. La planète tourne pour faire défiler le décor jusqu'au pas de tir.
     const roll = easeInOutCubic(progress(t, T.rollStart, T.rollEnd));
-    planet.rotation.z = (roll * PATH.pad) / PLANET_RADIUS;
+    // set() et pas seulement z : le tour supplémentaire ci-dessous modifie aussi x et y.
+    planet.rotation.set(0, 0, (roll * PATH.pad) / PLANET_RADIUS);
+    if (leaveU >= 0) {
+      planet.quaternion.premultiply(leave.planetTurn(easeInOutCubic(progress(leaveU, LEAVE.orbitStart, LEAVE.diveEnd - 0.4))));
+    }
 
     // 2. Décollage : départ à la verticale, puis la fusée s'incline et ralentit en arrivant dans l'espace.
     if (t >= T.liftoff && !rocketDetached) {
@@ -289,6 +376,27 @@ export function createIntro({ canvas, overlay, onStart, onEnd }) {
     scene.background.copy(SKY).lerp(SPACE, space);
     stars.material.opacity = space * (0.85 + 0.15 * Math.sin(clock * 2));
 
+    // Vers la timeline : le satellite quitte la coiffe et se met en orbite ; la fusée reste en arrière.
+    if (leaveU >= 0) {
+      const payload = rocketParts.payload;
+      if (payload.parent !== scene) {
+        scene.attach(payload);
+        leave.begin(payload.position);
+        satStartQuat.copy(payload.quaternion);
+      }
+      const k = easeInOutCubic(progress(leaveU, LEAVE.orbitStart, LEAVE.orbitEnd));
+      const sat = leave.satellite(k, Math.max(0, leaveU - LEAVE.orbitStart));
+      payload.position.copy(sat.pos);
+      satQuat.setFromRotationMatrix(satBasis.makeBasis(SIDE, sat.up, c.crossVectors(SIDE, sat.up)));
+      payload.quaternion.slerpQuaternions(satStartQuat, satQuat, k);
+      rocket.visible = leaveU < LEAVE.orbitEnd;
+      if (!rocket.visible) trail.visible = false;
+      leave.tick(LEAVE.end - leaveU);
+      // Le soleil se place comme sur la page timeline, pour que le cadran y ait le même éclairage.
+      leave.sunPosition(sunTarget);
+      sun.position.lerpVectors(SUN_START, sunTarget, smoothstep(progress(leaveU, LEAVE.orbitEnd, LEAVE.diveEnd)));
+    }
+
     // 4. Caméra.
     placeCamera(t, clock);
 
@@ -334,19 +442,39 @@ export function createIntro({ canvas, overlay, onStart, onEnd }) {
     // Pendant la sortie, tout ce qui dépasse à droite de la coiffe est masqué ; à la fin, le halo du texte se libère.
     nameEl.style.clipPath = `inset(-60% ${-80 * progress(nameP, 0.85, 1)}px -60% -60%)`;
     hintEl.style.opacity = progress(t, T.end - 0.3, T.end + 0.4);
+    if (leaveU >= 0) {
+      const fade = 1 - progress(leaveU, 0, 0.4);
+      nameEl.style.opacity *= fade;
+      hintEl.style.opacity *= fade;
+    }
 
     // 7. Le menu se déploie depuis le satellite, qui flotte et se tourne vers l'entrée survolée.
     const turnTarget = nav.hovered < 0 ? 0 : (nav.hovered - (INTRO.nav.length - 1) / 2) * 0.35;
     satTurn = lerp(satTurn, turnTarget, 0.08);
     const settled = progress(t, T.nameEnd, T.end);
-    rocketParts.payload.rotation.z = -satTurn;
-    rocketParts.payload.rotation.x = Math.sin(clock * 0.9) * 0.08 * settled;
-    rocketParts.payload.position.y = PAYLOAD_Y + Math.sin(clock * 1.3) * 0.03 * settled;
+    if (leaveU < 0) {
+      rocketParts.payload.rotation.z = -satTurn;
+      rocketParts.payload.rotation.x = Math.sin(clock * 0.9) * 0.08 * settled;
+      rocketParts.payload.position.y = PAYLOAD_Y + Math.sin(clock * 1.3) * 0.03 * settled;
+    }
     rocketParts.payload.getWorldPosition(satPoint).project(camera);
     satAnchor.x = (satPoint.x * 0.5 + 0.5) * window.innerWidth;
     satAnchor.y = (-satPoint.y * 0.5 + 0.5) * window.innerHeight;
     navEl.style.visibility = t > T.navStart ? 'visible' : 'hidden';
-    nav.update(satAnchor, t - T.navStart, clock);
+    nav.update(
+      satAnchor,
+      t - T.navStart,
+      clock,
+      leaveU >= 0 ? { index: leaveIndex, p: progress(leaveU, 0, LEAVE.retract) } : null,
+    );
+
+    // Fin de la plongée : la planète s'efface autour de l'horloge, qui reste seule sur les étoiles comme sur la page timeline.
+    if (leaveU >= 0) {
+      fadePlanet(1 - smoothstep(progress(leaveU, LEAVE.diveEnd - 0.5, LEAVE.end - 0.1)));
+      headlight.intensity = 0.9 * smoothstep(progress(leaveU, LEAVE.orbitEnd, LEAVE.diveEnd));
+      headlight.position.copy(camera.position);
+      headlight.target.position.copy(camLook);
+    }
 
     renderer.render(scene, camera);
   }
@@ -362,12 +490,18 @@ export function createIntro({ canvas, overlay, onStart, onEnd }) {
   }
   let t = params.has('t') ? Number(params.get('t')) : alreadySeen || reducedMotion ? T.end + 0.5 : 0;
   const paused = params.has('pause');
+  // Outil de mise au point : ?leave=2 montre la transition vers la timeline à 2 s du clic.
+  if (params.has('leave')) {
+    t = T.end + 0.5;
+    startLeave(INTRO.nav.findIndex((item) => item.action === 'timeline'));
+    leaveU = Number(params.get('leave'));
+  }
   let boost = 0;
   let ended = false;
   let last = performance.now();
 
   const accelerate = () => {
-    if (!ended) boost = 6;
+    if (!ended || leaveU >= 0) boost = 6;
   };
   window.addEventListener('wheel', accelerate, { passive: true });
   window.addEventListener('touchmove', accelerate, { passive: true });
@@ -379,8 +513,14 @@ export function createIntro({ canvas, overlay, onStart, onEnd }) {
     const dt = Math.min(0.05, (now - last) / 1000);
     last = now;
     if (!paused) t += dt * (1 + boost);
+    if (leaveU >= 0 && !paused) leaveU += dt * (1 + boost * 0.4);
     boost = Math.max(0, boost - dt * 10);
     render(t, now / 1000);
+
+    if (leaveU >= LEAVE.end && !navigated) {
+      navigated = true;
+      window.location.href = './timeline.html?t=0';
+    }
 
     if (!ended && t >= T.end) {
       ended = true;
@@ -391,6 +531,8 @@ export function createIntro({ canvas, overlay, onStart, onEnd }) {
       }
       navEl.inert = false;
       onEnd();
+      // L'horloge de la timeline se prépare quand le navigateur est libre, pour ne pas ralentir l'intro.
+      (window.requestIdleCallback ?? setTimeout)(() => leave.buildClock());
     }
     requestAnimationFrame(frame);
   }

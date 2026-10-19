@@ -13,6 +13,12 @@ Tout le décor est posé sur une petite planète : le défilement, c'est la plan
 - `?t=7` démarre l'animation à 7 s, `?pause` la fige : pratique pour régler un plan.
 - Un bouton « Relancer l'animation » reste en bas à droite en développement (`npm run dev`). Pour l'avoir dans un build : `VITE_DEV_TOOLS=1 npm run build`.
 
+### Menu du satellite
+
+Une fois le nom sorti, le satellite déploie un menu de quatre entrées reliées à lui par des lignes (`INTRO.nav` dans `src/config.js`, `src/intro/nav.js`). Portfolio et Side projects font défiler la page jusqu'à leur section.
+
+Timeline lance une transition (`src/intro/leave.js`, rythme dans `LEAVE`) : le satellite quitte la fusée et se met en orbite, la planète tourne sous lui jusqu'à un continent qui porte le chronomètre de la timeline, puis la caméra plonge sur le cadran et la planète s'efface. Le dernier plan est le premier de `timeline.html`, qui s'ouvre alors (`?t=0`) sans coupure visible. Le chronomètre n'est construit qu'après l'intro, quand le navigateur est libre. `?leave=2&pause` montre la transition figée à 2 s du clic.
+
 Les titres et le nom se changent dans `src/config.js`, le rythme aussi (repères `T`). Les cadrages caméra sont dans `CAMERA_KEYS` et la trajectoire dans `CLIMB_LENGTH` et `CLIMB_TURN` (`src/intro/intro.js`).
 
 ## Prototype de la timeline

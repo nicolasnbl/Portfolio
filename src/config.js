@@ -7,11 +7,11 @@ export const INTRO = {
     { text: 'Le décollage', start: 6.0, end: 8.6 },
   ],
   scrollHint: 'Scroll pour découvrir',
-  // Menu relié au satellite. soon : entrée visible mais pas encore active.
+  // Menu relié au satellite. soon : entrée visible mais pas encore active ; action : animation avant de changer de page.
   nav: [
     { label: 'Portfolio', href: '#vision' },
     { label: 'Side projects', href: '#produit' },
-    { label: 'Timeline', soon: true },
+    { label: 'Timeline', action: 'timeline' },
     { label: 'Explorer le monde', soon: true },
   ],
 };
@@ -28,6 +28,15 @@ export const T = {
   nameEnd: 11.2,
   navStart: 11.0,
   end: 12.2,
+};
+
+// Transition vers la timeline, en secondes depuis le clic sur « Timeline ».
+export const LEAVE = {
+  retract: 0.6, // les autres lignes rentrent dans le satellite
+  orbitStart: 0.3, // le satellite quitte la fusée
+  orbitEnd: 2.4, // il est en orbite, la caméra derrière lui
+  diveEnd: 4.2, // la caméra est face au cadran
+  end: 4.6, // ouverture de la page timeline
 };
 
 // Timeline : étapes provisoires, sans contenu. kind : 'experience' ou 'formation'.

@@ -24,7 +24,10 @@ function surfaceDir(s, w = 0) {
 }
 
 function placeOnSurface(parent, obj, s, w = 0, lift = 0) {
-  const dir = surfaceDir(s, w);
+  placeAtDir(parent, obj, surfaceDir(s, w), lift);
+}
+
+function placeAtDir(parent, obj, dir, lift = 0) {
   obj.position.copy(dir).multiplyScalar(PLANET_RADIUS + lift);
   obj.quaternion.setFromUnitVectors(UP, dir);
   parent.add(obj);
@@ -33,7 +36,12 @@ function placeOnSurface(parent, obj, s, w = 0, lift = 0) {
 const flat = (color, extra = {}) =>
   new THREE.MeshStandardMaterial({ color, flatShading: true, roughness: 0.85, ...extra });
 
-function isLand(dir) {
+// continents : terres supplémentaires, chacune un disque aux bords irréguliers autour de `dir` (repère de la planète).
+function isLand(dir, continents) {
+  for (const { dir: center, radius } of continents) {
+    const edge = radius * (1 + 0.18 * Math.sin(dir.x * 9 + dir.z * 5) + 0.1 * Math.cos(dir.y * 13));
+    if (dir.angleTo(center) < edge) return true;
+  }
   const s = Math.atan2(dir.x, dir.y) * PLANET_RADIUS;
   const w = Math.asin(THREE.MathUtils.clamp(dir.z, -1, 1)) * PLANET_RADIUS;
 
@@ -52,7 +60,7 @@ function isLand(dir) {
   return n > 0.75;
 }
 
-function buildGlobe() {
+function buildGlobe(continents) {
   const geometry = new THREE.IcosahedronGeometry(PLANET_RADIUS, 36);
   const pos = geometry.attributes.position;
   const colors = new Float32Array(pos.count * 3);
@@ -66,7 +74,7 @@ function buildGlobe() {
     center.set(0, 0, 0);
     for (let k = 0; k < 3; k++) center.add(v.fromBufferAttribute(pos, i + k));
     center.normalize();
-    const palette = isLand(center) ? land : water;
+    const palette = isLand(center, continents) ? land : water;
     const color = palette[Math.floor(rand() * palette.length)];
     for (let k = 0; k < 3; k++) color.toArray(colors, (i + k) * 3);
   }
@@ -175,10 +183,12 @@ function buildSmoke(rand) {
   return smoke;
 }
 
-export function buildPlanet({ treeCount = 46 } = {}) {
+// clockDir : direction (repère de la planète) d'un continent boisé portant un emplacement pour l'horloge de la timeline.
+export function buildPlanet({ treeCount = 46, clockDir = null } = {}) {
   const rand = seededRandom(42);
   const planet = new THREE.Group();
-  planet.add(buildGlobe());
+  const continents = clockDir ? [{ dir: clockDir, radius: 0.3 }] : [];
+  planet.add(buildGlobe(continents));
 
   // Halo d'atmosphère, surtout visible une fois dans l'espace.
   const atmosphere = new THREE.Mesh(
@@ -201,7 +211,22 @@ export function buildPlanet({ treeCount = 46 } = {}) {
   smoke.position.y = 0.35;
   pad.add(smoke);
 
-  return { planet, pad, padTop: 0.3, smoke };
+  // Continent de l'horloge : quelques arbres en couronne autour de l'emplacement, laissé vide pour l'horloge.
+  let clockSite = null;
+  if (clockDir) {
+    clockSite = new THREE.Group();
+    placeAtDir(planet, clockSite, clockDir);
+    const side = new THREE.Vector3(1, 0, 0).cross(clockDir).normalize();
+    const q = new THREE.Quaternion();
+    for (let i = 0; i < 18; i++) {
+      const angle = (i / 18) * Math.PI * 2 + rand() * 0.3;
+      const dist = 0.19 + rand() * 0.08;
+      const dir = clockDir.clone().applyAxisAngle(side, dist).applyQuaternion(q.setFromAxisAngle(clockDir, angle));
+      placeAtDir(planet, buildTree(rand), dir);
+    }
+  }
+
+  return { planet, pad, padTop: 0.3, smoke, clockSite };
 }
 
 export function updateSmoke(smoke, p) {
