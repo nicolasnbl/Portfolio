@@ -33,7 +33,7 @@ export const T = {
 // Transition vers la timeline, en secondes depuis le clic sur « Timeline ».
 export const LEAVE = {
   retract: 0.6, // les autres lignes rentrent dans le satellite
-  orbitStart: 0.3, // le satellite quitte la fusée
+  orbitStart: 0.45, // le satellite s'est détaché de la fusée et part en orbite
   orbitEnd: 2.4, // il est en orbite, la caméra derrière lui
   diveEnd: 4.2, // la caméra est face au cadran
   end: 4.6, // ouverture de la page timeline

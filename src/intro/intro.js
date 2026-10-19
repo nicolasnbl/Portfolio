@@ -219,6 +219,14 @@ export function createIntro({ canvas, overlay, onStart, onEnd }) {
   const satPoint = new THREE.Vector3();
   const satAnchor = { x: 0, y: 0 };
   const satStartQuat = new THREE.Quaternion();
+  const satDetachQuat = new THREE.Quaternion();
+  const satSpin = new THREE.Quaternion();
+  const detachFrom = new THREE.Vector3();
+  const detachTo = new THREE.Vector3();
+  // Écart entre la caméra et le satellite au moment du clic : la caméra le garde tel quel en le suivant.
+  const followPos = new THREE.Vector3();
+  const followLook = new THREE.Vector3();
+  let followSet = false;
   const satQuat = new THREE.Quaternion();
   const satBasis = new THREE.Matrix4();
   let satTurn = 0;
@@ -295,7 +303,15 @@ export function createIntro({ canvas, overlay, onStart, onEnd }) {
 
     // Vers la timeline : du plan final à la poursuite du satellite, puis plongée sur le cadran.
     if (leaveU >= 0) {
-      const chase = smoothstep(progress(leaveU, LEAVE.orbitStart, LEAVE.orbitEnd - 0.3));
+      const satNow = rocketParts.payload.position;
+      if (!followSet) {
+        followPos.subVectors(camPos, detachFrom);
+        followLook.subVectors(camLook, detachFrom);
+        followSet = true;
+      }
+      camPos.addVectors(satNow, followPos);
+      camLook.addVectors(satNow, followLook);
+      const chase = smoothstep(progress(leaveU, LEAVE.orbitStart, LEAVE.orbitEnd - 0.5));
       const dive = smoothstep(progress(leaveU, LEAVE.orbitEnd - 0.3, LEAVE.diveEnd));
       leave.chaseView(viewFrom);
       leave.clockView(viewTo, portrait);
@@ -381,14 +397,23 @@ export function createIntro({ canvas, overlay, onStart, onEnd }) {
       const payload = rocketParts.payload;
       if (payload.parent !== scene) {
         scene.attach(payload);
-        leave.begin(payload.position);
+        detachFrom.copy(payload.position);
+        detachTo.copy(payload.position).addScaledVector(rocketDir, 0.6);
+        leave.begin(detachTo);
         satStartQuat.copy(payload.quaternion);
+        followSet = false;
       }
+      // Décrochage : le satellite se dégage de la coiffe dans l'axe de la fusée en pivotant un peu sur lui-même.
+      const detach = easeOutCubic(progress(leaveU, 0, LEAVE.orbitStart));
+      satDetachQuat.copy(satStartQuat).multiply(satSpin.setFromAxisAngle(UP, 0.7 * detach));
       const k = easeInOutCubic(progress(leaveU, LEAVE.orbitStart, LEAVE.orbitEnd));
-      const sat = leave.satellite(k, Math.max(0, leaveU - LEAVE.orbitStart));
-      payload.position.copy(sat.pos);
+      // Pendant la plongée, il s'écarte sur le côté pour laisser passer la caméra.
+      const away = smoothstep(progress(leaveU, LEAVE.orbitEnd - 0.3, LEAVE.diveEnd - 0.5));
+      const sat = leave.satellite(k, Math.max(0, leaveU - LEAVE.orbitStart), away);
+      if (leaveU < LEAVE.orbitStart) payload.position.lerpVectors(detachFrom, detachTo, detach);
+      else payload.position.copy(sat.pos);
       satQuat.setFromRotationMatrix(satBasis.makeBasis(SIDE, sat.up, c.crossVectors(SIDE, sat.up)));
-      payload.quaternion.slerpQuaternions(satStartQuat, satQuat, k);
+      payload.quaternion.slerpQuaternions(satDetachQuat, satQuat, k);
       rocket.visible = leaveU < LEAVE.orbitEnd;
       if (!rocket.visible) trail.visible = false;
       leave.tick(LEAVE.end - leaveU);

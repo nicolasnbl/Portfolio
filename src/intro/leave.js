@@ -53,6 +53,7 @@ export function createLeave({ clockSite }) {
   const start = new THREE.Vector3();
   const qTurn = new THREE.Quaternion();
   const satPos = new THREE.Vector3();
+  const satBase = new THREE.Vector3(); // position sur l'orbite, sans l'écart de fin : la caméra suit celle-ci
   const satFwd = new THREE.Vector3();
   const satUp = new THREE.Vector3();
   let startAngle = 0;
@@ -82,20 +83,22 @@ export function createLeave({ clockSite }) {
     },
 
     // Satellite : trajectoire de mise en orbite (k de 0 à 1), puis il continue doucement sa course (drift, en secondes).
-    satellite(k, drift) {
+    // away (0 à 1) : il s'écarte sur le côté et prend de l'altitude.
+    satellite(k, drift, away = 0) {
       const angle = THREE.MathUtils.lerp(startAngle, SAT_ANGLE, k) - drift * 0.05;
       const r = THREE.MathUtils.lerp(startRadius, ORBIT_RADIUS, k);
-      satPos.copy(radial(angle, a)).multiplyScalar(r);
-      satPos.x = THREE.MathUtils.lerp(start.x, 0, k);
+      satBase.copy(radial(angle, a)).multiplyScalar(r);
+      satBase.x = THREE.MathUtils.lerp(start.x, 0, k);
       forward(angle, satFwd);
       radial(angle, satUp);
+      satPos.copy(satBase).addScaledVector(X, away * 5).addScaledVector(satUp, away * 2.5);
       return { pos: satPos, fwd: satFwd, up: satUp };
     },
 
     // Caméra derrière le satellite, un peu au-dessus, le regard vers l'horizon où l'horloge va apparaître.
     chaseView(out) {
-      out.pos.copy(satPos).addScaledVector(satFwd, -2.2).addScaledVector(satUp, 0.7);
-      out.look.copy(satPos).addScaledVector(satFwd, 8).addScaledVector(satUp, -2.2);
+      out.pos.copy(satBase).addScaledVector(satFwd, -2.2).addScaledVector(satUp, 0.7);
+      out.look.copy(satBase).addScaledVector(satFwd, 8).addScaledVector(satUp, -2.2);
       out.up.copy(satUp);
       out.fov = 50;
     },
