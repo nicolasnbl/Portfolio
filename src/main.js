@@ -28,7 +28,10 @@ const overlay = document.querySelector('.intro-overlay');
 window.addEventListener(
   'scroll',
   () => {
-    overlay.style.opacity = Math.max(0, 1 - window.scrollY / (window.innerHeight * 0.6));
+    const opacity = Math.max(0, 1 - window.scrollY / (window.innerHeight * 0.6));
+    overlay.style.opacity = opacity;
+    // Une fois effacé, le menu ne doit plus capter les clics.
+    overlay.style.visibility = opacity > 0.05 ? '' : 'hidden';
   },
   { passive: true },
 );

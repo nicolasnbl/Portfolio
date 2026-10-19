@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { INTRO, T } from '../config.js';
 import { PATH, PLANET_RADIUS, buildPlanet, updateSmoke } from './planet.js';
+import { createNav } from './nav.js';
 import { FAIRING_CENTER, buildRocket, setFairingOpen, setThrust } from './rocket.js';
 import { clamp01, easeInOutCubic, easeOutCubic, lerp, progress, seededRandom, smoothstep } from './math.js';
 
@@ -106,6 +107,7 @@ export function createIntro({ canvas, overlay, onStart, onEnd }) {
 
   const rocketParts = buildRocket();
   const { rocket } = rocketParts;
+  const PAYLOAD_Y = rocketParts.payload.position.y;
   rocket.position.y = padTop;
   pad.add(rocket);
   let rocketDetached = false;
@@ -121,6 +123,8 @@ export function createIntro({ canvas, overlay, onStart, onEnd }) {
   const nameEl = overlay.querySelector('.intro-name');
   const nameSlide = nameEl.querySelector('.intro-name-slide');
   const hintEl = overlay.querySelector('.intro-hint');
+  const navEl = overlay.querySelector('.intro-nav');
+  const nav = createNav(navEl, INTRO.nav);
 
   const launchRadius = PLANET_RADIUS + padTop;
   const UP = new THREE.Vector3(0, 1, 0);
@@ -152,6 +156,9 @@ export function createIntro({ canvas, overlay, onStart, onEnd }) {
   const camLook = new THREE.Vector3();
   const camUp = new THREE.Vector3();
   const namePoint = new THREE.Vector3();
+  const satPoint = new THREE.Vector3();
+  const satAnchor = { x: 0, y: 0 };
+  let satTurn = 0;
   const puff = new THREE.Object3D();
   const makeView = () => ({
     pos: new THREE.Vector3(),
@@ -315,6 +322,19 @@ export function createIntro({ canvas, overlay, onStart, onEnd }) {
     nameEl.style.clipPath = `inset(-60% ${-80 * progress(nameP, 0.85, 1)}px -60% -60%)`;
     hintEl.style.opacity = progress(t, T.end - 0.3, T.end + 0.4);
 
+    // 7. Le menu se déploie depuis le satellite, qui flotte et se tourne vers l'entrée survolée.
+    const turnTarget = nav.hovered < 0 ? 0 : (nav.hovered - (INTRO.nav.length - 1) / 2) * 0.35;
+    satTurn = lerp(satTurn, turnTarget, 0.08);
+    const settled = progress(t, T.nameEnd, T.end);
+    rocketParts.payload.rotation.z = -satTurn;
+    rocketParts.payload.rotation.x = Math.sin(clock * 0.9) * 0.08 * settled;
+    rocketParts.payload.position.y = PAYLOAD_Y + Math.sin(clock * 1.3) * 0.03 * settled;
+    rocketParts.payload.getWorldPosition(satPoint).project(camera);
+    satAnchor.x = (satPoint.x * 0.5 + 0.5) * window.innerWidth;
+    satAnchor.y = (-satPoint.y * 0.5 + 0.5) * window.innerHeight;
+    navEl.style.visibility = t > T.navStart ? 'visible' : 'hidden';
+    nav.update(satAnchor, t - T.navStart, clock);
+
     renderer.render(scene, camera);
   }
 
@@ -356,6 +376,7 @@ export function createIntro({ canvas, overlay, onStart, onEnd }) {
       } catch {
         // Rien à faire : l'intro sera simplement rejouée.
       }
+      navEl.inert = false;
       onEnd();
     }
     requestAnimationFrame(frame);
@@ -372,6 +393,7 @@ export function createIntro({ canvas, overlay, onStart, onEnd }) {
       t = 0;
       ended = false;
       boost = 0;
+      navEl.inert = true;
       onStart();
     },
   };
