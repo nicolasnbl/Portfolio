@@ -14,15 +14,19 @@ const TAN = Math.tan(THREE.MathUtils.degToRad(FOV / 2));
 const ATMOSPHERE = PLANET_RADIUS * 1.08;
 // Vue d'ensemble : part de la demi-hauteur de l'écran occupée par la planète (écran large), ou de la demi-largeur
 // (écran vertical), et place de son centre à l'écran, en coordonnées normalisées. Elle laisse la droite au satellite.
-const FIT_LANDSCAPE = { size: 0.6, x: -0.2, y: -0.05 };
-const FIT_PORTRAIT = { size: 0.8, x: 0, y: -0.12 };
+const FIT_LANDSCAPE = { size: 0.74, x: -0.16, y: -0.04 };
+const FIT_PORTRAIT = { size: 0.9, x: 0, y: -0.1 };
 // Élément ciblé : sa place à l'écran, à gauche de la fiche (écran large) ou au-dessus d'elle (écran vertical).
 const FOCUS_LANDSCAPE = { x: -0.3, y: -0.05 };
 const FOCUS_PORTRAIT = { x: 0, y: 0.18 };
 // L'élément ciblé monte un peu au-dessus du centre de l'image, d'autant plus que la caméra est loin : on le voit
 // toujours de biais, à 40° environ de la verticale, avec l'horizon derrière lui.
 const FOCUS_TILT = 0.02; // radians par unité de distance
-const DRAG_SPEED = 0.005; // radians par pixel
+const DRAG_SPEED = 0.005; // radians par pixel, en vue d'ensemble ; plus lent quand on a zoomé
+// Zoom (molette ou pincement) : de la vue d'ensemble (0) jusqu'à cette altitude au-dessus du sol (1).
+const ZOOM_CLOSEST = 16;
+const WHEEL_SPEED = 0.0012; // par pixel de défilement
+const PINCH_SPEED = 0.004; // par pixel d'écart entre les deux doigts
 const IDLE_SPIN = 0.06; // rotation lente quand on ne touche à rien, en radians par seconde
 
 // Distance de la caméra au sol quand on cible un élément, selon sa taille.
@@ -42,6 +46,7 @@ export function createExplore({ planet, globe, elements, camera, canvas, ui, fra
   const c = new THREE.Vector3();
   const d = new THREE.Vector3();
   const cross = new THREE.Vector3();
+  const c2 = new THREE.Quaternion();
   const raycaster = new THREE.Raycaster();
   const pointer = new THREE.Vector2();
   let active = false;
@@ -51,6 +56,10 @@ export function createExplore({ planet, globe, elements, camera, canvas, ui, fra
   let pointerMoved = false;
   let lastMove = 0;
   let lastKey = null; // dernier élément ciblé, pour que la caméra recule depuis lui
+  let zoom = 0;
+  let zoomTarget = 0;
+  const pointers = new Map(); // doigts posés, pour le pincement
+  let pinch = 0; // écart entre les deux doigts au dernier mouvement
 
   // Approche d'un élément : rotation de la planète de `from` à `to`, et focus de 0 (vue d'ensemble) à 1.
   let focused = null;
@@ -205,9 +214,58 @@ export function createExplore({ planet, globe, elements, camera, canvas, ui, fra
     cardEl.classList.remove('is-open');
   }
 
-  // Glisser fait tourner la planète ; un clic sans glisser vise un élément.
+  // Vue d'ensemble : distance de la caméra au centre de la planète, sans zoom.
+  function farDistance() {
+    const portrait = camera.aspect < 1;
+    const fit = portrait ? FIT_PORTRAIT : FIT_LANDSCAPE;
+    return ATMOSPHERE / (TAN * fit.size * (portrait ? camera.aspect : 1));
+  }
+
+  // Zoomer en arrière depuis un élément ciblé ramène à la vue d'ensemble. En avant, la planète tourne un peu pour
+  // amener vers le milieu de l'écran le point visé par le pointeur.
+  function zoomBy(amount, clientX, clientY) {
+    if (focused) {
+      if (amount < 0) unfocus();
+      return;
+    }
+    const before = zoomTarget;
+    zoomTarget = Math.min(1, Math.max(0, zoomTarget + amount));
+    const step = zoomTarget - before;
+    if (step <= 0) return;
+    pointer.set((clientX / window.innerWidth) * 2 - 1, -(clientY / window.innerHeight) * 2 + 1);
+    raycaster.setFromCamera(pointer, camera);
+    const hit = raycaster.intersectObject(globe, false)[0];
+    if (!hit) return;
+    q.setFromUnitVectors(a.copy(hit.point).normalize(), FRAME_DIR);
+    user.premultiply(c2.identity().slerp(q, Math.min(1, step * 1.4)));
+  }
+
+  canvas.addEventListener(
+    'wheel',
+    (e) => {
+      if (!active) return;
+      e.preventDefault();
+      zoomBy(-e.deltaY * (e.deltaMode === 1 ? 16 : 1) * WHEEL_SPEED, e.clientX, e.clientY);
+    },
+    { passive: false },
+  );
+
+  const pinchGap = () => {
+    const [p, q2] = [...pointers.values()];
+    return Math.hypot(p.x - q2.x, p.y - q2.y);
+  };
+
+  // Glisser fait tourner la planète ; un clic sans glisser vise un élément ; deux doigts zooment.
   canvas.addEventListener('pointerdown', (e) => {
     if (!active) return;
+    pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    canvas.setPointerCapture(e.pointerId);
+    if (pointers.size === 2) {
+      drag = null;
+      pinch = pinchGap();
+      return;
+    }
+    if (pointers.size > 2) return;
     drag = { x: e.clientX, y: e.clientY, t: performance.now() };
     pointerMoved = false;
     canvas.setPointerCapture(e.pointerId);
@@ -215,6 +273,14 @@ export function createExplore({ planet, globe, elements, camera, canvas, ui, fra
   });
   canvas.addEventListener('pointermove', (e) => {
     if (!active) return;
+    if (pointers.has(e.pointerId)) pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pointers.size === 2) {
+      const gap = pinchGap();
+      const [p, p2] = [...pointers.values()];
+      zoomBy((gap - pinch) * PINCH_SPEED, (p.x + p2.x) / 2, (p.y + p2.y) / 2);
+      pinch = gap;
+      return;
+    }
     if (drag) {
       const dx = e.clientX - drag.x;
       const dy = e.clientY - drag.y;
@@ -224,8 +290,9 @@ export function createExplore({ planet, globe, elements, camera, canvas, ui, fra
         if (focused) unfocus();
         const now = performance.now();
         const dt = Math.max(1, now - drag.t) / 1000;
-        rotate(dx * DRAG_SPEED, dy * DRAG_SPEED);
-        velocity = { x: (dx * DRAG_SPEED) / dt, y: (dy * DRAG_SPEED) / dt };
+        const speed = DRAG_SPEED * dragScale();
+        rotate(dx * speed, dy * speed);
+        velocity = { x: (dx * speed) / dt, y: (dy * speed) / dt };
         drag = { x: e.clientX, y: e.clientY, t: now };
         lastMove = now;
       }
@@ -233,7 +300,12 @@ export function createExplore({ planet, globe, elements, camera, canvas, ui, fra
     }
     if (e.pointerType === 'mouse') setHovered(pick(e.clientX, e.clientY));
   });
+  const release = (e) => {
+    pointers.delete(e.pointerId);
+  };
+  canvas.addEventListener('pointercancel', release);
   canvas.addEventListener('pointerup', (e) => {
+    release(e);
     if (!active || !drag) return;
     const wasDrag = pointerMoved;
     drag = null;
@@ -250,6 +322,12 @@ export function createExplore({ planet, globe, elements, camera, canvas, ui, fra
     if (focused) unfocus();
     else onBack();
   });
+
+  // De près, le sol défile sous le doigt à la même vitesse qu'en vue d'ensemble.
+  function dragScale() {
+    const far = farDistance() - PLANET_RADIUS;
+    return (lerp(far, ZOOM_CLOSEST, zoom) / far) ** 0.9;
+  }
 
   function rotate(yaw, pitch) {
     user.premultiply(q.setFromAxisAngle(FRAME_UP, yaw));
@@ -282,7 +360,7 @@ export function createExplore({ planet, globe, elements, camera, canvas, ui, fra
     update(dt, time) {
       if (!active) return;
       if (!drag && !focused) {
-        rotate((velocity.x + IDLE_SPIN) * dt, velocity.y * dt);
+        rotate((velocity.x + IDLE_SPIN * dragScale()) * dt, velocity.y * dt);
         const damping = Math.exp(-dt * 2.5);
         velocity = { x: velocity.x * damping, y: velocity.y * damping };
       }
@@ -291,6 +369,7 @@ export function createExplore({ planet, globe, elements, camera, canvas, ui, fra
         user.slerpQuaternions(focusFrom, focusTo, easeInOutCubic(focusTurn));
       }
       focus += (focusTarget - focus) * (1 - Math.exp(-dt / (EXPLORE_T.focus / 4)));
+      zoom += (zoomTarget - zoom) * (1 - Math.exp(-dt * 8));
       // Seul l'élément survolé s'éclaire : celui qu'on regarde de près n'en a pas besoin.
       if (hovered && hovered !== focused) glow(hovered, 0.22 + 0.08 * Math.sin(time * 4));
     },
@@ -300,7 +379,8 @@ export function createExplore({ planet, globe, elements, camera, canvas, ui, fra
       const aspect = camera.aspect;
       const portrait = aspect < 1;
       const fit = portrait ? FIT_PORTRAIT : FIT_LANDSCAPE;
-      const far = ATMOSPHERE / (TAN * fit.size * (portrait ? aspect : 1));
+      // Le zoom rapproche la caméra du sol ; la planète revient alors au milieu de l'écran.
+      const far = lerp(farDistance(), PLANET_RADIUS + ZOOM_CLOSEST, zoom);
       const near = PLANET_RADIUS + focusDist(focused?.key ?? lastKey);
       const k = easeInOutCubic(Math.min(1, focus));
       const dist = lerp(far, near, k);
@@ -313,8 +393,8 @@ export function createExplore({ planet, globe, elements, camera, canvas, ui, fra
       if (focused) lastKey = focused.key;
       // Regarder à côté du sujet le décale à l'écran du côté opposé.
       const spot = portrait ? FOCUS_PORTRAIT : FOCUS_LANDSCAPE;
-      const x = lerp(fit.x, spot.x, k);
-      const y = lerp(fit.y, spot.y, k);
+      const x = lerp(fit.x * (1 - zoom), spot.x, k);
+      const y = lerp(fit.y * (1 - zoom), spot.y, k);
       const range = out.pos.distanceTo(out.look) * TAN;
       out.look.addScaledVector(FRAME_RIGHT, -x * range * aspect).addScaledVector(FRAME_UP, -y * range);
       out.up.copy(FRAME_UP);

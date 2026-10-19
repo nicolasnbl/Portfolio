@@ -6,8 +6,8 @@ import * as THREE from 'three';
 
 export const COMPANION_FOV = 45;
 // Place à l'écran, en coordonnées normalisées (-1 à 1, y vers le haut), et distance à la caméra.
-const LANDSCAPE = { x: 0.56, y: 0.36, distance: 3.2 };
-const PORTRAIT = { x: 0.3, y: 0.62, distance: 4.4 };
+const LANDSCAPE = { x: 0.62, y: 0.5, distance: 5.2 };
+const PORTRAIT = { x: 0.42, y: 0.7, distance: 7 };
 
 // Position du satellite dans le repère de la caméra.
 export function companionLocal(aspect, out = new THREE.Vector3()) {

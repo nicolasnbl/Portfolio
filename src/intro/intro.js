@@ -13,8 +13,8 @@ const CLIMB_TURN = THREE.MathUtils.degToRad(20); // inclinaison en fin de monté
 
 // Départ vers la page Explorer : de combien le satellite s'éloigne de la fusée, et l'écart à atteindre entre le regard
 // et la direction de la planète pour qu'elle sorte du cadre.
-const DEPART_EJECT = 5;
-const DEPART_AWAY = THREE.MathUtils.degToRad(100);
+const DEPART_EJECT = 8;
+const DEPART_AWAY = THREE.MathUtils.degToRad(108);
 
 const SKY = new THREE.Color('#bfe6ff');
 const SPACE = new THREE.Color('#05060f');

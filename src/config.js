@@ -34,7 +34,7 @@ export const T = {
 // page : true pour une page pas encore faite, ou l'adresse de la page. Sans page, l'élément n'a que sa fiche.
 // Les textes sont provisoires.
 export const EXPLORE = {
-  hint: 'Glisse pour faire tourner la planète, clique sur ce qui t’intrigue',
+  hint: 'Glisse pour faire tourner la planète, zoome, clique sur ce qui t’intrigue',
   back: 'Retour',
   pageLink: 'Voir la page',
   pageSoon: 'Page à venir',

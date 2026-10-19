@@ -521,7 +521,7 @@ body.explore-body {
 /* Fiche de l'élément ciblé : à droite sous le satellite sur grand écran, en bas sur écran vertical. */
 .explore-card {
   position: absolute;
-  top: 47%;
+  top: 38%;
   right: max(5vw, 24px);
   width: min(360px, 34vw);
   padding: 1.6rem 1.6rem 1.4rem;
