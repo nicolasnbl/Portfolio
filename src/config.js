@@ -12,7 +12,7 @@ export const INTRO = {
     { label: 'Portfolio', href: '#vision' },
     { label: 'Side projects', href: '#produit' },
     { label: 'Timeline', action: 'timeline' },
-    { label: 'Explorer le monde', soon: true },
+    { label: 'Explorer le monde', action: 'explore' },
   ],
 };
 
@@ -28,6 +28,52 @@ export const T = {
   nameEnd: 11.2,
   navStart: 11.0,
   end: 12.2,
+};
+
+// Mode « Explorer le monde » : la planète au centre, que l'on fait tourner, et ses éléments à cliquer.
+// page : true pour une page pas encore faite, ou l'adresse de la page. Sans page, l'élément n'a que sa fiche.
+// Les textes sont provisoires.
+export const EXPLORE = {
+  hint: 'Glisse pour faire tourner la planète, clique sur ce qui t’intrigue',
+  back: 'Retour',
+  pageLink: 'Voir la page',
+  pageSoon: 'Page à venir',
+  elements: {
+    solar: {
+      title: 'La centrale solaire',
+      text: 'Texte provisoire : là où tout commence. Une page dédiée racontera ce projet.',
+      page: true,
+    },
+    forest: {
+      title: 'La forêt',
+      text: 'Texte provisoire : quelques lignes sur ce que cette forêt représente.',
+    },
+    pad: {
+      title: 'Le pas de tir',
+      text: 'Texte provisoire : le point de départ des projets. Une page dédiée arrive.',
+      page: true,
+    },
+    clock: {
+      title: 'Le chronomètre',
+      text: 'Mon parcours, étape par étape.',
+      page: './timeline.html',
+    },
+    house: {
+      title: 'La maison solaire',
+      text: 'Texte provisoire : une maison qui produit sa propre énergie.',
+    },
+    field: {
+      title: 'Le champ photovoltaïque',
+      text: 'Texte provisoire : quelques lignes sur ce champ de panneaux.',
+    },
+  },
+};
+
+// Entrée et sortie du mode Explorer, en secondes.
+export const EXPLORE_T = {
+  enter: 2.0, // du clic à la planète au centre
+  back: 1.6, // du clic sur Retour au plan final de l'intro
+  focus: 1.1, // approche d'un élément
 };
 
 // Transition vers la timeline, en secondes depuis le clic sur « Timeline ».

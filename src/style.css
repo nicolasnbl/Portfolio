@@ -429,3 +429,186 @@ footer {
 .intro-nav.is-portrait .intro-nav-item[data-soon]::after {
   display: none;
 }
+
+/* Explorer le monde : interface par-dessus la planète. */
+body.is-exploring .content {
+  visibility: hidden;
+}
+
+.explore-ui {
+  position: fixed;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.5s, visibility 0s 0.5s;
+}
+
+.explore-ui.is-active {
+  opacity: 1;
+  visibility: visible;
+  transition: opacity 0.5s;
+}
+
+.explore-ui button,
+.explore-ui a {
+  font: inherit;
+}
+
+.explore-back {
+  position: absolute;
+  top: max(20px, env(safe-area-inset-top, 0px));
+  left: max(20px, env(safe-area-inset-left, 0px));
+  pointer-events: auto;
+  color: var(--text);
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0.55rem 1.1rem;
+  font-size: 0.95rem;
+  cursor: pointer;
+  backdrop-filter: blur(8px);
+  transition: border-color 0.3s, color 0.3s;
+}
+
+.explore-back:hover,
+.explore-back:focus-visible {
+  color: var(--signal, #ffd89a);
+  border-color: rgba(255, 216, 154, 0.5);
+}
+
+.explore-hint {
+  position: absolute;
+  left: 50%;
+  bottom: max(28px, env(safe-area-inset-bottom, 0px));
+  margin: 0;
+  width: max-content;
+  max-width: calc(100vw - 32px);
+  transform: translateX(-50%);
+  text-align: center;
+  font-size: 0.9rem;
+  color: var(--muted);
+  text-shadow: 0 1px 10px rgba(0, 0, 0, 0.9);
+  transition: opacity 0.4s;
+}
+
+.explore-hint.is-hidden {
+  opacity: 0;
+}
+
+/* Nom de l'élément survolé, juste au-dessus de lui. */
+.explore-label {
+  position: absolute;
+  margin: 0;
+  transform: translate(-50%, calc(-100% - 18px));
+  white-space: nowrap;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--signal, #ffd89a);
+  background: var(--panel);
+  border: 1px solid rgba(255, 216, 154, 0.35);
+  border-radius: 999px;
+  padding: 0.3rem 0.8rem;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.explore-label.is-visible {
+  opacity: 1;
+}
+
+/* Fiche de l'élément ciblé : à droite sur grand écran, en bas sur écran vertical. */
+.explore-card {
+  position: absolute;
+  top: 50%;
+  right: max(5vw, 24px);
+  width: min(360px, 34vw);
+  padding: 1.6rem 1.6rem 1.4rem;
+  pointer-events: auto;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
+  opacity: 0;
+  visibility: hidden;
+  transform: translate(16px, -50%);
+  transition: opacity 0.4s, transform 0.4s, visibility 0s 0.4s;
+}
+
+.explore-card.is-open {
+  opacity: 1;
+  visibility: visible;
+  transform: translate(0, -50%);
+  transition: opacity 0.4s 0.35s, transform 0.4s 0.35s;
+}
+
+.explore-card h2 {
+  margin: 0 2rem 0.6rem 0;
+  font-size: 1.4rem;
+  letter-spacing: -0.01em;
+}
+
+.explore-text {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.explore-close {
+  position: absolute;
+  top: 0.9rem;
+  right: 0.9rem;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text);
+  font-size: 1.2rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.explore-close:hover,
+.explore-close:focus-visible {
+  border-color: rgba(255, 216, 154, 0.5);
+}
+
+.explore-page {
+  display: inline-block;
+  margin-top: 1.2rem;
+  color: #05060f;
+  background: var(--accent);
+  border-radius: 999px;
+  padding: 0.55rem 1.1rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.explore-page[hidden] {
+  display: none;
+}
+
+.explore-page.is-soon {
+  color: var(--muted);
+  background: transparent;
+  border: 1px solid var(--border);
+  cursor: default;
+}
+
+@media (max-aspect-ratio: 1/1) {
+  .explore-card {
+    top: auto;
+    right: 16px;
+    left: 16px;
+    bottom: max(16px, env(safe-area-inset-bottom, 0px));
+    width: auto;
+    transform: translateY(16px);
+  }
+
+  .explore-card.is-open {
+    transform: none;
+  }
+}

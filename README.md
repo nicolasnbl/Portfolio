@@ -19,6 +19,8 @@ Une fois le nom sorti, le satellite déploie un menu de quatre entrées reliées
 
 Timeline lance une transition (`src/intro/leave.js`, rythme dans `LEAVE`) : le satellite quitte la fusée et se met en orbite, la planète tourne sous lui jusqu'à un continent qui porte le chronomètre de la timeline, puis la caméra plonge sur le cadran et la planète s'efface. Le dernier plan est le premier de `timeline.html`, qui s'ouvre alors (`?t=0`) sans coupure visible. Le chronomètre n'est construit qu'après l'intro, quand le navigateur est libre. `?leave=2&pause` montre la transition figée à 2 s du clic.
 
+Explorer le monde (`src/intro/explore.js`, textes et rythme dans `EXPLORE` et `EXPLORE_T`) : le satellite quitte la fusée, la planète vient au centre de l'écran et bascule vers nous. On la fait tourner en la glissant ; au survol, un élément s'éclaire et affiche son nom ; un clic l'amène devant la caméra avec sa fiche (centrale solaire, forêt, pas de tir, chronomètre, maison solaire, champ photovoltaïque). Une fiche peut mener à une page (`page` : un lien, ou `true` pour « Page à venir »). Retour ou Échap ramène au plan final de l'intro. `?explore=1&pause` montre l'arrivée figée à 1 s du clic, `?explore=9` ouvre directement le mode.
+
 Les titres et le nom se changent dans `src/config.js`, le rythme aussi (repères `T`). Les cadrages caméra sont dans `CAMERA_KEYS` et la trajectoire dans `CLIMB_LENGTH` et `CLIMB_TURN` (`src/intro/intro.js`).
 
 ## Prototype de la timeline
