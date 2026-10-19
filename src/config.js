@@ -22,3 +22,25 @@ export const T = {
   nameEnd: 11.2,
   end: 11.6,
 };
+
+// Timeline : étapes provisoires, sans contenu. kind : 'experience' ou 'formation'.
+export const TIMELINE = {
+  entries: [
+    { kind: 'formation' },
+    { kind: 'formation' },
+    { kind: 'experience' },
+    { kind: 'experience' },
+    { kind: 'experience' },
+  ],
+  stepAngle: 30, // écart entre deux étapes sur le cadran, en degrés (30 = une heure)
+};
+
+// Repères temporels de l'animation de la timeline, en secondes. spinStart doit tomber sur une seconde ronde :
+// la trotteuse bat les secondes jusque-là et arrive sur le 12 à cet instant.
+export const TL = {
+  zoomStart: 1.4,
+  zoomEnd: 3.0,
+  spinStart: 3,
+  followAt: 4.6,
+  end: 6.8,
+};

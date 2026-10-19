@@ -50,7 +50,7 @@ const CAMERA_KEYS = [
   },
 ];
 
-function buildStars() {
+export function buildStars() {
   const rand = seededRandom(3);
   const count = 1600;
   const positions = new Float32Array(count * 3);

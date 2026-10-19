@@ -233,6 +233,17 @@ footer {
   color: var(--accent);
 }
 
+.section-link {
+  color: var(--accent);
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.section-link:hover,
+.section-link:focus-visible {
+  text-decoration: underline;
+}
+
 .dev-replay {
   position: fixed;
   right: max(16px, env(safe-area-inset-right, 0px));

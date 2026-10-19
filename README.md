@@ -15,6 +15,14 @@ Tout le décor est posé sur une petite planète : le défilement, c'est la plan
 
 Les titres et le nom se changent dans `src/config.js`, le rythme aussi (repères `T`). Les cadrages caméra sont dans `CAMERA_KEYS` et la trajectoire dans `CLIMB_LENGTH` et `CLIMB_TURN` (`src/intro/intro.js`).
 
+## Prototype de la timeline
+
+Une page à part (`timeline.html`), en formes simples et sans contenu réel pour juger du rendu. On arrive face à un chronomètre ; la caméra zoome jusqu'au cadran, bascule au ras du sol et suit la trotteuse qui accélère, les chiffres du cadran défilant en dessous. Elle s'arrête face à la trotteuse, épaisse, dont la face porte la carte de l'étape (logo, intitulé, rôle, dates, réalisations chiffrées).
+
+Ensuite, chaque passage d'une étape à la suivante (scroll, flèches, swipe ou boutons en bas) fait avancer la trotteuse d'une heure : la caméra reste attachée à elle, c'est le cadran qui tourne. Un arc orange sur le bord et un repère par étape montrent la progression.
+
+Les étapes (pour l'instant juste leur type, expérience ou formation), l'écart entre deux étapes et le rythme sont dans `src/config.js` (`TIMELINE`, `TL`). Les cadrages caméra sont dans `CAMERA_KEYS` et `finalKey` (`src/timeline/timeline.js`), la carte provisoire dans `src/timeline/card.js`. `?t=` et `?pause` marchent comme pour l'intro.
+
 ## Lancer le projet
 
 ```bash
