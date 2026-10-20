@@ -2,25 +2,28 @@ import * as THREE from 'three';
 import { TIMELINE, TL } from '../config.js';
 import { buildStars } from '../intro/intro.js';
 import { easeInOutCubic, easeOutCubic, lerp, progress, smoothstep } from '../intro/math.js';
-import { CARD, buildClock } from './clock.js';
+import { CARD, DIRECTION, ENTRY_ANGLES, OPENING_VIEW as O, buildClock } from './clock.js';
 import { buildCard } from './card.js';
 
 const TAU = Math.PI * 2;
-const STEP_ANGLE = THREE.MathUtils.degToRad(TIMELINE.stepAngle);
 const STEP_DURATION = 0.9; // secondes pour passer d'une étape à l'autre
 
 // Angle de la trotteuse, compté dans le sens horaire depuis le 12. Avant la course, elle bat les secondes et
-// arrive sur le 12 pile au début de la course ; pendant la course, elle fait SPIN_TURNS tours en accélérant
-// puis en ralentissant, et s'arrête sur la première étape.
+// arrive sur le 12 pile au début de la course ; pendant la course, elle fait SPIN_TURNS tours à rebours (dans le
+// sens des étapes) en accélérant puis en ralentissant, et s'arrête sur la première étape.
 const SPIN_TURNS = 1;
 const TICK = TAU / 60;
+// À chaque étape, la trotteuse s'arrête un peu avant le chiffre, pour le laisser bien visible devant elle,
+// du côté de la caméra.
+const NUMBER_CLEARANCE = THREE.MathUtils.degToRad(6.5);
+const REST = DIRECTION * SPIN_TURNS * TAU - NUMBER_CLEARANCE; // angle de la trotteuse sur la première étape
 function introHandAngle(t) {
   if (t < TL.spinStart) {
     const n = Math.floor(t);
     const tick = easeOutCubic(Math.min(1, (t - n) / 0.12));
     return -TICK * (TL.spinStart - n + 1 - tick);
   }
-  return SPIN_TURNS * TAU * easeInOutCubic(progress(t, TL.spinStart, TL.end));
+  return REST * easeInOutCubic(progress(t, TL.spinStart, TL.end));
 }
 
 // Cadrages de la caméra.
@@ -29,12 +32,28 @@ function introHandAngle(t) {
 // Le dernier cadrage, face à la carte, est calculé selon l'écran (finalKey).
 const CAMERA_KEYS = [
   // Face à l'horloge.
-  { t: 0, space: 'world', pos: [0, 38, 0.01], look: [0, 0, -0.6], up: [0, 0, -1], fov: 40, portrait: { pos: [0, 62, 0.01] } },
-  { t: TL.zoomStart, space: 'world', pos: [0, 35, 0.01], look: [0, 0, -0.6], up: [0, 0, -1], fov: 40, portrait: { pos: [0, 58, 0.01] } },
-  // Zoom jusqu'au cadran, au-dessus de la trotteuse arrêtée sur le 12.
-  { t: TL.zoomEnd, space: 'world', pos: [1.2, 7.5, -5], look: [0, 0.6, -5.2], up: [0, 0, -1], fov: 46 },
+  {
+    t: 0,
+    space: 'world',
+    pos: [0, O.height, 0.01],
+    look: [0, 0, O.lookZ],
+    up: [0, 0, -1],
+    fov: 40,
+    portrait: { pos: [0, O.portraitHeight, 0.01] },
+  },
+  {
+    t: TL.zoomStart,
+    space: 'world',
+    pos: [0, O.height * 0.92, 0.01],
+    look: [0, 0, O.lookZ],
+    up: [0, 0, -1],
+    fov: 40,
+    portrait: { pos: [0, O.portraitHeight * 0.92, 0.01] },
+  },
+  // Zoom jusqu'au cadran, au-dessus de la trotteuse arrêtée sur le 12, là où passera la carte.
+  { t: TL.zoomEnd, space: 'world', pos: [1.6, 9, CARD.center.z + 0.3], look: [0, 0.6, CARD.center.z], up: [0, 0, -1], fov: 46 },
   // Bascule : la caméra descend au ras du cadran et suit la trotteuse qui accélère.
-  { t: TL.followAt, space: 'hand', pos: [5, 3.4, -8], look: [0, 0.6, -3.5], up: [0, 1, 0], fov: 50 },
+  { t: TL.followAt, space: 'hand', pos: [6, 3.6, CARD.center.z - 3.1], look: [0, 0.6, CARD.center.z + 1.9], up: [0, 1, 0], fov: 50 },
 ];
 
 export function createTimeline({ canvas, overlay, onEnd, onStep }) {
@@ -62,8 +81,7 @@ export function createTimeline({ canvas, overlay, onEnd, onStep }) {
   stars.material.opacity = 0.8;
   scene.add(stars);
 
-  const entryAngles = entries.map((_, i) => i * STEP_ANGLE);
-  const { clock, hand, markers, setProgress } = buildClock(entryAngles);
+  const { clock, hand, setProgress, setHighlight } = buildClock();
   scene.add(clock);
 
   const cards = { horizontal: buildCard(false), vertical: buildCard(true) };
@@ -76,25 +94,30 @@ export function createTimeline({ canvas, overlay, onEnd, onStep }) {
   const viewTo = makeView();
   const final = { t: TL.end, space: 'hand', pos: [0, 0, 0], look: [0, 0, 0], up: [0, 1, 0], fov: 42 };
 
-  // Face à la carte, dans le repère de la trotteuse : assez loin pour la voir en entier, un peu au-dessus
-  // pour garder le cadran en sol. En portrait, la trotteuse est debout à l'écran, pointe en haut.
+  // Face à la carte, dans le repère de la trotteuse. En portrait, la trotteuse est debout à l'écran,
+  // pointe en haut, et la caméra recule juste assez pour voir la carte en entier.
   function finalKey(aspect) {
-    const tanV = Math.tan(THREE.MathUtils.degToRad(final.fov / 2));
-    const look = CARD.center.clone();
-    let dir, dist;
+    const tanV = Math.tan(THREE.MathUtils.degToRad(42 / 2));
     if (aspect >= 1) {
-      dir = new THREE.Vector3(1, 0.42, 0).normalize();
-      dist = Math.max((CARD.length * 0.56) / (tanV * aspect), (CARD.height * 2.2) / tanV);
+      // Au plus près, un peu au-dessus : la carte prend toute la largeur de l'écran, le cadran en sol.
+      const look = CARD.center.clone();
+      look.y += 0.15; // la carte un peu sous le centre de l'image, loin du titre de la page
+      const dir = new THREE.Vector3(1, 0.32, 0).normalize();
+      const dist = Math.max((CARD.length * 0.56) / (tanV * aspect), (CARD.height * 1.7) / tanV);
+      final.fov = 42;
+      final.pos = look.clone().addScaledVector(dir, dist).toArray();
+      final.look = look.toArray();
       final.up = [0, 1, 0];
-      look.y -= 0.35; // la carte un peu au-dessus du centre de l'image, le cadran dessous
     } else {
-      dir = new THREE.Vector3(1, 0.55, 0).normalize();
-      dist = Math.max((CARD.length * 0.68) / tanV, (CARD.height * 0.62) / (tanV * aspect));
-      final.up = [0, 0, -1];
+      final.fov = 42;
+      const look = CARD.center.clone();
       look.z -= 0.7; // la carte un peu plus bas, sous le titre de la page
+      const dir = new THREE.Vector3(1, 0.32, 0).normalize();
+      const dist = Math.max((CARD.length * 0.6) / tanV, (CARD.height * 0.56) / (tanV * aspect));
+      final.pos = look.clone().addScaledVector(dir, dist).toArray();
+      final.look = look.toArray();
+      final.up = [0, 0, -1];
     }
-    final.pos = look.clone().addScaledVector(dir, dist).toArray();
-    final.look = look.toArray();
   }
 
   function resolveKey(key, portrait, out) {
@@ -143,9 +166,9 @@ export function createTimeline({ canvas, overlay, onEnd, onStep }) {
 
   // Étapes : après l'intro, chaque passage fait tourner la trotteuse d'une étape à la suivante.
   let step = 0;
-  let stepFrom = SPIN_TURNS * TAU;
+  let stepFrom = REST;
   let stepStart = -10;
-  const stepAngle = (i) => SPIN_TURNS * TAU + entryAngles[i];
+  const stepAngle = (i) => REST + ENTRY_ANGLES[i];
   let handAngle = 0;
 
   function render(t, now) {
@@ -159,12 +182,9 @@ export function createTimeline({ canvas, overlay, onEnd, onStep }) {
     hand.rotation.y = -handAngle;
     handQuat.setFromAxisAngle(Y, -handAngle);
 
-    // Progression : l'arc et les repères des étapes atteintes s'allument.
-    const travelled = introDone ? handAngle - SPIN_TURNS * TAU : 0;
+    // Progression : l'arc le long du bord, du 12 jusqu'à l'étape courante.
+    const travelled = introDone ? (handAngle - REST) * DIRECTION : 0;
     setProgress(travelled + 0.001);
-    markers.forEach((m, i) => {
-      m.material.emissiveIntensity = introDone && travelled >= entryAngles[i] - 0.01 ? 0.8 : 0;
-    });
 
     // La carte apparaît à la fin de l'intro, puis s'efface et revient à chaque changement d'étape.
     let opacity = progress(t, TL.end - 0.3, TL.end + 0.4);
@@ -178,6 +198,9 @@ export function createTimeline({ canvas, overlay, onEnd, onStep }) {
       cards.horizontal.show(entries[0], 0, entries.length);
       cards.vertical.show(entries[0], 0, entries.length);
     }
+    // Le chiffre de l'étape affichée s'allume avec sa carte.
+    const lit = introDone ? (progress(now, stepStart, stepStart + STEP_DURATION) < 0.5 ? previousStep : step) : 0;
+    setHighlight(ENTRY_ANGLES[lit], opacity);
     cards.horizontal.mesh.material.opacity = opacity;
     cards.vertical.mesh.material.opacity = opacity;
     overlay.style.opacity = progress(t, TL.end, TL.end + 0.6);
@@ -281,7 +304,7 @@ export function createTimeline({ canvas, overlay, onEnd, onStep }) {
       boost = 0;
       step = 0;
       previousStep = 0;
-      stepFrom = SPIN_TURNS * TAU;
+      stepFrom = REST;
       stepStart = -10;
     },
   };

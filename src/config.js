@@ -23,16 +23,17 @@ export const T = {
   end: 11.6,
 };
 
-// Timeline : étapes provisoires, sans contenu. kind : 'experience' ou 'formation'.
+// Timeline : étapes provisoires, sans contenu, de la plus récente à la plus ancienne. kind : 'experience' ou 'formation'.
 export const TIMELINE = {
   entries: [
+    { kind: 'experience' },
+    { kind: 'experience' },
+    { kind: 'experience' },
     { kind: 'formation' },
     { kind: 'formation' },
-    { kind: 'experience' },
-    { kind: 'experience' },
-    { kind: 'experience' },
   ],
   stepAngle: 30, // écart entre deux étapes sur le cadran, en degrés (30 = une heure)
+  direction: -1, // sens de rotation : -1 antihoraire (on remonte le temps), 1 horaire
 };
 
 // Repères temporels de l'animation de la timeline, en secondes. spinStart doit tomber sur une seconde ronde :

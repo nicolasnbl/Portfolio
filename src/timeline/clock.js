@@ -1,25 +1,51 @@
 import * as THREE from 'three';
+import { TIMELINE } from '../config.js';
 
-export const DIAL_RADIUS = 10;
+// Rayon du cadran : la trotteuse va jusqu'au bord.
+export const DIAL_RADIUS = 20;
+const S = DIAL_RADIUS / 20; // échelle des détails (lunette, couronne, aiguilles), réglés pour un rayon de 20
 
-// Trotteuse : une barre épaisse posée au-dessus du cadran. Dans son repère, elle pointe vers -z (vers le 12
-// quand elle n'a pas tourné) ; la face +x, côté où elle avance, porte la carte de la timeline.
-export const HAND = {
-  width: 0.5,
-  height: 1.5,
-  base: 0.45, // hauteur du dessous de la trotteuse au-dessus du cadran
-  tip: -9.2,
-  tail: 1.6,
+// Sens de rotation de la trotteuse d'une étape à l'autre : -1, antihoraire, on remonte le temps.
+export const DIRECTION = TIMELINE.direction;
+
+// Angle de chaque étape sur le cadran, compté dans le sens horaire depuis le 12.
+export const ENTRY_ANGLES = TIMELINE.entries.map((_, i) => DIRECTION * THREE.MathUtils.degToRad(TIMELINE.stepAngle) * i);
+
+// Premier plan, face à l'horloge : hauteur de la caméra au-dessus du cadran (paysage, portrait) et point visé,
+// proportionnels au rayon. La transition de l'intro vers la timeline reprend ce cadrage.
+export const OPENING_VIEW = {
+  height: DIAL_RADIUS * 3.8,
+  portraitHeight: DIAL_RADIUS * 6.2,
+  lookZ: -DIAL_RADIUS * 0.06,
 };
 
-// Zone de la face où s'affiche la carte, le long de la trotteuse.
+// Trotteuse : une barre épaisse aux arêtes arrondies, posée au-dessus du cadran, qui va presque jusqu'au bord.
+// Dans son repère, elle pointe vers -z (vers le 12 quand elle n'a pas tourné) ; la face +x, côté où elle avance,
+// porte la carte de la timeline. Distances le long de la trotteuse comptées depuis le centre, vers la pointe.
+export const HAND = {
+  halfWidth: 0.35, // demi-largeur de la barre, arrondi en plus : 0,9 en tout, comme l'aiguille des heures
+  height: 2.0, // hauteur de la face plate
+  bevel: 0.1, // arrondi des arêtes, sur le côté
+  bevelHeight: 0.12, // arrondi des arêtes, en haut et en bas
+  base: 0.4, // hauteur du dessous de la trotteuse au-dessus du cadran
+  shoulder: DIAL_RADIUS - 1, // fin de la partie droite
+  tip: DIAL_RADIUS - 0.25, // pointe, juste avant le bord intérieur de la lunette
+  tail: 1.6, // centre du contrepoids
+  tailRadius: 1.0,
+};
+
+// Zone de la face où s'affiche la carte, le long de la trotteuse : vers la pointe, là où passent les chiffres.
 export const CARD = {
-  near: -0.95,
-  far: -8.85,
-  height: 1.32,
+  near: -(DIAL_RADIUS - 9.8),
+  far: -(DIAL_RADIUS - 2.1),
+  height: 1.84,
 };
 CARD.length = CARD.near - CARD.far;
-CARD.center = new THREE.Vector3(HAND.width / 2, HAND.base + HAND.height / 2, (CARD.near + CARD.far) / 2);
+CARD.center = new THREE.Vector3(
+  HAND.halfWidth + HAND.bevel,
+  HAND.base + HAND.bevelHeight + HAND.height / 2,
+  (CARD.near + CARD.far) / 2,
+);
 
 const flat = (color, extra = {}) =>
   new THREE.MeshStandardMaterial({ color, flatShading: true, roughness: 0.6, ...extra });
@@ -55,48 +81,151 @@ function dialTexture() {
       ctx.lineTo(c + Math.sin(a) * r1, c - Math.cos(a) * r1);
       ctx.stroke();
     }
-
-    // Chiffres couchés le long du cercle : ils se lisent droits depuis la caméra posée à côté de la trotteuse.
-    ctx.fillStyle = '#1d2433';
-    ctx.font = '700 170px "Space Grotesk", system-ui, sans-serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    for (let h = 1; h <= 12; h++) {
-      const a = (h / 12) * Math.PI * 2;
-      ctx.save();
-      ctx.translate(c + Math.sin(a) * c * 0.7, c - Math.cos(a) * c * 0.7);
-      ctx.rotate(a - Math.PI / 2);
-      ctx.fillText(String(h), 0, 12);
-      ctx.restore();
-    }
     texture.needsUpdate = true;
   };
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
   texture.anisotropy = 8;
   draw();
+  return texture;
+}
+
+const NUMBER_COLOR = new THREE.Color('#1d2433');
+const NUMBER_LIT = new THREE.Color('#ff7a1a');
+const NUMBER_SIZE = DIAL_RADIUS * 0.14; // côté du carré qui porte le chiffre ; le chiffre en fait les deux tiers
+
+function numberTexture(h) {
+  const canvas = document.createElement('canvas');
+  canvas.width = 256;
+  canvas.height = 256;
+  const ctx = canvas.getContext('2d');
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.anisotropy = 8;
+  const draw = () => {
+    ctx.clearRect(0, 0, 256, 256);
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '700 170px "Space Grotesk", system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(String(h), 128, 140);
+    texture.needsUpdate = true;
+  };
+  draw();
   // Redessine une fois la police chargée.
   document.fonts?.load('700 170px "Space Grotesk"').then(draw, () => {});
   return texture;
 }
 
+// Halo orange sous le chiffre de l'étape sélectionnée.
+function haloTexture() {
+  const canvas = document.createElement('canvas');
+  canvas.width = 128;
+  canvas.height = 128;
+  const ctx = canvas.getContext('2d');
+  const gradient = ctx.createRadialGradient(64, 64, 0, 64, 64, 64);
+  gradient.addColorStop(0, 'rgba(255, 179, 71, 0.9)');
+  gradient.addColorStop(0.5, 'rgba(255, 179, 71, 0.35)');
+  gradient.addColorStop(1, 'rgba(255, 179, 71, 0)');
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, 128, 128);
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  return texture;
+}
+
+// Chiffres des heures, chacun sur son propre plan pour pouvoir l'allumer. Couchés le long du cercle, ils se lisent
+// droits depuis la caméra posée à côté de la trotteuse.
+function buildNumbers(parent) {
+  const plane = new THREE.PlaneGeometry(NUMBER_SIZE, NUMBER_SIZE);
+  const halo = haloTexture();
+  return Array.from({ length: 12 }, (_, i) => {
+    const h = i === 0 ? 12 : i;
+    const angle = (h / 12) * Math.PI * 2;
+    const pivot = new THREE.Group();
+    pivot.position.copy(onDial(angle, DIAL_RADIUS * 0.76));
+    pivot.rotation.y = -(angle - Math.PI / 2);
+    const glyph = new THREE.Mesh(
+      plane,
+      new THREE.MeshBasicMaterial({ map: numberTexture(h), color: NUMBER_COLOR, transparent: true, depthWrite: false }),
+    );
+    glyph.rotation.x = -Math.PI / 2;
+    glyph.position.y = 0.03;
+    const glow = new THREE.Mesh(
+      plane,
+      new THREE.MeshBasicMaterial({ map: halo, transparent: true, opacity: 0, depthWrite: false }),
+    );
+    glow.rotation.x = -Math.PI / 2;
+    glow.position.y = 0.02;
+    glow.scale.setScalar(1.6);
+    pivot.add(glow, glyph);
+    parent.add(pivot);
+    return { glyph, glow };
+  });
+}
+
+// Contour de la trotteuse vu de dessus (x sur le côté, y vers la pointe) : contrepoids rond, barre, pointe effilée.
+function secondHandOutline() {
+  const { halfWidth: w, shoulder, tip, tail, tailRadius: r } = HAND;
+  const neck = Math.sqrt(r * r - w * w); // là où la barre rejoint le contrepoids
+  const side = Math.atan2(neck, w);
+  const shape = new THREE.Shape();
+  shape.moveTo(w, shoulder);
+  shape.lineTo(0.12, tip);
+  shape.lineTo(-0.12, tip);
+  shape.lineTo(-w, shoulder);
+  shape.lineTo(-w, -tail + neck);
+  shape.absarc(0, -tail, r, Math.PI - side, Math.PI * 2 + side, false);
+  shape.lineTo(w, shoulder);
+  return shape;
+}
+
 function buildSecondHand() {
   const hand = new THREE.Group();
-  const red = flat('#d4483b');
-  const length = HAND.tail - HAND.tip;
-  const bar = new THREE.Mesh(new THREE.BoxGeometry(HAND.width, HAND.height, length), red);
-  bar.position.set(0, HAND.base + HAND.height / 2, (HAND.tail + HAND.tip) / 2);
+  const geometry = new THREE.ExtrudeGeometry(secondHandOutline(), {
+    depth: HAND.height,
+    bevelEnabled: true,
+    bevelThickness: HAND.bevelHeight,
+    bevelSize: HAND.bevel,
+    bevelSegments: 3,
+    curveSegments: 32,
+  });
+  // Le contour est dans le plan XY, extrudé selon +z : on le couche, la pointe vers -z et l'épaisseur vers le haut.
+  geometry.rotateX(-Math.PI / 2);
+  geometry.translate(0, HAND.base + HAND.bevelHeight, 0);
+  const bar = new THREE.Mesh(geometry, new THREE.MeshStandardMaterial({ color: '#d4483b', roughness: 0.45 }));
   hand.add(bar);
 
-  // Contrepoids rond à l'arrière, comme sur une vraie trotteuse.
-  const weight = new THREE.Mesh(new THREE.CylinderGeometry(0.85, 0.85, HAND.height, 24), red);
-  weight.position.set(0, HAND.base + HAND.height / 2, HAND.tail);
-  hand.add(weight);
-
-  const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.7, 0.7, HAND.height + 0.3, 24), flat('#b83a2f'));
-  cap.position.y = HAND.base + HAND.height / 2 + 0.15;
-  hand.add(cap);
+  // Axe central : un chapeau rouge foncé surmonté d'une goupille dorée.
+  const top = HAND.base + HAND.height + HAND.bevelHeight * 2;
+  const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.8, 0.85, 0.35, 32), flat('#b83a2f'));
+  cap.position.y = top + 0.17;
+  const pin = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.32, 0.32, 0.2, 24),
+    new THREE.MeshStandardMaterial({ color: '#d9a441', metalness: 0.6, roughness: 0.35 }),
+  );
+  pin.position.y = top + 0.44;
+  hand.add(cap, pin);
   return hand;
+}
+
+// Profil de la lunette et du boîtier (rayon, hauteur), tourné autour de l'axe : un mur intérieur qui monte du
+// cadran, un dessus arrondi, puis le flanc du boîtier jusqu'au fond, à 1,4 sous le cadran.
+function bezelProfile() {
+  const R = DIAL_RADIUS;
+  const points = [
+    [R - 0.02, -0.02],
+    [R, 1.2 * S],
+    [R + 0.18 * S, 1.6 * S],
+  ];
+  // Dessus en demi-rond.
+  const steps = 10;
+  for (let i = 0; i <= steps; i++) {
+    const a = Math.PI * (1 - i / steps);
+    points.push([R + (1.1 + Math.cos(a) * 0.92) * S, (1.6 + Math.sin(a) * 0.45) * S]);
+  }
+  points.push([R + 2.1 * S, 1.3 * S], [R + 2.25 * S, 0.9 * S], [R + 2.25 * S, -1.2], [R + 2.05 * S, -1.4], [0, -1.4]);
+  return points.map(([x, y]) => new THREE.Vector2(x, y));
 }
 
 function buildFlatHand(length, width, y, color) {
@@ -107,21 +236,24 @@ function buildFlatHand(length, width, y, color) {
   return pivot;
 }
 
-// Horloge en formes simples, cadran à plat dans le plan XZ, le 12 vers -z.
-export function buildClock(entryAngles) {
+// Horloge en formes simples, cadran à plat dans le plan XZ, le 12 vers -z. Les étapes viennent de la config.
+export function buildClock() {
   const clock = new THREE.Group();
 
-  const body = new THREE.Mesh(new THREE.CylinderGeometry(DIAL_RADIUS + 0.7, DIAL_RADIUS + 0.9, 1.4, 96), flat('#2a3142'));
-  body.position.y = -0.72;
-  clock.add(body);
-
-  const rim = new THREE.Mesh(
-    new THREE.TorusGeometry(DIAL_RADIUS + 0.35, 0.42, 12, 128),
-    flat('#3a4358', { metalness: 0.4, roughness: 0.4 }),
+  const bezel = new THREE.Mesh(
+    new THREE.LatheGeometry(bezelProfile(), 160),
+    new THREE.MeshStandardMaterial({ color: '#3a4358', metalness: 0.5, roughness: 0.35, side: THREE.DoubleSide }),
   );
-  rim.rotation.x = Math.PI / 2;
-  rim.position.y = 0.1;
-  clock.add(rim);
+  clock.add(bezel);
+
+  // Filet doré au pied du mur intérieur.
+  const bead = new THREE.Mesh(
+    new THREE.TorusGeometry(DIAL_RADIUS - 0.04, 0.07, 8, 160),
+    new THREE.MeshStandardMaterial({ color: '#d9a441', metalness: 0.6, roughness: 0.35 }),
+  );
+  bead.rotation.x = Math.PI / 2;
+  bead.position.y = 0.05;
+  clock.add(bead);
 
   const dial = new THREE.Mesh(
     new THREE.CircleGeometry(DIAL_RADIUS, 128),
@@ -132,24 +264,24 @@ export function buildClock(entryAngles) {
 
   // Couronne et poussoir, à 12 h : un chronomètre.
   const crown = new THREE.Group();
-  const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.45, 1.2, 16), flat('#3a4358', { metalness: 0.4 }));
+  const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.75 * S, 0.75 * S, 2 * S, 16), flat('#3a4358', { metalness: 0.4 }));
   stem.rotation.x = Math.PI / 2;
-  stem.position.z = -(DIAL_RADIUS + 1.2);
-  const knob = new THREE.Mesh(new THREE.CylinderGeometry(1.0, 1.0, 0.7, 20), flat('#d4483b'));
+  stem.position.z = -(DIAL_RADIUS + 2.9 * S);
+  const knob = new THREE.Mesh(new THREE.CylinderGeometry(1.7 * S, 1.7 * S, 1.2 * S, 24), flat('#d4483b'));
   knob.rotation.x = Math.PI / 2;
-  knob.position.z = -(DIAL_RADIUS + 2.0);
+  knob.position.z = -(DIAL_RADIUS + 4.3 * S);
   crown.add(stem, knob);
   crown.position.y = -0.3;
   clock.add(crown);
 
-  // Arc de progression le long du bord, du 12 jusqu'à l'étape courante.
+  // Arc de progression le long du bord, du 12 jusqu'à l'étape courante, dans le sens de rotation des étapes.
   const segments = 360;
   const arc = new THREE.Mesh(
-    new THREE.RingGeometry(DIAL_RADIUS * 0.965, DIAL_RADIUS * 0.995, segments, 1, -Math.PI / 2, Math.PI * 2),
+    new THREE.RingGeometry(DIAL_RADIUS * 0.965, DIAL_RADIUS * 0.995, segments, 1, (-DIRECTION * Math.PI) / 2, Math.PI * 2),
     new THREE.MeshBasicMaterial({ color: '#ffb347', side: THREE.DoubleSide }),
   );
-  // Rotation +90° : l'angle de l'anneau augmente dans le sens horaire vu d'en haut, comme les aiguilles.
-  arc.rotation.x = Math.PI / 2;
+  // Couché à +90°, l'angle de l'anneau augmente dans le sens horaire vu d'en haut ; à -90°, dans le sens antihoraire.
+  arc.rotation.x = (DIRECTION * Math.PI) / 2;
   arc.position.y = 0.02;
   arc.geometry.setDrawRange(0, 0);
   clock.add(arc);
@@ -158,24 +290,26 @@ export function buildClock(entryAngles) {
     arc.geometry.setDrawRange(0, Math.round(k * segments) * 6);
   };
 
-  // Un repère par étape de la timeline, au bord du cadran.
-  const markerGeo = new THREE.CylinderGeometry(0.32, 0.32, 0.12, 16);
-  const markers = entryAngles.map((angle) => {
-    const marker = new THREE.Mesh(markerGeo, flat('#ffb347', { emissive: '#ffb347', emissiveIntensity: 0 }));
-    marker.position.copy(onDial(angle, DIAL_RADIUS * 0.8, 0.06));
-    clock.add(marker);
-    return marker;
-  });
+  // Chiffres ; setHighlight allume celui qui est sous un angle donné (amount de 0 à 1).
+  const numbers = buildNumbers(clock);
+  const setHighlight = (angle, amount) => {
+    const lit = (((Math.round(angle / (Math.PI / 6)) % 12) + 12) % 12) || 0;
+    numbers.forEach(({ glyph, glow }, i) => {
+      const k = i === lit ? amount : 0;
+      glyph.material.color.copy(NUMBER_COLOR).lerp(NUMBER_LIT, k);
+      glow.material.opacity = k;
+    });
+  };
 
   // Heures et minutes figées sur 10 h 10, sous la trotteuse.
-  const hourHand = buildFlatHand(5, 0.55, 0.1, '#1d2433');
+  const hourHand = buildFlatHand(10 * S, 0.9 * S, 0.1, '#1d2433');
   hourHand.rotation.y = -((10 + 10 / 60) / 12) * Math.PI * 2;
-  const minuteHand = buildFlatHand(7.6, 0.38, 0.24, '#1d2433');
+  const minuteHand = buildFlatHand(15.2 * S, 0.6 * S, 0.24, '#1d2433');
   minuteHand.rotation.y = -(10 / 60) * Math.PI * 2;
   clock.add(hourHand, minuteHand);
 
   const hand = buildSecondHand();
   clock.add(hand);
 
-  return { clock, hand, markers, setProgress };
+  return { clock, hand, setProgress, setHighlight };
 }
