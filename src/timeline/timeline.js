@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { TIMELINE, TL } from '../config.js';
 import { buildStars } from '../intro/intro.js';
 import { easeInOutCubic, easeOutCubic, lerp, progress, smoothstep } from '../intro/math.js';
-import { CARD, OPENING_VIEW as O, buildClock } from './clock.js';
+import { CARD, HAND, OPENING_VIEW as O, buildClock } from './clock.js';
 import { buildCard } from './card.js';
 
 const TAU = Math.PI * 2;
@@ -99,14 +99,15 @@ export function createTimeline({ canvas, overlay, onEnd, onStep }) {
     const look = CARD.center.clone();
     let dir, dist;
     if (aspect >= 1) {
-      // Au ras du cadran, à l'intérieur de la lunette, un peu du côté de la pointe : la trotteuse se voit
-      // presque en entier, de l'axe à la pointe, avec la carte en perspective.
-      dir = new THREE.Vector3(1, 0.05, -0.35).normalize();
-      dist = 10;
-      look.z = -12;
-      look.y -= 0.3;
+      // En face, un peu au-dessus : la trotteuse entière, du contrepoids à la pointe, le cadran en sol.
+      const tail = HAND.tail + HAND.tailRadius + HAND.bevel;
+      const tip = -(HAND.tip + HAND.bevel);
+      dir = new THREE.Vector3(1, 0.3, 0).normalize();
+      final.fov = 42;
+      dist = ((tail - tip) * 1.08) / 2 / (tanV * aspect); // un peu de marge de chaque côté
+      look.z = (tail + tip) / 2;
+      look.y += 2; // la trotteuse au milieu de l'image, sous le titre de la page
       final.up = [0, 1, 0];
-      final.fov = 58;
     } else {
       dir = new THREE.Vector3(1, 0.32, 0).normalize();
       final.fov = 42;
