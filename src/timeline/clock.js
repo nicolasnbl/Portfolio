@@ -92,7 +92,7 @@ function dialTexture() {
 
 const NUMBER_COLOR = new THREE.Color('#1d2433');
 const NUMBER_LIT = new THREE.Color('#ff7a1a');
-const NUMBER_SIZE = DIAL_RADIUS * 0.18; // côté du carré qui porte le chiffre ; le chiffre en fait les deux tiers
+const NUMBER_SIZE = DIAL_RADIUS * 0.14; // côté du carré qui porte le chiffre ; le chiffre en fait les deux tiers
 
 function numberTexture(h) {
   const canvas = document.createElement('canvas');
@@ -143,7 +143,7 @@ function buildNumbers(parent) {
     const h = i === 0 ? 12 : i;
     const angle = (h / 12) * Math.PI * 2;
     const pivot = new THREE.Group();
-    pivot.position.copy(onDial(angle, DIAL_RADIUS * 0.7));
+    pivot.position.copy(onDial(angle, DIAL_RADIUS * 0.76));
     pivot.rotation.y = -(angle - Math.PI / 2);
     const glyph = new THREE.Mesh(
       plane,
