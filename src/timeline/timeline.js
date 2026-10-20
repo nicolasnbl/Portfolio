@@ -95,17 +95,20 @@ export function createTimeline({ canvas, overlay, onEnd, onStep }) {
   // Face à la trotteuse, dans son repère, le cadran en sol. En portrait, la trotteuse est debout à l'écran,
   // pointe en haut, et la caméra recule juste assez pour voir la carte en entier.
   function finalKey(aspect) {
-    const tanV = Math.tan(THREE.MathUtils.degToRad(final.fov / 2));
+    const tanV = Math.tan(THREE.MathUtils.degToRad(42 / 2));
     if (aspect >= 1) {
-      // En face, presque collée au cadran : la trotteuse entière, du contrepoids à la pointe.
+      // En face, à hauteur du cadran et à l'intérieur de la lunette : un grand angle fait tenir la trotteuse
+      // entière, du contrepoids à la pointe.
       const tail = HAND.tail + HAND.tailRadius + HAND.bevel;
       const tip = -(HAND.tip + HAND.bevel);
-      const dist = ((tail - tip) * 1.08) / 2 / (tanV * aspect); // un peu de marge de chaque côté
-      // L'œil à 0,35 au-dessus du cadran, le regard un peu relevé vers le haut de la trotteuse.
-      final.pos = [dist, 0.35, (tail + tip) / 2];
-      final.look = [0, 2.2, (tail + tip) / 2];
+      const dist = 12; // reste à l'intérieur de la lunette quel que soit l'écran
+      final.fov = THREE.MathUtils.radToDeg(2 * Math.atan(((tail - tip) * 1.06) / 2 / dist / aspect));
+      // L'œil à hauteur de la trotteuse, le regard presque à l'horizontale.
+      final.pos = [dist, 1.5, (tail + tip) / 2];
+      final.look = [0, 1.2, (tail + tip) / 2];
       final.up = [0, 1, 0];
     } else {
+      final.fov = 42;
       const look = CARD.center.clone();
       look.z -= 0.7; // la carte un peu plus bas, sous le titre de la page
       const dir = new THREE.Vector3(1, 0.32, 0).normalize();
