@@ -92,31 +92,28 @@ export function createTimeline({ canvas, overlay, onEnd, onStep }) {
   const viewTo = makeView();
   const final = { t: TL.end, space: 'hand', pos: [0, 0, 0], look: [0, 0, 0], up: [0, 1, 0], fov: 42 };
 
-  // Face à la carte, dans le repère de la trotteuse, le cadran en sol. En portrait, la trotteuse est debout
-  // à l'écran, pointe en haut, et la caméra recule juste assez pour voir la carte en entier.
+  // Face à la trotteuse, dans son repère, le cadran en sol. En portrait, la trotteuse est debout à l'écran,
+  // pointe en haut, et la caméra recule juste assez pour voir la carte en entier.
   function finalKey(aspect) {
-    const tanV = Math.tan(THREE.MathUtils.degToRad(42 / 2));
-    const look = CARD.center.clone();
-    let dir, dist;
+    const tanV = Math.tan(THREE.MathUtils.degToRad(final.fov / 2));
     if (aspect >= 1) {
-      // En face, un peu au-dessus : la trotteuse entière, du contrepoids à la pointe, le cadran en sol.
+      // En face, presque collée au cadran : la trotteuse entière, du contrepoids à la pointe.
       const tail = HAND.tail + HAND.tailRadius + HAND.bevel;
       const tip = -(HAND.tip + HAND.bevel);
-      dir = new THREE.Vector3(1, 0.3, 0).normalize();
-      final.fov = 42;
-      dist = ((tail - tip) * 1.08) / 2 / (tanV * aspect); // un peu de marge de chaque côté
-      look.z = (tail + tip) / 2;
-      look.y += 2; // la trotteuse au milieu de l'image, sous le titre de la page
+      const dist = ((tail - tip) * 1.08) / 2 / (tanV * aspect); // un peu de marge de chaque côté
+      // L'œil à 0,35 au-dessus du cadran, le regard un peu relevé vers le haut de la trotteuse.
+      final.pos = [dist, 0.35, (tail + tip) / 2];
+      final.look = [0, 2.2, (tail + tip) / 2];
       final.up = [0, 1, 0];
     } else {
-      dir = new THREE.Vector3(1, 0.32, 0).normalize();
-      final.fov = 42;
-      dist = Math.max((CARD.length * 0.6) / tanV, (CARD.height * 0.56) / (tanV * aspect));
-      final.up = [0, 0, -1];
+      const look = CARD.center.clone();
       look.z -= 0.7; // la carte un peu plus bas, sous le titre de la page
+      const dir = new THREE.Vector3(1, 0.32, 0).normalize();
+      const dist = Math.max((CARD.length * 0.6) / tanV, (CARD.height * 0.56) / (tanV * aspect));
+      final.pos = look.clone().addScaledVector(dir, dist).toArray();
+      final.look = look.toArray();
+      final.up = [0, 0, -1];
     }
-    final.pos = look.clone().addScaledVector(dir, dist).toArray();
-    final.look = look.toArray();
   }
 
   function resolveKey(key, portrait, out) {
