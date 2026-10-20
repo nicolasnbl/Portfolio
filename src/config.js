@@ -62,11 +62,33 @@ export const EXPLORE = {
     },
     house: {
       title: 'La maison solaire',
-      text: 'Texte provisoire : une maison qui produit sa propre énergie.',
+      text: 'Texte provisoire : une maison qui produit sa propre énergie, en Corse.',
     },
     field: {
       title: 'Le champ photovoltaïque',
       text: 'Texte provisoire : quelques lignes sur ce champ de panneaux.',
+    },
+    computer: {
+      title: 'L’ordinateur',
+      text: 'Texte provisoire : mes projets de code, à retrouver sur GitHub.',
+      page: 'https://github.com/nicolasnbl',
+      link: 'Voir mon GitHub',
+    },
+    guitar: {
+      title: 'La guitare électrique',
+      text: 'Texte provisoire : quelques lignes sur la musique et la guitare.',
+    },
+    speaker: {
+      title: 'L’enceinte',
+      text: 'Texte provisoire : quelques lignes sur ce que j’écoute.',
+    },
+    eigsi: {
+      title: 'L’EIGSI',
+      text: 'Texte provisoire : mon école d’ingénieurs.',
+    },
+    heriot: {
+      title: 'Heriot-Watt, Orkney',
+      text: 'Texte provisoire : mon passage sur le campus d’Heriot-Watt dans les Orcades.',
     },
   },
 };

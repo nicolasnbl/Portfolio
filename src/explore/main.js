@@ -33,7 +33,10 @@ scene.add(sun);
 const stars = buildStars();
 scene.add(stars);
 
-const { planet, globe, clockSite, elements } = buildPlanet({
+// Une planète plus petite que sur l'accueil : les objets y paraissent plus grands et tout tient dans l'écran.
+const RADIUS = 22;
+const { planet, globe, clockSite, elements, animate } = buildPlanet({
+  radius: RADIUS,
   treeCount: window.innerWidth < 768 ? 26 : 46,
   clockDir: CLOCK_DIR,
 });
@@ -56,7 +59,7 @@ const startView = new THREE.Vector3(0, 0, -1).applyQuaternion(start.quat);
 // Axe de la vue d'ensemble : en reculant un peu par rapport au regard de départ, la caméra se retourne vers la
 // planète d'un quart de tour environ.
 const frameDir = start.pos.clone().normalize().addScaledVector(startView, -0.35).normalize();
-const explore = createExplore({ planet, globe, elements, camera, canvas, ui, frameDir });
+const explore = createExplore({ planet, globe, radius: RADIUS, elements, camera, canvas, ui, frameDir });
 
 // La planète se présente pas de tir en haut, la centrale et la forêt à côté.
 const pad = elements.find((el) => el.key === 'pad');
@@ -137,6 +140,7 @@ function frame(now) {
   planet.quaternion.multiplyQuaternions(explore.user, baseQuat);
   planet.updateWorldMatrix(true, false);
   if (phase === 'explore') explore.update(dt, time);
+  animate(time);
 
   // Plan visé : la vue d'ensemble pendant l'arrivée, sinon le cadrage de l'exploration.
   explore.view(view);
@@ -191,3 +195,6 @@ window.addEventListener('pageshow', (e) => {
   last = performance.now();
   requestAnimationFrame(frame);
 });
+
+// Outils de mise au point, seulement avec le serveur de développement.
+if (import.meta.env.DEV) window.__explore = { explore, elements, baseQuat, frameDir, THREE };
