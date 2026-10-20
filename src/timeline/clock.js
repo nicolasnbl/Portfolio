@@ -1,8 +1,8 @@
 import * as THREE from 'three';
 import { TIMELINE } from '../config.js';
 
-// Rayon du cadran : la trotteuse va jusqu'au bord et la carte couvre toute sa longueur, de l'axe à la pointe.
-export const DIAL_RADIUS = 10;
+// Rayon du cadran : la trotteuse va jusqu'au bord.
+export const DIAL_RADIUS = 20;
 const S = DIAL_RADIUS / 20; // échelle des détails (lunette, couronne, aiguilles), réglés pour un rayon de 20
 
 // Sens de rotation de la trotteuse d'une étape à l'autre : -1, antihoraire, on remonte le temps.
@@ -34,10 +34,10 @@ export const HAND = {
   tailRadius: 1.0,
 };
 
-// Zone de la face où s'affiche la carte : toute la trotteuse, du chapeau de l'axe à la pointe.
+// Zone de la face où s'affiche la carte, le long de la trotteuse : vers la pointe, là où passent les chiffres.
 export const CARD = {
-  near: -1.05,
-  far: -(DIAL_RADIUS - 1.25),
+  near: -(DIAL_RADIUS - 9.8),
+  far: -(DIAL_RADIUS - 2.1),
   height: 1.84,
 };
 CARD.length = CARD.near - CARD.far;

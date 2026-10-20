@@ -47,9 +47,9 @@ const CAMERA_KEYS = [
     portrait: { pos: [0, O.portraitHeight * 0.92, 0.01] },
   },
   // Zoom jusqu'au cadran, au-dessus de la trotteuse arrêtée sur le 12, là où passera la carte.
-  { t: TL.zoomEnd, space: 'world', pos: [1.2, 7.5, CARD.center.z], look: [0, 0.6, CARD.center.z - 0.2], up: [0, 0, -1], fov: 46 },
+  { t: TL.zoomEnd, space: 'world', pos: [1.6, 9, CARD.center.z + 0.3], look: [0, 0.6, CARD.center.z], up: [0, 0, -1], fov: 46 },
   // Bascule : la caméra descend au ras du cadran et suit la trotteuse qui accélère.
-  { t: TL.followAt, space: 'hand', pos: [5, 3.4, CARD.center.z - 3.1], look: [0, 0.6, CARD.center.z + 1.4], up: [0, 1, 0], fov: 50 },
+  { t: TL.followAt, space: 'hand', pos: [6, 3.6, CARD.center.z - 3.1], look: [0, 0.6, CARD.center.z + 1.9], up: [0, 1, 0], fov: 50 },
 ];
 
 export function createTimeline({ canvas, overlay, onEnd, onStep }) {
