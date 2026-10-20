@@ -23,7 +23,7 @@ export const OPENING_VIEW = {
 // Dans son repère, elle pointe vers -z (vers le 12 quand elle n'a pas tourné) ; la face +x, côté où elle avance,
 // porte la carte de la timeline. Distances le long de la trotteuse comptées depuis le centre, vers la pointe.
 export const HAND = {
-  halfWidth: 0.45, // demi-largeur de la barre, arrondi compris en plus
+  halfWidth: 0.35, // demi-largeur de la barre, arrondi en plus : 0,9 en tout, comme l'aiguille des heures
   height: 2.0, // hauteur de la face plate
   bevel: 0.1, // arrondi des arêtes, sur le côté
   bevelHeight: 0.12, // arrondi des arêtes, en haut et en bas
