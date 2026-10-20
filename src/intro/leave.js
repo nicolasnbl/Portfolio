@@ -11,7 +11,7 @@ const ORBIT_RADIUS = PLANET_RADIUS + 10;
 const SAT_ANGLE = -0.45; // où le satellite termine sa mise en orbite
 const CLOCK_ANGLE = -0.8; // où se trouve l'horloge à la fin de la plongée
 const PLANET_TURN = THREE.MathUtils.degToRad(70); // rotation de la planète pendant la transition
-export const CLOCK_SCALE = 0.2; // cadran de rayon 20 ramené à 4 sur la planète
+export const CLOCK_SCALE = 0.13; // cadran de rayon 20 ramené à 2,6 sur la planète
 
 const X = new THREE.Vector3(1, 0, 0);
 const Z = new THREE.Vector3(0, 0, 1);

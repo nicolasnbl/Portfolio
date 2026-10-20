@@ -106,11 +106,12 @@ export const LANDS = {
   music: new THREE.Vector3(-0.92, -0.1, 0.38),
   orkney: new THREE.Vector3(-0.45, 0.7, -0.55),
 };
-const MUSIC_RADIUS = 6.5;
+const MUSIC_RADIUS = 8;
 const ORKNEY_ISLANDS = [
   [0, 0, 4.2], [6.6, 2.2, 1.8], [-5.6, 3.6, 1.4], [3.2, -5.9, 2.2], [-4.2, -4.6, 1.1], [7.6, -2.6, 0.9],
 ];
-const CLOCK_LAND_RADIUS = 13.4;
+const CLOCK_LAND_RADIUS = 14;
+const CLOCK_SPOTS = { field: [7.5, 3.5], eigsi: [-6.5, -5] };
 const ROUGH = [[3, 0.08, 0.6], [5, 0.06, 2], [9, 0.04, 1]];
 const JAGGED = [[3, 0.12, 1], [5, 0.09, 2.1], [8, 0.06, 0.4], [13, 0.04, 3]];
 
@@ -123,7 +124,15 @@ function buildLands(R, clockDir) {
       contains: (x, y) => ORKNEY_ISLANDS.some(([cx, cy, r], i) => insideBlob(x - cx, y - cy, r, [[3, 0.14, i], [5, 0.08, 2 * i]])),
     },
   ];
-  if (clockDir) lands.push({ frame: tangentFrame(clockDir), contains: (x, y) => insideBlob(x, y, CLOCK_LAND_RADIUS, JAGGED) });
+  if (clockDir) {
+    // Le sol est garanti sous le champ et l'école, quel que soit le découpage du bord.
+    const under = (x, y, [cx, cy], r) => Math.hypot(x - cx, y - cy) < r;
+    lands.push({
+      frame: tangentFrame(clockDir),
+      contains: (x, y) =>
+        insideBlob(x, y, CLOCK_LAND_RADIUS, JAGGED) || under(x, y, CLOCK_SPOTS.field, 5.5) || under(x, y, CLOCK_SPOTS.eigsi, 4.5),
+    });
+  }
   return lands;
 }
 
@@ -336,19 +345,8 @@ function buildSmoke(rand) {
   return smoke;
 }
 
-// Direction voisine de `base` : à `dist` radians de lui, dans la direction `azimuth` autour de lui.
-function offsetDir(base, azimuth, dist) {
-  const side = new THREE.Vector3(1, 0, 0).cross(base).normalize();
-  return base.clone().applyAxisAngle(side, dist).applyAxisAngle(base, azimuth);
-}
-
-// Autour de l'horloge, en unités de la scène depuis son centre.
-const EIGSI_AZIMUTH = 2.3;
-const EIGSI_DIST = 7.5;
-const FIELD_AZIMUTH = -0.9;
-const FIELD_DIST = 8.6;
-// Sur l'île de la musique et en Corse, en coordonnées locales (est, nord).
-const MUSIC_SPOTS = { computer: [-2.4, 1.1], guitar: [2.3, 1.4], speaker: [0.2, -2.5] };
+// Sur le continent de l'horloge, l'île de la musique et en Corse, en coordonnées locales (est, nord).
+const MUSIC_SPOTS = { computer: [-3.8, 1.6], guitar: [3.6, 2.4], speaker: [0.4, -3.9] };
 const HOUSE_SPOT = corsicaPoint(8.98, 42.12);
 
 // radius : rayon du globe. Les objets gardent leur taille : une planète plus petite les fait paraître plus grands.
@@ -429,7 +427,7 @@ export function buildPlanet({ radius = PLANET_RADIUS, treeCount = 46, clockDir =
   addElement('speaker', speaker);
   for (let i = 0; i < 9; i++) {
     const angle = (i / 9) * Math.PI * 2 + rand() * 0.4;
-    const r = 4.3 + rand() * 1.1;
+    const r = 5.6 + rand() * 1.4;
     placeAtDir(planet, buildTree(rand), frameToDir(music, Math.cos(angle) * r, Math.sin(angle) * r, R), R);
   }
 
@@ -446,18 +444,23 @@ export function buildPlanet({ radius = PLANET_RADIUS, treeCount = 46, clockDir =
     clockSite = new THREE.Group();
     placeAtDir(planet, clockSite, clockDir, R);
 
+    const land = tangentFrame(clockDir);
+    const spot = ([x, y]) => frameToDir(land, x, y, R);
     const eigsi = buildEigsi();
-    const eigsiDir = offsetDir(clockDir, EIGSI_AZIMUTH, EIGSI_DIST / R);
-    placeFacing(planet, eigsi, eigsiDir, clockDir, R);
+    placeFacing(planet, eigsi, spot(CLOCK_SPOTS.eigsi), clockDir, R);
     const field = buildSolarField(R);
-    placeAtDir(planet, field, offsetDir(clockDir, FIELD_AZIMUTH, FIELD_DIST / R), R);
+    placeAtDir(planet, field, spot(CLOCK_SPOTS.field), R);
     field.rotateY(-0.4);
 
-    for (let i = 0; i < 22; i++) {
-      const azimuth = (i / 22) * Math.PI * 2 + rand() * 0.3;
-      const near = (a) => Math.abs(Math.atan2(Math.sin(azimuth - a), Math.cos(azimuth - a))) < 0.6;
-      if (near(EIGSI_AZIMUTH) || near(FIELD_AZIMUTH)) continue;
-      placeAtDir(planet, buildTree(rand), offsetDir(clockDir, azimuth, (6 + rand() * 3.2) / R), R);
+    for (let placed = 0, tries = 0; placed < 20 && tries < 400; tries++) {
+      const angle = rand() * Math.PI * 2;
+      const r = 3.8 + rand() * 7;
+      const x = Math.cos(angle) * r;
+      const y = Math.sin(angle) * r;
+      const clear = (p, d) => Math.hypot(x - p[0], y - p[1]) > d;
+      if (!insideBlob(x, y, CLOCK_LAND_RADIUS * 0.85, JAGGED) || !clear(CLOCK_SPOTS.field, 4.6) || !clear(CLOCK_SPOTS.eigsi, 3.4)) continue;
+      placeAtDir(planet, buildTree(rand), spot([x, y]), R);
+      placed++;
     }
 
     elements.push({ key: 'clock', root: clockSite, anchor: clockSite.position.clone() });
