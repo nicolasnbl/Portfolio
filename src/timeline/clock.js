@@ -81,29 +81,87 @@ function dialTexture() {
       ctx.lineTo(c + Math.sin(a) * r1, c - Math.cos(a) * r1);
       ctx.stroke();
     }
-
-    // Chiffres couchés le long du cercle : ils se lisent droits depuis la caméra posée à côté de la trotteuse.
-    ctx.fillStyle = '#1d2433';
-    ctx.font = '700 170px "Space Grotesk", system-ui, sans-serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    for (let h = 1; h <= 12; h++) {
-      const a = (h / 12) * Math.PI * 2;
-      ctx.save();
-      ctx.translate(c + Math.sin(a) * c * 0.7, c - Math.cos(a) * c * 0.7);
-      ctx.rotate(a - Math.PI / 2);
-      ctx.fillText(String(h), 0, 12);
-      ctx.restore();
-    }
     texture.needsUpdate = true;
   };
   const texture = new THREE.CanvasTexture(canvas);
   texture.colorSpace = THREE.SRGBColorSpace;
   texture.anisotropy = 8;
   draw();
+  return texture;
+}
+
+const NUMBER_COLOR = new THREE.Color('#1d2433');
+const NUMBER_LIT = new THREE.Color('#ff7a1a');
+const NUMBER_SIZE = DIAL_RADIUS * 0.18; // côté du carré qui porte le chiffre ; le chiffre en fait les deux tiers
+
+function numberTexture(h) {
+  const canvas = document.createElement('canvas');
+  canvas.width = 256;
+  canvas.height = 256;
+  const ctx = canvas.getContext('2d');
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.anisotropy = 8;
+  const draw = () => {
+    ctx.clearRect(0, 0, 256, 256);
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '700 170px "Space Grotesk", system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(String(h), 128, 140);
+    texture.needsUpdate = true;
+  };
+  draw();
   // Redessine une fois la police chargée.
   document.fonts?.load('700 170px "Space Grotesk"').then(draw, () => {});
   return texture;
+}
+
+// Halo orange sous le chiffre de l'étape sélectionnée.
+function haloTexture() {
+  const canvas = document.createElement('canvas');
+  canvas.width = 128;
+  canvas.height = 128;
+  const ctx = canvas.getContext('2d');
+  const gradient = ctx.createRadialGradient(64, 64, 0, 64, 64, 64);
+  gradient.addColorStop(0, 'rgba(255, 179, 71, 0.9)');
+  gradient.addColorStop(0.5, 'rgba(255, 179, 71, 0.35)');
+  gradient.addColorStop(1, 'rgba(255, 179, 71, 0)');
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, 128, 128);
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  return texture;
+}
+
+// Chiffres des heures, chacun sur son propre plan pour pouvoir l'allumer. Couchés le long du cercle, ils se lisent
+// droits depuis la caméra posée à côté de la trotteuse.
+function buildNumbers(parent) {
+  const plane = new THREE.PlaneGeometry(NUMBER_SIZE, NUMBER_SIZE);
+  const halo = haloTexture();
+  return Array.from({ length: 12 }, (_, i) => {
+    const h = i === 0 ? 12 : i;
+    const angle = (h / 12) * Math.PI * 2;
+    const pivot = new THREE.Group();
+    pivot.position.copy(onDial(angle, DIAL_RADIUS * 0.7));
+    pivot.rotation.y = -(angle - Math.PI / 2);
+    const glyph = new THREE.Mesh(
+      plane,
+      new THREE.MeshBasicMaterial({ map: numberTexture(h), color: NUMBER_COLOR, transparent: true, depthWrite: false }),
+    );
+    glyph.rotation.x = -Math.PI / 2;
+    glyph.position.y = 0.03;
+    const glow = new THREE.Mesh(
+      plane,
+      new THREE.MeshBasicMaterial({ map: halo, transparent: true, opacity: 0, depthWrite: false }),
+    );
+    glow.rotation.x = -Math.PI / 2;
+    glow.position.y = 0.02;
+    glow.scale.setScalar(1.6);
+    pivot.add(glow, glyph);
+    parent.add(pivot);
+    return { glyph, glow };
+  });
 }
 
 // Contour de la trotteuse vu de dessus (x sur le côté, y vers la pointe) : contrepoids rond, barre, pointe effilée.
@@ -232,14 +290,16 @@ export function buildClock() {
     arc.geometry.setDrawRange(0, Math.round(k * segments) * 6);
   };
 
-  // Un repère par étape de la timeline, au bord du cadran.
-  const markerGeo = new THREE.CylinderGeometry(0.6 * S, 0.6 * S, 0.12, 20);
-  const markers = ENTRY_ANGLES.map((angle) => {
-    const marker = new THREE.Mesh(markerGeo, flat('#ffb347', { emissive: '#ffb347', emissiveIntensity: 0 }));
-    marker.position.copy(onDial(angle, DIAL_RADIUS * 0.8, 0.06));
-    clock.add(marker);
-    return marker;
-  });
+  // Chiffres ; setHighlight allume celui qui est sous un angle donné (amount de 0 à 1).
+  const numbers = buildNumbers(clock);
+  const setHighlight = (angle, amount) => {
+    const lit = (((Math.round(angle / (Math.PI / 6)) % 12) + 12) % 12) || 0;
+    numbers.forEach(({ glyph, glow }, i) => {
+      const k = i === lit ? amount : 0;
+      glyph.material.color.copy(NUMBER_COLOR).lerp(NUMBER_LIT, k);
+      glow.material.opacity = k;
+    });
+  };
 
   // Heures et minutes figées sur 10 h 10, sous la trotteuse.
   const hourHand = buildFlatHand(10 * S, 0.9 * S, 0.1, '#1d2433');
@@ -251,5 +311,5 @@ export function buildClock() {
   const hand = buildSecondHand();
   clock.add(hand);
 
-  return { clock, hand, markers, setProgress };
+  return { clock, hand, setProgress, setHighlight };
 }

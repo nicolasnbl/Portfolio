@@ -13,13 +13,17 @@ const STEP_DURATION = 0.9; // secondes pour passer d'une étape à l'autre
 // sens des étapes) en accélérant puis en ralentissant, et s'arrête sur la première étape.
 const SPIN_TURNS = 1;
 const TICK = TAU / 60;
+// À chaque étape, la trotteuse s'arrête un peu avant le chiffre, pour le laisser bien visible devant elle,
+// du côté de la caméra.
+const NUMBER_CLEARANCE = THREE.MathUtils.degToRad(6.5);
+const REST = DIRECTION * SPIN_TURNS * TAU - NUMBER_CLEARANCE; // angle de la trotteuse sur la première étape
 function introHandAngle(t) {
   if (t < TL.spinStart) {
     const n = Math.floor(t);
     const tick = easeOutCubic(Math.min(1, (t - n) / 0.12));
     return -TICK * (TL.spinStart - n + 1 - tick);
   }
-  return DIRECTION * SPIN_TURNS * TAU * easeInOutCubic(progress(t, TL.spinStart, TL.end));
+  return REST * easeInOutCubic(progress(t, TL.spinStart, TL.end));
 }
 
 // Cadrages de la caméra.
@@ -77,7 +81,7 @@ export function createTimeline({ canvas, overlay, onEnd, onStep }) {
   stars.material.opacity = 0.8;
   scene.add(stars);
 
-  const { clock, hand, markers, setProgress } = buildClock();
+  const { clock, hand, setProgress, setHighlight } = buildClock();
   scene.add(clock);
 
   const cards = { horizontal: buildCard(false), vertical: buildCard(true) };
@@ -97,7 +101,7 @@ export function createTimeline({ canvas, overlay, onEnd, onStep }) {
     if (aspect >= 1) {
       // Au plus près, un peu au-dessus : la carte prend toute la largeur de l'écran, le cadran en sol.
       const look = CARD.center.clone();
-      look.y += 0.6; // la carte un peu sous le centre de l'image, loin du titre de la page
+      look.y += 0.15; // la carte un peu sous le centre de l'image, loin du titre de la page
       const dir = new THREE.Vector3(1, 0.32, 0).normalize();
       const dist = Math.max((CARD.length * 0.56) / (tanV * aspect), (CARD.height * 1.7) / tanV);
       final.fov = 42;
@@ -162,10 +166,9 @@ export function createTimeline({ canvas, overlay, onEnd, onStep }) {
 
   // Étapes : après l'intro, chaque passage fait tourner la trotteuse d'une étape à la suivante.
   let step = 0;
-  const spinEnd = DIRECTION * SPIN_TURNS * TAU;
-  let stepFrom = spinEnd;
+  let stepFrom = REST;
   let stepStart = -10;
-  const stepAngle = (i) => spinEnd + ENTRY_ANGLES[i];
+  const stepAngle = (i) => REST + ENTRY_ANGLES[i];
   let handAngle = 0;
 
   function render(t, now) {
@@ -179,12 +182,9 @@ export function createTimeline({ canvas, overlay, onEnd, onStep }) {
     hand.rotation.y = -handAngle;
     handQuat.setFromAxisAngle(Y, -handAngle);
 
-    // Progression : l'arc et les repères des étapes atteintes s'allument.
-    const travelled = introDone ? (handAngle - spinEnd) * DIRECTION : 0; // chemin parcouru depuis le 12
+    // Progression : l'arc le long du bord, du 12 jusqu'à l'étape courante.
+    const travelled = introDone ? (handAngle - REST) * DIRECTION : 0;
     setProgress(travelled + 0.001);
-    markers.forEach((m, i) => {
-      m.material.emissiveIntensity = introDone && travelled >= Math.abs(ENTRY_ANGLES[i]) - 0.01 ? 0.8 : 0;
-    });
 
     // La carte apparaît à la fin de l'intro, puis s'efface et revient à chaque changement d'étape.
     let opacity = progress(t, TL.end - 0.3, TL.end + 0.4);
@@ -198,6 +198,9 @@ export function createTimeline({ canvas, overlay, onEnd, onStep }) {
       cards.horizontal.show(entries[0], 0, entries.length);
       cards.vertical.show(entries[0], 0, entries.length);
     }
+    // Le chiffre de l'étape affichée s'allume avec sa carte.
+    const lit = introDone ? (progress(now, stepStart, stepStart + STEP_DURATION) < 0.5 ? previousStep : step) : 0;
+    setHighlight(ENTRY_ANGLES[lit], opacity);
     cards.horizontal.mesh.material.opacity = opacity;
     cards.vertical.mesh.material.opacity = opacity;
     overlay.style.opacity = progress(t, TL.end, TL.end + 0.6);
@@ -301,7 +304,7 @@ export function createTimeline({ canvas, overlay, onEnd, onStep }) {
       boost = 0;
       step = 0;
       previousStep = 0;
-      stepFrom = spinEnd;
+      stepFrom = REST;
       stepStart = -10;
     },
   };
