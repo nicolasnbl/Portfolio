@@ -83,13 +83,14 @@ export function createTimeline({ canvas, overlay, onEnd, onStep }) {
     const look = CARD.center.clone();
     let dir, dist;
     if (aspect >= 1) {
-      dir = new THREE.Vector3(1, 0.42, 0).normalize();
-      dist = Math.max((CARD.length * 0.56) / (tanV * aspect), (CARD.height * 2.2) / tanV);
+      // Au plus près : la carte occupe presque toute la largeur de l'écran.
+      dir = new THREE.Vector3(1, 0.32, 0).normalize();
+      dist = Math.max((CARD.length * 0.5) / (tanV * aspect), (CARD.height * 1.5) / tanV);
       final.up = [0, 1, 0];
-      look.y -= 0.35; // la carte un peu au-dessus du centre de l'image, le cadran dessous
+      look.y -= 0.3; // la carte un peu au-dessus du centre de l'image, le cadran dessous
     } else {
       dir = new THREE.Vector3(1, 0.55, 0).normalize();
-      dist = Math.max((CARD.length * 0.68) / tanV, (CARD.height * 0.62) / (tanV * aspect));
+      dist = Math.max((CARD.length * 0.6) / tanV, (CARD.height * 0.56) / (tanV * aspect));
       final.up = [0, 0, -1];
       look.z -= 0.7; // la carte un peu plus bas, sous le titre de la page
     }

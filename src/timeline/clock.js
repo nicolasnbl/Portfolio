@@ -2,24 +2,33 @@ import * as THREE from 'three';
 
 export const DIAL_RADIUS = 10;
 
-// Trotteuse : une barre épaisse posée au-dessus du cadran. Dans son repère, elle pointe vers -z (vers le 12
-// quand elle n'a pas tourné) ; la face +x, côté où elle avance, porte la carte de la timeline.
+// Trotteuse : une barre épaisse aux arêtes arrondies, posée au-dessus du cadran, qui va presque jusqu'au bord.
+// Dans son repère, elle pointe vers -z (vers le 12 quand elle n'a pas tourné) ; la face +x, côté où elle avance,
+// porte la carte de la timeline. Distances le long de la trotteuse comptées depuis le centre, vers la pointe.
 export const HAND = {
-  width: 0.5,
-  height: 1.5,
-  base: 0.45, // hauteur du dessous de la trotteuse au-dessus du cadran
-  tip: -9.2,
-  tail: 1.6,
+  halfWidth: 0.45, // demi-largeur de la barre, arrondi compris en plus
+  height: 2.0, // hauteur de la face plate
+  bevel: 0.1, // arrondi des arêtes, sur le côté
+  bevelHeight: 0.12, // arrondi des arêtes, en haut et en bas
+  base: 0.4, // hauteur du dessous de la trotteuse au-dessus du cadran
+  shoulder: 9.0, // fin de la partie droite
+  tip: 9.75, // pointe, juste avant le bord intérieur de la lunette
+  tail: 1.6, // centre du contrepoids
+  tailRadius: 1.0,
 };
 
 // Zone de la face où s'affiche la carte, le long de la trotteuse.
 export const CARD = {
-  near: -0.95,
-  far: -8.85,
-  height: 1.32,
+  near: -1.05,
+  far: -8.75,
+  height: 1.84,
 };
 CARD.length = CARD.near - CARD.far;
-CARD.center = new THREE.Vector3(HAND.width / 2, HAND.base + HAND.height / 2, (CARD.near + CARD.far) / 2);
+CARD.center = new THREE.Vector3(
+  HAND.halfWidth + HAND.bevel,
+  HAND.base + HAND.bevelHeight + HAND.height / 2,
+  (CARD.near + CARD.far) / 2,
+);
 
 const flat = (color, extra = {}) =>
   new THREE.MeshStandardMaterial({ color, flatShading: true, roughness: 0.6, ...extra });
@@ -80,23 +89,68 @@ function dialTexture() {
   return texture;
 }
 
+// Contour de la trotteuse vu de dessus (x sur le côté, y vers la pointe) : contrepoids rond, barre, pointe effilée.
+function secondHandOutline() {
+  const { halfWidth: w, shoulder, tip, tail, tailRadius: r } = HAND;
+  const neck = Math.sqrt(r * r - w * w); // là où la barre rejoint le contrepoids
+  const side = Math.atan2(neck, w);
+  const shape = new THREE.Shape();
+  shape.moveTo(w, shoulder);
+  shape.lineTo(0.12, tip);
+  shape.lineTo(-0.12, tip);
+  shape.lineTo(-w, shoulder);
+  shape.lineTo(-w, -tail + neck);
+  shape.absarc(0, -tail, r, Math.PI - side, Math.PI * 2 + side, false);
+  shape.lineTo(w, shoulder);
+  return shape;
+}
+
 function buildSecondHand() {
   const hand = new THREE.Group();
-  const red = flat('#d4483b');
-  const length = HAND.tail - HAND.tip;
-  const bar = new THREE.Mesh(new THREE.BoxGeometry(HAND.width, HAND.height, length), red);
-  bar.position.set(0, HAND.base + HAND.height / 2, (HAND.tail + HAND.tip) / 2);
+  const geometry = new THREE.ExtrudeGeometry(secondHandOutline(), {
+    depth: HAND.height,
+    bevelEnabled: true,
+    bevelThickness: HAND.bevelHeight,
+    bevelSize: HAND.bevel,
+    bevelSegments: 3,
+    curveSegments: 32,
+  });
+  // Le contour est dans le plan XY, extrudé selon +z : on le couche, la pointe vers -z et l'épaisseur vers le haut.
+  geometry.rotateX(-Math.PI / 2);
+  geometry.translate(0, HAND.base + HAND.bevelHeight, 0);
+  const bar = new THREE.Mesh(geometry, new THREE.MeshStandardMaterial({ color: '#d4483b', roughness: 0.45 }));
   hand.add(bar);
 
-  // Contrepoids rond à l'arrière, comme sur une vraie trotteuse.
-  const weight = new THREE.Mesh(new THREE.CylinderGeometry(0.85, 0.85, HAND.height, 24), red);
-  weight.position.set(0, HAND.base + HAND.height / 2, HAND.tail);
-  hand.add(weight);
-
-  const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.7, 0.7, HAND.height + 0.3, 24), flat('#b83a2f'));
-  cap.position.y = HAND.base + HAND.height / 2 + 0.15;
-  hand.add(cap);
+  // Axe central : un chapeau rouge foncé surmonté d'une goupille dorée.
+  const top = HAND.base + HAND.height + HAND.bevelHeight * 2;
+  const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.8, 0.85, 0.35, 32), flat('#b83a2f'));
+  cap.position.y = top + 0.17;
+  const pin = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.32, 0.32, 0.2, 24),
+    new THREE.MeshStandardMaterial({ color: '#d9a441', metalness: 0.6, roughness: 0.35 }),
+  );
+  pin.position.y = top + 0.44;
+  hand.add(cap, pin);
   return hand;
+}
+
+// Profil de la lunette et du boîtier (rayon, hauteur), tourné autour de l'axe : un mur intérieur qui monte du
+// cadran, un dessus arrondi, puis le flanc du boîtier jusqu'au fond, à 1,4 sous le cadran.
+function bezelProfile() {
+  const R = DIAL_RADIUS;
+  const points = [
+    [R - 0.02, -0.02],
+    [R, 0.85],
+    [R + 0.12, 1.12],
+  ];
+  // Dessus en demi-rond.
+  const steps = 8;
+  for (let i = 0; i <= steps; i++) {
+    const a = Math.PI * (1 - i / steps);
+    points.push([R + 0.75 + Math.cos(a) * 0.6, 1.12 + Math.sin(a) * 0.32]);
+  }
+  points.push([R + 1.42, 0.9], [R + 1.5, 0.6], [R + 1.5, -1.2], [R + 1.35, -1.4], [0, -1.4]);
+  return points.map(([x, y]) => new THREE.Vector2(x, y));
 }
 
 function buildFlatHand(length, width, y, color) {
@@ -111,17 +165,20 @@ function buildFlatHand(length, width, y, color) {
 export function buildClock(entryAngles) {
   const clock = new THREE.Group();
 
-  const body = new THREE.Mesh(new THREE.CylinderGeometry(DIAL_RADIUS + 0.7, DIAL_RADIUS + 0.9, 1.4, 96), flat('#2a3142'));
-  body.position.y = -0.72;
-  clock.add(body);
-
-  const rim = new THREE.Mesh(
-    new THREE.TorusGeometry(DIAL_RADIUS + 0.35, 0.42, 12, 128),
-    flat('#3a4358', { metalness: 0.4, roughness: 0.4 }),
+  const bezel = new THREE.Mesh(
+    new THREE.LatheGeometry(bezelProfile(), 160),
+    new THREE.MeshStandardMaterial({ color: '#3a4358', metalness: 0.5, roughness: 0.35, side: THREE.DoubleSide }),
   );
-  rim.rotation.x = Math.PI / 2;
-  rim.position.y = 0.1;
-  clock.add(rim);
+  clock.add(bezel);
+
+  // Filet doré au pied du mur intérieur.
+  const bead = new THREE.Mesh(
+    new THREE.TorusGeometry(DIAL_RADIUS - 0.04, 0.07, 8, 160),
+    new THREE.MeshStandardMaterial({ color: '#d9a441', metalness: 0.6, roughness: 0.35 }),
+  );
+  bead.rotation.x = Math.PI / 2;
+  bead.position.y = 0.05;
+  clock.add(bead);
 
   const dial = new THREE.Mesh(
     new THREE.CircleGeometry(DIAL_RADIUS, 128),
@@ -134,10 +191,10 @@ export function buildClock(entryAngles) {
   const crown = new THREE.Group();
   const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.45, 1.2, 16), flat('#3a4358', { metalness: 0.4 }));
   stem.rotation.x = Math.PI / 2;
-  stem.position.z = -(DIAL_RADIUS + 1.2);
+  stem.position.z = -(DIAL_RADIUS + 1.9);
   const knob = new THREE.Mesh(new THREE.CylinderGeometry(1.0, 1.0, 0.7, 20), flat('#d4483b'));
   knob.rotation.x = Math.PI / 2;
-  knob.position.z = -(DIAL_RADIUS + 2.0);
+  knob.position.z = -(DIAL_RADIUS + 2.7);
   crown.add(stem, knob);
   crown.position.y = -0.3;
   clock.add(crown);
