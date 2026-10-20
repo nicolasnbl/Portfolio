@@ -1,12 +1,20 @@
 import * as THREE from 'three';
-import { INTRO, T } from '../config.js';
+import { EXPLORE, EXPLORE_T, INTRO, LEAVE, T } from '../config.js';
 import { PATH, PLANET_RADIUS, buildPlanet, updateSmoke } from './planet.js';
+import { CLOCK_DIR, createLeave } from './leave.js';
+import { COMPANION_FOV, COMPANION_QUAT, companionLocal, saveHandoff } from '../explore/companion.js';
+import { createNav } from './nav.js';
 import { FAIRING_CENTER, buildRocket, setFairingOpen, setThrust } from './rocket.js';
 import { clamp01, easeInOutCubic, easeOutCubic, lerp, progress, seededRandom, smoothstep } from './math.js';
 
 // Trajectoire : départ à la verticale, puis la fusée s'incline vers la caméra (virage gravitationnel).
 const CLIMB_LENGTH = 32;
 const CLIMB_TURN = THREE.MathUtils.degToRad(20); // inclinaison en fin de montée, par rapport à la verticale
+
+// Départ vers la page Explorer : de combien le satellite s'éloigne de la fusée, et l'écart à atteindre entre le regard
+// et la direction de la planète pour qu'elle sorte du cadre.
+const DEPART_EJECT = 8;
+const DEPART_AWAY = THREE.MathUtils.degToRad(108);
 
 const SKY = new THREE.Color('#bfe6ff');
 const SPACE = new THREE.Color('#05060f');
@@ -98,7 +106,8 @@ export function createIntro({ canvas, overlay, onStart, onEnd }) {
   scene.add(stars);
 
   const isSmall = window.innerWidth < 768;
-  const { planet, pad, padTop, smoke } = buildPlanet({ treeCount: isSmall ? 26 : 46 });
+  const { planet, pad, padTop, smoke, clockSite } = buildPlanet({ treeCount: isSmall ? 26 : 46, clockDir: CLOCK_DIR });
+  const leave = createLeave({ clockSite });
   scene.add(planet);
 
   const trail = buildTrail();
@@ -106,6 +115,7 @@ export function createIntro({ canvas, overlay, onStart, onEnd }) {
 
   const rocketParts = buildRocket();
   const { rocket } = rocketParts;
+  const PAYLOAD_Y = rocketParts.payload.position.y;
   rocket.position.y = padTop;
   pad.add(rocket);
   let rocketDetached = false;
@@ -121,6 +131,119 @@ export function createIntro({ canvas, overlay, onStart, onEnd }) {
   const nameEl = overlay.querySelector('.intro-name');
   const nameSlide = nameEl.querySelector('.intro-name-slide');
   const hintEl = overlay.querySelector('.intro-hint');
+  const quoteEl = overlay.querySelector('.explore-quote');
+  quoteEl.textContent = EXPLORE.quote;
+  const navEl = overlay.querySelector('.intro-nav');
+  const nav = createNav(navEl, INTRO.nav, {
+    onAction: (action, index) => (action === 'explore' ? startDepart() : startLeave(index)),
+  });
+
+  // Départ vers la timeline. leaveU : secondes écoulées depuis le clic (négatif hors transition).
+  let leaveU = -1;
+  let leaveIndex = -1;
+  let navigated = false;
+  const SUN_START = sun.position.clone();
+  const sunTarget = new THREE.Vector3();
+  // Lumière qui suit la caméra pendant la plongée, comme sur la page timeline.
+  const headlight = new THREE.DirectionalLight('#ffffff', 0);
+  scene.add(headlight, headlight.target);
+  // Matériaux de la planète (hors horloge), qui s'effacent à la fin pour ne laisser que le cadran sur les étoiles.
+  let planetMaterials = null;
+  function fadePlanet(opacity) {
+    if (!planetMaterials) {
+      if (opacity >= 1) return;
+      const inClock = new Set();
+      clockSite.traverse((o) => inClock.add(o));
+      planetMaterials = [];
+      planet.traverse((o) => {
+        if (o.material && !inClock.has(o)) planetMaterials.push({ mat: o.material, base: o.material.opacity });
+      });
+    }
+    for (const { mat, base } of planetMaterials) {
+      mat.transparent = opacity < 1 || base < 1;
+      mat.opacity = base * opacity;
+    }
+  }
+
+  function startLeave(index) {
+    if (leaveU >= 0 || departU >= 0) return;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      window.location.href = './timeline.html';
+      return;
+    }
+    leave.buildClock();
+    leaveU = 0;
+    leaveIndex = index;
+    navigated = false;
+    navEl.inert = true;
+    onStart();
+  }
+
+  // Retour sur la page par le bouton Précédent : on retrouve le plan final de l'intro.
+  function resetLeave() {
+    if (leaveU < 0) return;
+    leaveU = -1;
+    rocketParts.fairing.attach(rocketParts.payload);
+    rocketParts.payload.position.set(0, PAYLOAD_Y, 0);
+    rocketParts.payload.quaternion.identity();
+    rocket.visible = true;
+    sun.position.copy(SUN_START);
+    headlight.intensity = 0;
+    fadePlanet(1);
+    nav.reset();
+    navEl.inert = false;
+    onEnd();
+  }
+  window.addEventListener('pageshow', (e) => e.persisted && resetLeave());
+
+  // Vers « Explorer le monde » : le satellite se décroche, la caméra le suit et pivote autour de lui jusqu'à ne plus
+  // voir que les étoiles, puis la page Explorer prend le relais. departU : secondes depuis le clic (négatif hors
+  // transition). departDir : 1 à l'aller, -1 au retour de la page Explorer, qui rejoue la transition à l'envers.
+  let departU = -1;
+  let departDir = 1;
+  let navRevealAt = -1; // au retour, le menu se redéploie depuis le satellite revenu dans la coiffe
+  const exploreIndex = INTRO.nav.findIndex((item) => item.action === 'explore');
+  const satLocal = new THREE.Vector3();
+  const introQuat = new THREE.Quaternion();
+  const awayQuat = new THREE.Quaternion();
+  const rigQuat = new THREE.Quaternion();
+  const lookMatrix = new THREE.Matrix4();
+
+  function startDepart() {
+    if (departU >= 0 || leaveU >= 0) return;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      window.location.href = './explore.html';
+      return;
+    }
+    departU = 0;
+    departDir = 1;
+    navigated = false;
+    navRevealAt = -1;
+    navEl.inert = true;
+    onStart();
+  }
+
+  function startReturn() {
+    departU = EXPLORE_T.depart;
+    departDir = -1;
+    navigated = false;
+    navRevealAt = Infinity;
+    nav.reset();
+    navEl.inert = true;
+    onStart();
+  }
+
+  function endReturn(clock) {
+    departU = -1;
+    rocketParts.fairing.attach(rocketParts.payload);
+    rocketParts.payload.position.set(0, PAYLOAD_Y, 0);
+    rocketParts.payload.quaternion.identity();
+    navRevealAt = clock;
+    navEl.inert = false;
+    onEnd();
+  }
+  // Retour par le bouton Précédent depuis la page Explorer : la page est restée sur le dernier plan, on rejoue à l'envers.
+  window.addEventListener('pageshow', (e) => e.persisted && departU >= 0 && startReturn());
 
   const launchRadius = PLANET_RADIUS + padTop;
   const UP = new THREE.Vector3(0, 1, 0);
@@ -152,6 +275,20 @@ export function createIntro({ canvas, overlay, onStart, onEnd }) {
   const camLook = new THREE.Vector3();
   const camUp = new THREE.Vector3();
   const namePoint = new THREE.Vector3();
+  const satPoint = new THREE.Vector3();
+  const satAnchor = { x: 0, y: 0 };
+  const satStartQuat = new THREE.Quaternion();
+  const satDetachQuat = new THREE.Quaternion();
+  const satSpin = new THREE.Quaternion();
+  const detachFrom = new THREE.Vector3();
+  const detachTo = new THREE.Vector3();
+  // Écart entre la caméra et le satellite au moment du clic : la caméra le garde tel quel en le suivant.
+  const followPos = new THREE.Vector3();
+  const followLook = new THREE.Vector3();
+  let followSet = false;
+  const satQuat = new THREE.Quaternion();
+  const satBasis = new THREE.Matrix4();
+  let satTurn = 0;
   const puff = new THREE.Object3D();
   const makeView = () => ({
     pos: new THREE.Vector3(),
@@ -219,23 +356,74 @@ export function createIntro({ canvas, overlay, onStart, onEnd }) {
     camLook.lerpVectors(viewFrom.look, viewTo.look, k);
     camUp.lerpVectors(viewFrom.up, viewTo.up, k).normalize();
     camPos.x += Math.sin(clock * 0.4) * 0.15;
+    let fov = lerp(viewFrom.fov, viewTo.fov, k);
+    let shiftX = lerp(viewFrom.shift[0], viewTo.shift[0], k);
+    let shiftY = lerp(viewFrom.shift[1], viewTo.shift[1], k);
+
+    // Vers la timeline : du plan final à la poursuite du satellite, puis plongée sur le cadran.
+    if (leaveU >= 0) {
+      const satNow = rocketParts.payload.position;
+      if (!followSet) {
+        followPos.subVectors(camPos, detachFrom);
+        followLook.subVectors(camLook, detachFrom);
+        followSet = true;
+      }
+      camPos.addVectors(satNow, followPos);
+      camLook.addVectors(satNow, followLook);
+      const chase = smoothstep(progress(leaveU, LEAVE.orbitStart, LEAVE.orbitEnd - 0.5));
+      const dive = smoothstep(progress(leaveU, LEAVE.orbitEnd - 0.3, LEAVE.diveEnd));
+      leave.chaseView(viewFrom);
+      leave.clockView(viewTo, portrait);
+      viewFrom.pos.lerp(viewTo.pos, dive);
+      viewFrom.look.lerp(viewTo.look, dive);
+      viewFrom.up.lerp(viewTo.up, dive);
+      camPos.lerp(viewFrom.pos, chase);
+      camLook.lerp(viewFrom.look, chase);
+      camUp.lerp(viewFrom.up, chase).normalize();
+      fov = lerp(fov, lerp(viewFrom.fov, viewTo.fov, dive), chase);
+      shiftX *= 1 - chase;
+      shiftY *= 1 - chase;
+    }
+
+    // Vers Explorer : la caméra rejoint le satellite et le garde à la même place de l'écran, en pivotant autour de lui
+    // jusqu'à ce que la planète et la fusée sortent du cadre.
+    if (departU >= 0) {
+      introQuat.setFromRotationMatrix(lookMatrix.lookAt(camPos, camLook, camUp));
+      const sat = rocketParts.payload.position;
+      const view = a.set(0, 0, -1).applyQuaternion(introQuat);
+      const toPlanet = b.copy(sat).negate().normalize();
+      const axis = c.crossVectors(toPlanet, view).normalize();
+      awayQuat.setFromAxisAngle(axis, Math.max(0, DEPART_AWAY - view.angleTo(toPlanet))).multiply(introQuat);
+      rigQuat.slerpQuaternions(introQuat, awayQuat, easeInOutCubic(progress(departU, 0.25, EXPLORE_T.depart)));
+      companionLocal(camera.aspect, satLocal).applyQuaternion(rigQuat);
+      const follow = smoothstep(progress(departU, 0, 0.9));
+      camPos.lerp(a.copy(sat).sub(satLocal), follow);
+      fov = lerp(fov, COMPANION_FOV, follow);
+      shiftX *= 1 - follow;
+      shiftY *= 1 - follow;
+    }
 
     camera.position.copy(camPos);
     camera.up.copy(camUp);
-    camera.lookAt(camLook);
-    camera.fov = lerp(viewFrom.fov, viewTo.fov, k);
+    if (departU >= 0) camera.quaternion.copy(rigQuat);
+    else camera.lookAt(camLook);
+    camera.fov = fov;
     camera.updateProjectionMatrix();
     // Décentrement, comme un objectif à bascule : le sujet quitte le centre de l'image sans changer la perspective.
     const e = camera.projectionMatrix.elements;
-    e[8] = -lerp(viewFrom.shift[0], viewTo.shift[0], k);
-    e[9] = -lerp(viewFrom.shift[1], viewTo.shift[1], k);
+    e[8] = -shiftX;
+    e[9] = -shiftY;
     camera.projectionMatrixInverse.copy(camera.projectionMatrix).invert();
   }
 
   function render(t, clock) {
     // 1. La planète tourne pour faire défiler le décor jusqu'au pas de tir.
     const roll = easeInOutCubic(progress(t, T.rollStart, T.rollEnd));
-    planet.rotation.z = (roll * PATH.pad) / PLANET_RADIUS;
+    // set() et pas seulement z : le tour supplémentaire ci-dessous modifie aussi x et y.
+    planet.rotation.set(0, 0, (roll * PATH.pad) / PLANET_RADIUS);
+    if (leaveU >= 0) {
+      planet.quaternion.premultiply(leave.planetTurn(easeInOutCubic(progress(leaveU, LEAVE.orbitStart, LEAVE.diveEnd - 0.4))));
+    }
 
     // 2. Décollage : départ à la verticale, puis la fusée s'incline et ralentit en arrivant dans l'espace.
     if (t >= T.liftoff && !rocketDetached) {
@@ -282,8 +470,64 @@ export function createIntro({ canvas, overlay, onStart, onEnd }) {
     scene.background.copy(SKY).lerp(SPACE, space);
     stars.material.opacity = space * (0.85 + 0.15 * Math.sin(clock * 2));
 
+    // Vers la timeline : le satellite quitte la coiffe et se met en orbite ; la fusée reste en arrière.
+    if (leaveU >= 0) {
+      const payload = rocketParts.payload;
+      if (payload.parent !== scene) {
+        scene.attach(payload);
+        detachFrom.copy(payload.position);
+        detachTo.copy(payload.position).addScaledVector(rocketDir, 0.6);
+        leave.begin(detachTo);
+        satStartQuat.copy(payload.quaternion);
+        followSet = false;
+      }
+      // Décrochage : le satellite se dégage de la coiffe dans l'axe de la fusée en pivotant un peu sur lui-même.
+      const detach = easeOutCubic(progress(leaveU, 0, LEAVE.orbitStart));
+      satDetachQuat.copy(satStartQuat).multiply(satSpin.setFromAxisAngle(UP, 0.7 * detach));
+      const k = easeInOutCubic(progress(leaveU, LEAVE.orbitStart, LEAVE.orbitEnd));
+      // Pendant la plongée, il s'écarte sur le côté pour laisser passer la caméra.
+      const away = smoothstep(progress(leaveU, LEAVE.orbitEnd - 0.3, LEAVE.diveEnd - 0.5));
+      const sat = leave.satellite(k, Math.max(0, leaveU - LEAVE.orbitStart), away);
+      if (leaveU < LEAVE.orbitStart) payload.position.lerpVectors(detachFrom, detachTo, detach);
+      else payload.position.copy(sat.pos);
+      satQuat.setFromRotationMatrix(satBasis.makeBasis(SIDE, sat.up, c.crossVectors(SIDE, sat.up)));
+      payload.quaternion.slerpQuaternions(satDetachQuat, satQuat, k);
+      rocket.visible = leaveU < LEAVE.orbitEnd;
+      if (!rocket.visible) trail.visible = false;
+      leave.tick(LEAVE.end - leaveU);
+      // Le soleil se place comme sur la page timeline, pour que le cadran y ait le même éclairage.
+      leave.sunPosition(sunTarget);
+      sun.position.lerpVectors(SUN_START, sunTarget, smoothstep(progress(leaveU, LEAVE.orbitEnd, LEAVE.diveEnd)));
+    }
+
+    // Vers Explorer : le satellite se dégage de la coiffe, puis s'éloigne de la fusée, droit devant elle.
+    if (departU >= 0) {
+      const payload = rocketParts.payload;
+      if (payload.parent !== scene) {
+        scene.attach(payload);
+        detachFrom.copy(payload.position);
+        detachTo.copy(payload.position).addScaledVector(rocketDir, 0.6);
+        satStartQuat.copy(payload.quaternion);
+      }
+      const detach = easeOutCubic(progress(departU, 0, 0.45));
+      payload.position
+        .lerpVectors(detachFrom, detachTo, detach)
+        .addScaledVector(rocketDir, DEPART_EJECT * easeInOutCubic(progress(departU, 0.3, EXPLORE_T.depart)));
+    }
+
     // 4. Caméra.
     placeCamera(t, clock);
+    // Le satellite prend peu à peu la pose qu'il gardera pendant l'exploration, par rapport à la caméra.
+    if (departU >= 0) {
+      const detach = easeOutCubic(progress(departU, 0, 0.45));
+      satDetachQuat.copy(satStartQuat).multiply(satSpin.setFromAxisAngle(UP, 0.7 * detach));
+      satQuat.copy(rigQuat).multiply(COMPANION_QUAT);
+      rocketParts.payload.quaternion.slerpQuaternions(
+        satDetachQuat,
+        satQuat,
+        easeInOutCubic(progress(departU, 0.2, EXPLORE_T.depart)),
+      );
+    }
 
     // 5. La coiffe s'ouvre en deux, de part et d'autre d'une jointure tournée vers la caméra.
     rocket.updateWorldMatrix(true, false);
@@ -307,13 +551,66 @@ export function createIntro({ canvas, overlay, onStart, onEnd }) {
     const nameP = easeOutCubic(progress(t, T.nameStart, T.nameEnd));
     namePoint.copy(rocketPos).addScaledVector(rocketDir, FAIRING_CENTER).project(camera);
     nameEl.style.opacity = progress(t, T.nameStart, T.nameStart + 0.2);
-    nameEl.style.left = `${(namePoint.x * 0.5 + 0.5) * 100}%`;
-    nameEl.style.top = `${(-namePoint.y * 0.5 + 0.5) * 100}%`;
-    // Le nom finit à gauche de la coiffe, avec un écart plus grand sur écran vertical où la fusée prend plus de place.
-    nameSlide.style.transform = `translateX(${lerp(100, camera.aspect < 1 ? -40 : -24, nameP)}%)`;
+    const portrait = camera.aspect < 1;
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    let nameX = (namePoint.x * 0.5 + 0.5) * w;
+    let nameY = (-namePoint.y * 0.5 + 0.5) * h;
+    // Écran large : le nom finit bien à gauche de la coiffe, dans l'espace libre au-dessus de la planète.
+    // Écran vertical : une fois sorti, il monte se poser en haut à gauche, au-dessus du menu, pour dégager la fusée.
+    const slide = portrait ? -40 : -60;
+    if (portrait) {
+      const lift = easeInOutCubic(progress(t, T.nameEnd - 0.2, T.nameEnd + 0.6));
+      const width = nameEl.offsetWidth;
+      nameX = lerp(nameX, 24 + width * (1 - slide / 100), lift);
+      nameY = lerp(nameY, h * 0.11, lift);
+    }
+    nameEl.style.left = `${nameX}px`;
+    nameEl.style.top = `${nameY}px`;
+    nameSlide.style.transform = `translateX(${lerp(100, slide, nameP)}%)`;
     // Pendant la sortie, tout ce qui dépasse à droite de la coiffe est masqué ; à la fin, le halo du texte se libère.
     nameEl.style.clipPath = `inset(-60% ${-80 * progress(nameP, 0.85, 1)}px -60% -60%)`;
     hintEl.style.opacity = progress(t, T.end - 0.3, T.end + 0.4);
+    if (leaveU >= 0) {
+      const fade = 1 - progress(leaveU, 0, 0.4);
+      nameEl.style.opacity *= fade;
+      hintEl.style.opacity *= fade;
+    }
+    // La citation apparaît quand il ne reste plus que les étoiles ; la page Explorer la reprend telle quelle.
+    quoteEl.style.opacity = departU >= 0 && departDir > 0 ? smoothstep(progress(departU, 1.1, EXPLORE_T.depart)) : 0;
+    if (departU >= 0) {
+      const fade = 1 - progress(departU, 0, 0.4);
+      nameEl.style.opacity *= fade;
+      hintEl.style.opacity *= fade;
+    }
+
+    // 7. Le menu se déploie depuis le satellite, qui flotte et se tourne vers l'entrée survolée.
+    const turnTarget = nav.hovered < 0 ? 0 : (nav.hovered - (INTRO.nav.length - 1) / 2) * 0.35;
+    satTurn = lerp(satTurn, turnTarget, 0.08);
+    const settled = progress(t, T.nameEnd, T.end);
+    if (leaveU < 0 && departU < 0) {
+      rocketParts.payload.rotation.z = -satTurn;
+      rocketParts.payload.rotation.x = Math.sin(clock * 0.9) * 0.08 * settled;
+      rocketParts.payload.position.y = PAYLOAD_Y + Math.sin(clock * 1.3) * 0.03 * settled;
+    }
+    rocketParts.payload.getWorldPosition(satPoint).project(camera);
+    satAnchor.x = (satPoint.x * 0.5 + 0.5) * window.innerWidth;
+    satAnchor.y = (-satPoint.y * 0.5 + 0.5) * window.innerHeight;
+    let navReveal = t - T.navStart;
+    let navExit = leaveU >= 0 ? { index: leaveIndex, p: progress(leaveU, 0, LEAVE.retract) } : null;
+    if (departU >= 0 && departDir > 0) navExit = { index: exploreIndex, p: progress(departU, 0, LEAVE.retract) };
+    // Au retour, le menu se redéploie depuis le satellite quand il a rejoint la coiffe.
+    if (navRevealAt >= 0) navReveal = Math.min(navReveal, clock - navRevealAt);
+    navEl.style.visibility = t > T.navStart && navReveal > 0 && !(departU >= 0 && departDir > 0 && departU > 1) ? 'visible' : 'hidden';
+    nav.update(satAnchor, navReveal, clock, navExit);
+
+    // Fin de la plongée : la planète s'efface autour de l'horloge, qui reste seule sur les étoiles comme sur la page timeline.
+    if (leaveU >= 0) {
+      fadePlanet(1 - smoothstep(progress(leaveU, LEAVE.diveEnd - 0.5, LEAVE.end - 0.1)));
+      headlight.intensity = 0.9 * smoothstep(progress(leaveU, LEAVE.orbitEnd, LEAVE.diveEnd));
+      headlight.position.copy(camera.position);
+      headlight.target.position.copy(camLook);
+    }
 
     renderer.render(scene, camera);
   }
@@ -329,12 +626,31 @@ export function createIntro({ canvas, overlay, onStart, onEnd }) {
   }
   let t = params.has('t') ? Number(params.get('t')) : alreadySeen || reducedMotion ? T.end + 0.5 : 0;
   const paused = params.has('pause');
+  // Outil de mise au point : ?leave=2 montre la transition vers la timeline à 2 s du clic.
+  if (params.has('leave')) {
+    t = T.end + 0.5;
+    startLeave(INTRO.nav.findIndex((item) => item.action === 'timeline'));
+    leaveU = Number(params.get('leave'));
+  }
+  // ?depart=1 montre le départ vers la page Explorer à 1 s du clic.
+  if (params.has('depart')) {
+    t = T.end + 0.5;
+    startDepart();
+    departU = Number(params.get('depart'));
+  }
   let boost = 0;
   let ended = false;
   let last = performance.now();
+  // Arrivée depuis la page Explorer : on repart du dernier plan du départ.
+  if (params.get('from') === 'explore') {
+    window.history.replaceState(null, '', window.location.pathname);
+    t = T.end + 0.5;
+    ended = true;
+    startReturn();
+  }
 
   const accelerate = () => {
-    if (!ended) boost = 6;
+    if (!ended || leaveU >= 0) boost = 6;
   };
   window.addEventListener('wheel', accelerate, { passive: true });
   window.addEventListener('touchmove', accelerate, { passive: true });
@@ -346,8 +662,23 @@ export function createIntro({ canvas, overlay, onStart, onEnd }) {
     const dt = Math.min(0.05, (now - last) / 1000);
     last = now;
     if (!paused) t += dt * (1 + boost);
+    if (leaveU >= 0 && !paused) leaveU += dt * (1 + boost * 0.4);
+    if (departU >= 0 && !paused) {
+      departU += dt * departDir;
+      if (departDir < 0 && departU <= 0) endReturn(now / 1000);
+    }
     boost = Math.max(0, boost - dt * 10);
     render(t, now / 1000);
+    if (departDir > 0 && departU >= EXPLORE_T.depart && !navigated) {
+      navigated = true;
+      saveHandoff(camera);
+      window.location.href = './explore.html';
+    }
+
+    if (leaveU >= LEAVE.end && !navigated) {
+      navigated = true;
+      window.location.href = './timeline.html?t=0';
+    }
 
     if (!ended && t >= T.end) {
       ended = true;
@@ -356,14 +687,16 @@ export function createIntro({ canvas, overlay, onStart, onEnd }) {
       } catch {
         // Rien à faire : l'intro sera simplement rejouée.
       }
+      navEl.inert = false;
       onEnd();
+      // L'horloge de la timeline se prépare quand le navigateur est libre, pour ne pas ralentir l'intro.
+      (window.requestIdleCallback ?? setTimeout)(() => leave.buildClock());
     }
     requestAnimationFrame(frame);
   }
   requestAnimationFrame(frame);
 
   nameEl.querySelector('.intro-name-main').textContent = INTRO.name;
-  nameEl.querySelector('.intro-name-sub').textContent = INTRO.tagline;
   hintEl.querySelector('span').textContent = INTRO.scrollHint;
 
   return {
@@ -372,6 +705,7 @@ export function createIntro({ canvas, overlay, onStart, onEnd }) {
       t = 0;
       ended = false;
       boost = 0;
+      navEl.inert = true;
       onStart();
     },
   };

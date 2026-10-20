@@ -24,7 +24,10 @@ function surfaceDir(s, w = 0) {
 }
 
 function placeOnSurface(parent, obj, s, w = 0, lift = 0) {
-  const dir = surfaceDir(s, w);
+  placeAtDir(parent, obj, surfaceDir(s, w), lift);
+}
+
+function placeAtDir(parent, obj, dir, lift = 0) {
   obj.position.copy(dir).multiplyScalar(PLANET_RADIUS + lift);
   obj.quaternion.setFromUnitVectors(UP, dir);
   parent.add(obj);
@@ -33,7 +36,12 @@ function placeOnSurface(parent, obj, s, w = 0, lift = 0) {
 const flat = (color, extra = {}) =>
   new THREE.MeshStandardMaterial({ color, flatShading: true, roughness: 0.85, ...extra });
 
-function isLand(dir) {
+// continents : terres supplémentaires, chacune un disque aux bords irréguliers autour de `dir` (repère de la planète).
+function isLand(dir, continents) {
+  for (const { dir: center, radius } of continents) {
+    const edge = radius * (1 + 0.18 * Math.sin(dir.x * 9 + dir.z * 5) + 0.1 * Math.cos(dir.y * 13));
+    if (dir.angleTo(center) < edge) return true;
+  }
   const s = Math.atan2(dir.x, dir.y) * PLANET_RADIUS;
   const w = Math.asin(THREE.MathUtils.clamp(dir.z, -1, 1)) * PLANET_RADIUS;
 
@@ -52,7 +60,7 @@ function isLand(dir) {
   return n > 0.75;
 }
 
-function buildGlobe() {
+function buildGlobe(continents) {
   const geometry = new THREE.IcosahedronGeometry(PLANET_RADIUS, 36);
   const pos = geometry.attributes.position;
   const colors = new Float32Array(pos.count * 3);
@@ -66,7 +74,7 @@ function buildGlobe() {
     center.set(0, 0, 0);
     for (let k = 0; k < 3; k++) center.add(v.fromBufferAttribute(pos, i + k));
     center.normalize();
-    const palette = isLand(center) ? land : water;
+    const palette = isLand(center, continents) ? land : water;
     const color = palette[Math.floor(rand() * palette.length)];
     for (let k = 0; k < 3; k++) color.toArray(colors, (i + k) * 3);
   }
@@ -127,6 +135,77 @@ function buildSolarPlant() {
   return plant;
 }
 
+// Maison aux murs clairs, toit en pyramide dont le pan avant porte des panneaux solaires.
+function buildSolarHouse() {
+  const house = new THREE.Group();
+  const size = 1.3;
+  const wallHeight = 0.85;
+  const walls = new THREE.Mesh(new THREE.BoxGeometry(size, wallHeight, size), flat('#f2ede4'));
+  walls.position.y = wallHeight / 2;
+  house.add(walls);
+  const door = new THREE.Mesh(new THREE.BoxGeometry(0.28, 0.5, 0.04), flat('#8a5a3b'));
+  door.position.set(-0.3, 0.25, size / 2 + 0.01);
+  const window_ = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.26, 0.04), flat('#9fd4f0', { roughness: 0.3 }));
+  window_.position.set(0.28, 0.5, size / 2 + 0.01);
+  house.add(door, window_);
+
+  // Pyramide à 4 pans tournée de 45° pour que ses arêtes tombent sur les coins des murs.
+  const roofHeight = 0.6;
+  const half = size / 2 + 0.08;
+  const roof = new THREE.Mesh(new THREE.ConeGeometry(half * Math.SQRT2, roofHeight, 4), flat('#b5523b'));
+  roof.rotation.y = Math.PI / 4;
+  roof.position.y = wallHeight + roofHeight / 2;
+  house.add(roof);
+
+  // Panneaux sur le pan tourné vers +z, posés parallèlement à sa pente.
+  const slope = Math.atan2(roofHeight, half);
+  const frameMat = flat('#9aa5ad', { metalness: 0.3 });
+  const faceMat = new THREE.MeshStandardMaterial({ map: panelFaceTexture(), metalness: 0.3, roughness: 0.35 });
+  const panels = new THREE.Mesh(new THREE.BoxGeometry(half * 0.9, 0.03, (half * 0.62) / Math.cos(slope)), [
+    frameMat, frameMat, faceMat, frameMat, frameMat, frameMat,
+  ]);
+  panels.rotation.x = slope;
+  // Au tiers bas du pan, décollés de sa surface de l'épaisseur du panneau.
+  const along = 0.36;
+  panels.position.set(0, wallHeight + roofHeight * (1 - along), half * along);
+  panels.position.addScaledVector(new THREE.Vector3(0, Math.cos(slope), Math.sin(slope)), 0.03);
+  house.add(panels);
+  return house;
+}
+
+// Grand champ de panneaux en rangées, en une seule géométrie instanciée. Le sol suit la courbure de la planète.
+function buildSolarField() {
+  const field = new THREE.Group();
+  const rows = 6;
+  const cols = 8;
+  const frameMat = flat('#9aa5ad', { metalness: 0.3 });
+  const faceMat = new THREE.MeshStandardMaterial({ map: panelFaceTexture(), metalness: 0.3, roughness: 0.35 });
+  const panels = new THREE.InstancedMesh(new THREE.BoxGeometry(0.7, 0.04, 0.48), [
+    frameMat, frameMat, faceMat, frameMat, frameMat, frameMat,
+  ], rows * cols);
+  const posts = new THREE.InstancedMesh(new THREE.CylinderGeometry(0.03, 0.03, 0.3, 5), frameMat, rows * cols);
+  const dummy = new THREE.Object3D();
+  let i = 0;
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const x = (c - (cols - 1) / 2) * 0.82;
+      const z = (r - (rows - 1) / 2) * 0.78;
+      const sag = (x * x + z * z) / (2 * PLANET_RADIUS);
+      dummy.position.set(x, 0.32 - sag, z);
+      dummy.rotation.set(0.5, 0, 0);
+      dummy.updateMatrix();
+      panels.setMatrixAt(i, dummy.matrix);
+      dummy.position.set(x, 0.15 - sag, z);
+      dummy.rotation.set(0, 0, 0);
+      dummy.updateMatrix();
+      posts.setMatrixAt(i, dummy.matrix);
+      i++;
+    }
+  }
+  field.add(panels, posts);
+  return field;
+}
+
 function buildTree(rand) {
   const tree = new THREE.Group();
   const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.08, 0.35, 5), flat('#8a5a3b'));
@@ -175,10 +254,24 @@ function buildSmoke(rand) {
   return smoke;
 }
 
-export function buildPlanet({ treeCount = 46 } = {}) {
+// Direction voisine de `base` : à `dist` radians de lui, dans la direction `azimuth` autour de lui.
+function offsetDir(base, azimuth, dist) {
+  const side = new THREE.Vector3(1, 0, 0).cross(base).normalize();
+  return base.clone().applyAxisAngle(side, dist).applyAxisAngle(base, azimuth);
+}
+
+const HOUSE_AZIMUTH = 2.3;
+const FIELD_AZIMUTH = -0.9;
+
+// clockDir : direction (repère de la planète) d'un continent portant l'horloge de la timeline, une maison solaire,
+// un champ photovoltaïque et quelques arbres.
+// Renvoie aussi `elements` : les éléments que l'on peut viser en explorant la planète, avec leur point d'ancrage.
+export function buildPlanet({ treeCount = 46, clockDir = null } = {}) {
   const rand = seededRandom(42);
   const planet = new THREE.Group();
-  planet.add(buildGlobe());
+  const continents = clockDir ? [{ dir: clockDir, radius: 0.42 }] : [];
+  const globe = buildGlobe(continents);
+  planet.add(globe);
 
   // Halo d'atmosphère, surtout visible une fois dans l'espace.
   const atmosphere = new THREE.Mesh(
@@ -187,12 +280,16 @@ export function buildPlanet({ treeCount = 46 } = {}) {
   );
   planet.add(atmosphere);
 
-  placeOnSurface(planet, buildSolarPlant(), PATH.solar, 0, 0.02);
+  const solar = buildSolarPlant();
+  placeOnSurface(planet, solar, PATH.solar, 0, 0.02);
 
+  // Les arbres du trajet, réunis en une forêt.
+  const forest = new THREE.Group();
+  planet.add(forest);
   for (let i = 0; i < treeCount; i++) {
     const s = PATH.treesStart + rand() * (PATH.treesEnd - PATH.treesStart);
     const w = (rand() - 0.5) * 9;
-    placeOnSurface(planet, buildTree(rand), s, w);
+    placeOnSurface(forest, buildTree(rand), s, w);
   }
 
   const pad = buildLaunchPad();
@@ -201,7 +298,42 @@ export function buildPlanet({ treeCount = 46 } = {}) {
   smoke.position.y = 0.35;
   pad.add(smoke);
 
-  return { planet, pad, padTop: 0.3, smoke };
+  const elements = [
+    { key: 'solar', root: solar, anchor: solar.position.clone() },
+    { key: 'forest', root: forest, anchor: surfaceDir((PATH.treesStart + PATH.treesEnd) / 2).multiplyScalar(PLANET_RADIUS) },
+    { key: 'pad', root: pad, anchor: pad.position.clone() },
+  ];
+
+  // Continent de l'horloge : l'emplacement de l'horloge au centre (elle est construite à la demande), la maison
+  // et le champ à côté, des arbres en couronne autour.
+  let clockSite = null;
+  if (clockDir) {
+    clockSite = new THREE.Group();
+    placeAtDir(planet, clockSite, clockDir);
+
+    const house = buildSolarHouse();
+    placeAtDir(planet, house, offsetDir(clockDir, HOUSE_AZIMUTH, 0.22));
+    house.rotateY(0.6);
+    const field = buildSolarField();
+    placeAtDir(planet, field, offsetDir(clockDir, FIELD_AZIMUTH, 0.27));
+    field.rotateY(-0.4);
+
+    for (let i = 0; i < 22; i++) {
+      const azimuth = (i / 22) * Math.PI * 2 + rand() * 0.3;
+      const near = (a) => Math.abs(Math.atan2(Math.sin(azimuth - a), Math.cos(azimuth - a))) < 0.55;
+      if (near(HOUSE_AZIMUTH) || near(FIELD_AZIMUTH)) continue;
+      placeAtDir(planet, buildTree(rand), offsetDir(clockDir, azimuth, 0.19 + rand() * 0.1));
+    }
+
+    elements.push(
+      { key: 'clock', root: clockSite, anchor: clockSite.position.clone() },
+      // front : côté à montrer quand on s'approche (la porte et les panneaux de la maison, la face des panneaux du champ).
+      { key: 'house', root: house, anchor: house.position.clone(), front: new THREE.Vector3(0, 0, 1).applyQuaternion(house.quaternion) },
+      { key: 'field', root: field, anchor: field.position.clone(), front: new THREE.Vector3(0, 0, 1).applyQuaternion(field.quaternion) },
+    );
+  }
+
+  return { planet, globe, pad, padTop: 0.3, smoke, clockSite, elements };
 }
 
 export function updateSmoke(smoke, p) {

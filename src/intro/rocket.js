@@ -24,6 +24,25 @@ function fairingProfile() {
   return points;
 }
 
+// Le satellite : un corps doré et deux ailes de panneaux solaires, montées sur pivots pour se déplier.
+export function buildSatellite() {
+  const satellite = new THREE.Group();
+  satellite.add(new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.26, 0.2), flat('#d9a441', { metalness: 0.5, roughness: 0.4 })));
+  const wingGeo = new THREE.BoxGeometry(0.34, 0.015, 0.14);
+  const wingMat = flat('#1d3f9e', { metalness: 0.3, roughness: 0.35 });
+  const wings = [1, -1].map((side) => {
+    const pivot = new THREE.Group();
+    pivot.position.set(side * 0.1, 0.13, 0);
+    const wing = new THREE.Mesh(wingGeo, wingMat);
+    wing.position.x = side * 0.17;
+    pivot.add(wing);
+    pivot.userData.side = side;
+    satellite.add(pivot);
+    return pivot;
+  });
+  return { satellite, wings };
+}
+
 // Fusée en formes simples. L'origine est à la base des ailerons.
 export function buildRocket() {
   const rocket = new THREE.Group();
@@ -85,21 +104,8 @@ export function buildRocket() {
   rocket.add(adapter);
 
   // Charge utile : un petit satellite, ailes repliées tant que la coiffe est fermée.
-  const payload = new THREE.Group();
+  const { satellite: payload, wings } = buildSatellite();
   payload.position.y = FAIRING_BASE + 0.25;
-  payload.add(new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.26, 0.2), flat('#d9a441', { metalness: 0.5, roughness: 0.4 })));
-  const wingGeo = new THREE.BoxGeometry(0.34, 0.015, 0.14);
-  const wingMat = flat('#1d3f9e', { metalness: 0.3, roughness: 0.35 });
-  const wings = [1, -1].map((side) => {
-    const pivot = new THREE.Group();
-    pivot.position.set(side * 0.1, 0.13, 0);
-    const wing = new THREE.Mesh(wingGeo, wingMat);
-    wing.position.x = side * 0.17;
-    pivot.add(wing);
-    pivot.userData.side = side;
-    payload.add(pivot);
-    return pivot;
-  });
   fairing.add(payload);
 
   const flame = new THREE.Mesh(
