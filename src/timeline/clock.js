@@ -1,6 +1,15 @@
 import * as THREE from 'three';
+import { TIMELINE } from '../config.js';
 
-export const DIAL_RADIUS = 20;
+// Rayon du cadran : la trotteuse va jusqu'au bord et la carte couvre toute sa longueur, de l'axe à la pointe.
+export const DIAL_RADIUS = 10;
+const S = DIAL_RADIUS / 20; // échelle des détails (lunette, couronne, aiguilles), réglés pour un rayon de 20
+
+// Sens de rotation de la trotteuse d'une étape à l'autre : -1, antihoraire, on remonte le temps.
+export const DIRECTION = TIMELINE.direction;
+
+// Angle de chaque étape sur le cadran, compté dans le sens horaire depuis le 12.
+export const ENTRY_ANGLES = TIMELINE.entries.map((_, i) => DIRECTION * THREE.MathUtils.degToRad(TIMELINE.stepAngle) * i);
 
 // Premier plan, face à l'horloge : hauteur de la caméra au-dessus du cadran (paysage, portrait) et point visé,
 // proportionnels au rayon. La transition de l'intro vers la timeline reprend ce cadrage.
@@ -25,10 +34,10 @@ export const HAND = {
   tailRadius: 1.0,
 };
 
-// Zone de la face où s'affiche la carte, le long de la trotteuse : vers la pointe, là où passent les chiffres.
+// Zone de la face où s'affiche la carte : toute la trotteuse, du chapeau de l'axe à la pointe.
 export const CARD = {
-  near: -(DIAL_RADIUS - 9.8),
-  far: -(DIAL_RADIUS - 2.1),
+  near: -1.05,
+  far: -(DIAL_RADIUS - 1.25),
   height: 1.84,
 };
 CARD.length = CARD.near - CARD.far;
@@ -148,16 +157,16 @@ function bezelProfile() {
   const R = DIAL_RADIUS;
   const points = [
     [R - 0.02, -0.02],
-    [R, 1.2],
-    [R + 0.18, 1.6],
+    [R, 1.2 * S],
+    [R + 0.18 * S, 1.6 * S],
   ];
   // Dessus en demi-rond.
   const steps = 10;
   for (let i = 0; i <= steps; i++) {
     const a = Math.PI * (1 - i / steps);
-    points.push([R + 1.1 + Math.cos(a) * 0.92, 1.6 + Math.sin(a) * 0.45]);
+    points.push([R + (1.1 + Math.cos(a) * 0.92) * S, (1.6 + Math.sin(a) * 0.45) * S]);
   }
-  points.push([R + 2.1, 1.3], [R + 2.25, 0.9], [R + 2.25, -1.2], [R + 2.05, -1.4], [0, -1.4]);
+  points.push([R + 2.1 * S, 1.3 * S], [R + 2.25 * S, 0.9 * S], [R + 2.25 * S, -1.2], [R + 2.05 * S, -1.4], [0, -1.4]);
   return points.map(([x, y]) => new THREE.Vector2(x, y));
 }
 
@@ -169,8 +178,8 @@ function buildFlatHand(length, width, y, color) {
   return pivot;
 }
 
-// Horloge en formes simples, cadran à plat dans le plan XZ, le 12 vers -z.
-export function buildClock(entryAngles) {
+// Horloge en formes simples, cadran à plat dans le plan XZ, le 12 vers -z. Les étapes viennent de la config.
+export function buildClock() {
   const clock = new THREE.Group();
 
   const bezel = new THREE.Mesh(
@@ -197,24 +206,24 @@ export function buildClock(entryAngles) {
 
   // Couronne et poussoir, à 12 h : un chronomètre.
   const crown = new THREE.Group();
-  const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.75, 0.75, 2, 16), flat('#3a4358', { metalness: 0.4 }));
+  const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.75 * S, 0.75 * S, 2 * S, 16), flat('#3a4358', { metalness: 0.4 }));
   stem.rotation.x = Math.PI / 2;
-  stem.position.z = -(DIAL_RADIUS + 2.9);
-  const knob = new THREE.Mesh(new THREE.CylinderGeometry(1.7, 1.7, 1.2, 24), flat('#d4483b'));
+  stem.position.z = -(DIAL_RADIUS + 2.9 * S);
+  const knob = new THREE.Mesh(new THREE.CylinderGeometry(1.7 * S, 1.7 * S, 1.2 * S, 24), flat('#d4483b'));
   knob.rotation.x = Math.PI / 2;
-  knob.position.z = -(DIAL_RADIUS + 4.3);
+  knob.position.z = -(DIAL_RADIUS + 4.3 * S);
   crown.add(stem, knob);
   crown.position.y = -0.3;
   clock.add(crown);
 
-  // Arc de progression le long du bord, du 12 jusqu'à l'étape courante.
+  // Arc de progression le long du bord, du 12 jusqu'à l'étape courante, dans le sens de rotation des étapes.
   const segments = 360;
   const arc = new THREE.Mesh(
-    new THREE.RingGeometry(DIAL_RADIUS * 0.965, DIAL_RADIUS * 0.995, segments, 1, -Math.PI / 2, Math.PI * 2),
+    new THREE.RingGeometry(DIAL_RADIUS * 0.965, DIAL_RADIUS * 0.995, segments, 1, (-DIRECTION * Math.PI) / 2, Math.PI * 2),
     new THREE.MeshBasicMaterial({ color: '#ffb347', side: THREE.DoubleSide }),
   );
-  // Rotation +90° : l'angle de l'anneau augmente dans le sens horaire vu d'en haut, comme les aiguilles.
-  arc.rotation.x = Math.PI / 2;
+  // Couché à +90°, l'angle de l'anneau augmente dans le sens horaire vu d'en haut ; à -90°, dans le sens antihoraire.
+  arc.rotation.x = (DIRECTION * Math.PI) / 2;
   arc.position.y = 0.02;
   arc.geometry.setDrawRange(0, 0);
   clock.add(arc);
@@ -224,8 +233,8 @@ export function buildClock(entryAngles) {
   };
 
   // Un repère par étape de la timeline, au bord du cadran.
-  const markerGeo = new THREE.CylinderGeometry(0.6, 0.6, 0.12, 20);
-  const markers = entryAngles.map((angle) => {
+  const markerGeo = new THREE.CylinderGeometry(0.6 * S, 0.6 * S, 0.12, 20);
+  const markers = ENTRY_ANGLES.map((angle) => {
     const marker = new THREE.Mesh(markerGeo, flat('#ffb347', { emissive: '#ffb347', emissiveIntensity: 0 }));
     marker.position.copy(onDial(angle, DIAL_RADIUS * 0.8, 0.06));
     clock.add(marker);
@@ -233,9 +242,9 @@ export function buildClock(entryAngles) {
   });
 
   // Heures et minutes figées sur 10 h 10, sous la trotteuse.
-  const hourHand = buildFlatHand(10, 0.9, 0.1, '#1d2433');
+  const hourHand = buildFlatHand(10 * S, 0.9 * S, 0.1, '#1d2433');
   hourHand.rotation.y = -((10 + 10 / 60) / 12) * Math.PI * 2;
-  const minuteHand = buildFlatHand(15.2, 0.6, 0.24, '#1d2433');
+  const minuteHand = buildFlatHand(15.2 * S, 0.6 * S, 0.24, '#1d2433');
   minuteHand.rotation.y = -(10 / 60) * Math.PI * 2;
   clock.add(hourHand, minuteHand);
 

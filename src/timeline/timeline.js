@@ -2,16 +2,15 @@ import * as THREE from 'three';
 import { TIMELINE, TL } from '../config.js';
 import { buildStars } from '../intro/intro.js';
 import { easeInOutCubic, easeOutCubic, lerp, progress, smoothstep } from '../intro/math.js';
-import { CARD, OPENING_VIEW as O, buildClock } from './clock.js';
+import { CARD, DIRECTION, ENTRY_ANGLES, OPENING_VIEW as O, buildClock } from './clock.js';
 import { buildCard } from './card.js';
 
 const TAU = Math.PI * 2;
-const STEP_ANGLE = THREE.MathUtils.degToRad(TIMELINE.stepAngle);
 const STEP_DURATION = 0.9; // secondes pour passer d'une étape à l'autre
 
 // Angle de la trotteuse, compté dans le sens horaire depuis le 12. Avant la course, elle bat les secondes et
-// arrive sur le 12 pile au début de la course ; pendant la course, elle fait SPIN_TURNS tours en accélérant
-// puis en ralentissant, et s'arrête sur la première étape.
+// arrive sur le 12 pile au début de la course ; pendant la course, elle fait SPIN_TURNS tours à rebours (dans le
+// sens des étapes) en accélérant puis en ralentissant, et s'arrête sur la première étape.
 const SPIN_TURNS = 1;
 const TICK = TAU / 60;
 function introHandAngle(t) {
@@ -20,7 +19,7 @@ function introHandAngle(t) {
     const tick = easeOutCubic(Math.min(1, (t - n) / 0.12));
     return -TICK * (TL.spinStart - n + 1 - tick);
   }
-  return SPIN_TURNS * TAU * easeInOutCubic(progress(t, TL.spinStart, TL.end));
+  return DIRECTION * SPIN_TURNS * TAU * easeInOutCubic(progress(t, TL.spinStart, TL.end));
 }
 
 // Cadrages de la caméra.
@@ -48,9 +47,9 @@ const CAMERA_KEYS = [
     portrait: { pos: [0, O.portraitHeight * 0.92, 0.01] },
   },
   // Zoom jusqu'au cadran, au-dessus de la trotteuse arrêtée sur le 12, là où passera la carte.
-  { t: TL.zoomEnd, space: 'world', pos: [1.6, 9, -13.6], look: [0, 0.6, -13.9], up: [0, 0, -1], fov: 46 },
+  { t: TL.zoomEnd, space: 'world', pos: [1.2, 7.5, CARD.center.z], look: [0, 0.6, CARD.center.z - 0.2], up: [0, 0, -1], fov: 46 },
   // Bascule : la caméra descend au ras du cadran et suit la trotteuse qui accélère.
-  { t: TL.followAt, space: 'hand', pos: [6, 3.6, -17], look: [0, 0.6, -12], up: [0, 1, 0], fov: 50 },
+  { t: TL.followAt, space: 'hand', pos: [5, 3.4, CARD.center.z - 3.1], look: [0, 0.6, CARD.center.z + 1.4], up: [0, 1, 0], fov: 50 },
 ];
 
 export function createTimeline({ canvas, overlay, onEnd, onStep }) {
@@ -78,8 +77,7 @@ export function createTimeline({ canvas, overlay, onEnd, onStep }) {
   stars.material.opacity = 0.8;
   scene.add(stars);
 
-  const entryAngles = entries.map((_, i) => i * STEP_ANGLE);
-  const { clock, hand, markers, setProgress } = buildClock(entryAngles);
+  const { clock, hand, markers, setProgress } = buildClock();
   scene.add(clock);
 
   const cards = { horizontal: buildCard(false), vertical: buildCard(true) };
@@ -164,9 +162,10 @@ export function createTimeline({ canvas, overlay, onEnd, onStep }) {
 
   // Étapes : après l'intro, chaque passage fait tourner la trotteuse d'une étape à la suivante.
   let step = 0;
-  let stepFrom = SPIN_TURNS * TAU;
+  const spinEnd = DIRECTION * SPIN_TURNS * TAU;
+  let stepFrom = spinEnd;
   let stepStart = -10;
-  const stepAngle = (i) => SPIN_TURNS * TAU + entryAngles[i];
+  const stepAngle = (i) => spinEnd + ENTRY_ANGLES[i];
   let handAngle = 0;
 
   function render(t, now) {
@@ -181,10 +180,10 @@ export function createTimeline({ canvas, overlay, onEnd, onStep }) {
     handQuat.setFromAxisAngle(Y, -handAngle);
 
     // Progression : l'arc et les repères des étapes atteintes s'allument.
-    const travelled = introDone ? handAngle - SPIN_TURNS * TAU : 0;
+    const travelled = introDone ? (handAngle - spinEnd) * DIRECTION : 0; // chemin parcouru depuis le 12
     setProgress(travelled + 0.001);
     markers.forEach((m, i) => {
-      m.material.emissiveIntensity = introDone && travelled >= entryAngles[i] - 0.01 ? 0.8 : 0;
+      m.material.emissiveIntensity = introDone && travelled >= Math.abs(ENTRY_ANGLES[i]) - 0.01 ? 0.8 : 0;
     });
 
     // La carte apparaît à la fin de l'intro, puis s'efface et revient à chaque changement d'étape.
@@ -302,7 +301,7 @@ export function createTimeline({ canvas, overlay, onEnd, onStep }) {
       boost = 0;
       step = 0;
       previousStep = 0;
-      stepFrom = SPIN_TURNS * TAU;
+      stepFrom = spinEnd;
       stepStart = -10;
     },
   };
