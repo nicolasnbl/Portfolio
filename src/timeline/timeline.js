@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { TIMELINE, TL } from '../config.js';
 import { buildStars } from '../intro/intro.js';
 import { easeInOutCubic, easeOutCubic, lerp, progress, smoothstep } from '../intro/math.js';
-import { CARD, buildClock } from './clock.js';
+import { CARD, OPENING_VIEW as O, buildClock } from './clock.js';
 import { buildCard } from './card.js';
 
 const TAU = Math.PI * 2;
@@ -29,12 +29,28 @@ function introHandAngle(t) {
 // Le dernier cadrage, face à la carte, est calculé selon l'écran (finalKey).
 const CAMERA_KEYS = [
   // Face à l'horloge.
-  { t: 0, space: 'world', pos: [0, 38, 0.01], look: [0, 0, -0.6], up: [0, 0, -1], fov: 40, portrait: { pos: [0, 62, 0.01] } },
-  { t: TL.zoomStart, space: 'world', pos: [0, 35, 0.01], look: [0, 0, -0.6], up: [0, 0, -1], fov: 40, portrait: { pos: [0, 58, 0.01] } },
-  // Zoom jusqu'au cadran, au-dessus de la trotteuse arrêtée sur le 12.
-  { t: TL.zoomEnd, space: 'world', pos: [1.2, 7.5, -5], look: [0, 0.6, -5.2], up: [0, 0, -1], fov: 46 },
+  {
+    t: 0,
+    space: 'world',
+    pos: [0, O.height, 0.01],
+    look: [0, 0, O.lookZ],
+    up: [0, 0, -1],
+    fov: 40,
+    portrait: { pos: [0, O.portraitHeight, 0.01] },
+  },
+  {
+    t: TL.zoomStart,
+    space: 'world',
+    pos: [0, O.height * 0.92, 0.01],
+    look: [0, 0, O.lookZ],
+    up: [0, 0, -1],
+    fov: 40,
+    portrait: { pos: [0, O.portraitHeight * 0.92, 0.01] },
+  },
+  // Zoom jusqu'au cadran, au-dessus de la trotteuse arrêtée sur le 12, là où passera la carte.
+  { t: TL.zoomEnd, space: 'world', pos: [1.6, 9, -13.6], look: [0, 0.6, -13.9], up: [0, 0, -1], fov: 46 },
   // Bascule : la caméra descend au ras du cadran et suit la trotteuse qui accélère.
-  { t: TL.followAt, space: 'hand', pos: [5, 3.4, -8], look: [0, 0.6, -3.5], up: [0, 1, 0], fov: 50 },
+  { t: TL.followAt, space: 'hand', pos: [6, 3.6, -17], look: [0, 0.6, -12], up: [0, 1, 0], fov: 50 },
 ];
 
 export function createTimeline({ canvas, overlay, onEnd, onStep }) {

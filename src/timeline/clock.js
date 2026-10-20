@@ -1,6 +1,14 @@
 import * as THREE from 'three';
 
-export const DIAL_RADIUS = 10;
+export const DIAL_RADIUS = 20;
+
+// Premier plan, face à l'horloge : hauteur de la caméra au-dessus du cadran (paysage, portrait) et point visé,
+// proportionnels au rayon. La transition de l'intro vers la timeline reprend ce cadrage.
+export const OPENING_VIEW = {
+  height: DIAL_RADIUS * 3.8,
+  portraitHeight: DIAL_RADIUS * 6.2,
+  lookZ: -DIAL_RADIUS * 0.06,
+};
 
 // Trotteuse : une barre épaisse aux arêtes arrondies, posée au-dessus du cadran, qui va presque jusqu'au bord.
 // Dans son repère, elle pointe vers -z (vers le 12 quand elle n'a pas tourné) ; la face +x, côté où elle avance,
@@ -11,16 +19,16 @@ export const HAND = {
   bevel: 0.1, // arrondi des arêtes, sur le côté
   bevelHeight: 0.12, // arrondi des arêtes, en haut et en bas
   base: 0.4, // hauteur du dessous de la trotteuse au-dessus du cadran
-  shoulder: 9.0, // fin de la partie droite
-  tip: 9.75, // pointe, juste avant le bord intérieur de la lunette
+  shoulder: DIAL_RADIUS - 1, // fin de la partie droite
+  tip: DIAL_RADIUS - 0.25, // pointe, juste avant le bord intérieur de la lunette
   tail: 1.6, // centre du contrepoids
   tailRadius: 1.0,
 };
 
-// Zone de la face où s'affiche la carte, le long de la trotteuse.
+// Zone de la face où s'affiche la carte, le long de la trotteuse : vers la pointe, là où passent les chiffres.
 export const CARD = {
-  near: -1.05,
-  far: -8.75,
+  near: -(DIAL_RADIUS - 9.8),
+  far: -(DIAL_RADIUS - 2.1),
   height: 1.84,
 };
 CARD.length = CARD.near - CARD.far;
@@ -140,16 +148,16 @@ function bezelProfile() {
   const R = DIAL_RADIUS;
   const points = [
     [R - 0.02, -0.02],
-    [R, 0.85],
-    [R + 0.12, 1.12],
+    [R, 1.2],
+    [R + 0.18, 1.6],
   ];
   // Dessus en demi-rond.
-  const steps = 8;
+  const steps = 10;
   for (let i = 0; i <= steps; i++) {
     const a = Math.PI * (1 - i / steps);
-    points.push([R + 0.75 + Math.cos(a) * 0.6, 1.12 + Math.sin(a) * 0.32]);
+    points.push([R + 1.1 + Math.cos(a) * 0.92, 1.6 + Math.sin(a) * 0.45]);
   }
-  points.push([R + 1.42, 0.9], [R + 1.5, 0.6], [R + 1.5, -1.2], [R + 1.35, -1.4], [0, -1.4]);
+  points.push([R + 2.1, 1.3], [R + 2.25, 0.9], [R + 2.25, -1.2], [R + 2.05, -1.4], [0, -1.4]);
   return points.map(([x, y]) => new THREE.Vector2(x, y));
 }
 
@@ -189,12 +197,12 @@ export function buildClock(entryAngles) {
 
   // Couronne et poussoir, à 12 h : un chronomètre.
   const crown = new THREE.Group();
-  const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.45, 1.2, 16), flat('#3a4358', { metalness: 0.4 }));
+  const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.75, 0.75, 2, 16), flat('#3a4358', { metalness: 0.4 }));
   stem.rotation.x = Math.PI / 2;
-  stem.position.z = -(DIAL_RADIUS + 1.9);
-  const knob = new THREE.Mesh(new THREE.CylinderGeometry(1.0, 1.0, 0.7, 20), flat('#d4483b'));
+  stem.position.z = -(DIAL_RADIUS + 2.9);
+  const knob = new THREE.Mesh(new THREE.CylinderGeometry(1.7, 1.7, 1.2, 24), flat('#d4483b'));
   knob.rotation.x = Math.PI / 2;
-  knob.position.z = -(DIAL_RADIUS + 2.7);
+  knob.position.z = -(DIAL_RADIUS + 4.3);
   crown.add(stem, knob);
   crown.position.y = -0.3;
   clock.add(crown);
@@ -216,7 +224,7 @@ export function buildClock(entryAngles) {
   };
 
   // Un repère par étape de la timeline, au bord du cadran.
-  const markerGeo = new THREE.CylinderGeometry(0.32, 0.32, 0.12, 16);
+  const markerGeo = new THREE.CylinderGeometry(0.6, 0.6, 0.12, 20);
   const markers = entryAngles.map((angle) => {
     const marker = new THREE.Mesh(markerGeo, flat('#ffb347', { emissive: '#ffb347', emissiveIntensity: 0 }));
     marker.position.copy(onDial(angle, DIAL_RADIUS * 0.8, 0.06));
@@ -225,9 +233,9 @@ export function buildClock(entryAngles) {
   });
 
   // Heures et minutes figées sur 10 h 10, sous la trotteuse.
-  const hourHand = buildFlatHand(5, 0.55, 0.1, '#1d2433');
+  const hourHand = buildFlatHand(10, 0.9, 0.1, '#1d2433');
   hourHand.rotation.y = -((10 + 10 / 60) / 12) * Math.PI * 2;
-  const minuteHand = buildFlatHand(7.6, 0.38, 0.24, '#1d2433');
+  const minuteHand = buildFlatHand(15.2, 0.6, 0.24, '#1d2433');
   minuteHand.rotation.y = -(10 / 60) * Math.PI * 2;
   clock.add(hourHand, minuteHand);
 
