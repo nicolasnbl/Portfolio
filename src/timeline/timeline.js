@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { TIMELINE, TL } from '../config.js';
 import { buildStars } from '../intro/intro.js';
 import { easeInOutCubic, easeOutCubic, lerp, progress, smoothstep } from '../intro/math.js';
-import { CARD, HAND, OPENING_VIEW as O, buildClock } from './clock.js';
+import { CARD, OPENING_VIEW as O, buildClock } from './clock.js';
 import { buildCard } from './card.js';
 
 const TAU = Math.PI * 2;
@@ -92,20 +92,19 @@ export function createTimeline({ canvas, overlay, onEnd, onStep }) {
   const viewTo = makeView();
   const final = { t: TL.end, space: 'hand', pos: [0, 0, 0], look: [0, 0, 0], up: [0, 1, 0], fov: 42 };
 
-  // Face à la trotteuse, dans son repère, le cadran en sol. En portrait, la trotteuse est debout à l'écran,
+  // Face à la carte, dans le repère de la trotteuse. En portrait, la trotteuse est debout à l'écran,
   // pointe en haut, et la caméra recule juste assez pour voir la carte en entier.
   function finalKey(aspect) {
     const tanV = Math.tan(THREE.MathUtils.degToRad(42 / 2));
     if (aspect >= 1) {
-      // En face, à hauteur du cadran et à l'intérieur de la lunette : un grand angle fait tenir la trotteuse
-      // entière, du contrepoids à la pointe.
-      const tail = HAND.tail + HAND.tailRadius + HAND.bevel;
-      const tip = -(HAND.tip + HAND.bevel);
-      const dist = 12; // reste à l'intérieur de la lunette quel que soit l'écran
-      final.fov = THREE.MathUtils.radToDeg(2 * Math.atan(((tail - tip) * 1.06) / 2 / dist / aspect));
-      // L'œil à hauteur de la trotteuse, le regard presque à l'horizontale.
-      final.pos = [dist, 1.5, (tail + tip) / 2];
-      final.look = [0, 1.2, (tail + tip) / 2];
+      // Au plus près, un peu au-dessus : la carte prend toute la largeur de l'écran, le cadran en sol.
+      const look = CARD.center.clone();
+      look.y += 0.6; // la carte un peu sous le centre de l'image, loin du titre de la page
+      const dir = new THREE.Vector3(1, 0.32, 0).normalize();
+      const dist = Math.max((CARD.length * 0.56) / (tanV * aspect), (CARD.height * 1.7) / tanV);
+      final.fov = 42;
+      final.pos = look.clone().addScaledVector(dir, dist).toArray();
+      final.look = look.toArray();
       final.up = [0, 1, 0];
     } else {
       final.fov = 42;
