@@ -34,7 +34,7 @@ const stars = buildStars();
 scene.add(stars);
 
 // Une planète plus petite que sur l'accueil : les objets y paraissent plus grands et tout tient dans l'écran.
-const RADIUS = 22;
+const RADIUS = 18;
 const { planet, globe, clockSite, elements, animate } = buildPlanet({
   radius: RADIUS,
   treeCount: window.innerWidth < 768 ? 26 : 46,

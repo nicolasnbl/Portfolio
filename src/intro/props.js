@@ -6,13 +6,13 @@ import * as THREE from 'three';
 export const flat = (color, extra = {}) =>
   new THREE.MeshStandardMaterial({ color, flatShading: true, roughness: 0.85, ...extra });
 
-function box(w, h, d, material, x = 0, y = 0, z = 0) {
+export function box(w, h, d, material, x = 0, y = 0, z = 0) {
   const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), material);
   mesh.position.set(x, y, z);
   return mesh;
 }
 
-function canvasTexture(width, height, draw) {
+export function canvasTexture(width, height, draw) {
   const canvas = document.createElement('canvas');
   canvas.width = width;
   canvas.height = height;
@@ -24,7 +24,7 @@ function canvasTexture(width, height, draw) {
 }
 
 // Panneau d'enseigne : texte clair centré sur un fond uni.
-function signTexture(text, background, color = '#ffffff') {
+export function signTexture(text, background, color = '#ffffff') {
   return canvasTexture(512, 128, (ctx, w, h) => {
     ctx.fillStyle = background;
     ctx.fillRect(0, 0, w, h);
@@ -37,7 +37,7 @@ function signTexture(text, background, color = '#ffffff') {
 }
 
 // Boîte dont seule la face avant (+z) porte la texture.
-function texturedFront(w, h, d, side, map) {
+export function texturedFront(w, h, d, side, map) {
   const front = new THREE.MeshBasicMaterial({ map });
   return new THREE.Mesh(new THREE.BoxGeometry(w, h, d), [side, side, side, side, front, side]);
 }
@@ -302,4 +302,253 @@ export function buildHeriotWatt() {
   turbine.position.set(2.1, 0, -0.5);
   campus.add(turbine);
   return { campus, rotor };
+}
+
+// Pièce d'échecs tournée (pion, tour ou roi), à partir de son profil (rayon, hauteur).
+function chessPiece(kind, material) {
+  const profiles = {
+    pawn: [[0, 0], [0.07, 0], [0.07, 0.025], [0.04, 0.05], [0.028, 0.11], [0.045, 0.125], [0.04, 0.16], [0, 0.175]],
+    rook: [[0, 0], [0.075, 0], [0.075, 0.03], [0.045, 0.06], [0.04, 0.16], [0.06, 0.17], [0.06, 0.21], [0, 0.21]],
+    king: [[0, 0], [0.08, 0], [0.08, 0.03], [0.045, 0.07], [0.035, 0.22], [0.06, 0.24], [0.04, 0.27], [0, 0.27]],
+  };
+  const piece = new THREE.Group();
+  piece.add(new THREE.Mesh(new THREE.LatheGeometry(profiles[kind].map(([r, y]) => new THREE.Vector2(r, y)), 10), material));
+  if (kind === 'king') {
+    piece.add(box(0.02, 0.09, 0.02, material, 0, 0.31, 0));
+    piece.add(box(0.06, 0.02, 0.02, material, 0, 0.32, 0));
+  }
+  return piece;
+}
+
+// Échiquier sur une petite table, une partie en cours.
+export function buildChess() {
+  const chess = new THREE.Group();
+  const wood = flat('#8a5a3b');
+  const tableHeight = 0.55;
+  chess.add(box(1.1, 0.06, 1.1, wood, 0, tableHeight, 0));
+  for (const [x, z] of [[-0.45, -0.45], [0.45, -0.45], [-0.45, 0.45], [0.45, 0.45]]) {
+    chess.add(box(0.06, tableHeight, 0.06, wood, x, tableHeight / 2, z));
+  }
+  const squares = canvasTexture(256, 256, (ctx, w) => {
+    const s = w / 8;
+    for (let i = 0; i < 8; i++) {
+      for (let j = 0; j < 8; j++) {
+        ctx.fillStyle = (i + j) % 2 ? '#6b4a2f' : '#f1dfc0';
+        ctx.fillRect(i * s, j * s, s, s);
+      }
+    }
+  });
+  const side = flat('#4a3222');
+  const board = new THREE.Mesh(new THREE.BoxGeometry(0.96, 0.05, 0.96), [
+    side, side, new THREE.MeshStandardMaterial({ map: squares, roughness: 0.6 }), side, side, side,
+  ]);
+  board.position.y = tableHeight + 0.055;
+  chess.add(board);
+
+  const white = flat('#f4efe6', { roughness: 0.5 });
+  const black = flat('#2a2a30', { roughness: 0.5 });
+  const cell = 0.96 / 8;
+  const at = (col, row) => [(col - 3.5) * cell, (row - 3.5) * cell];
+  const pieces = [
+    ['king', white, 4, 0], ['rook', white, 0, 0], ['pawn', white, 3, 3], ['pawn', white, 4, 1], ['pawn', white, 5, 2],
+    ['king', black, 6, 7], ['rook', black, 2, 6], ['pawn', black, 4, 4], ['pawn', black, 6, 6], ['pawn', black, 1, 5],
+  ];
+  for (const [kind, material, col, row] of pieces) {
+    const piece = chessPiece(kind, material);
+    const [x, z] = at(col, row);
+    piece.position.set(x, tableHeight + 0.08, z);
+    chess.add(piece);
+  }
+  return chess;
+}
+
+// Puce électronique sur sa carte, un cerveau posé dessus. Renvoie aussi les pistes lumineuses, qui pulsent.
+export function buildBrainChip() {
+  const group = new THREE.Group();
+  const board = texturedFront(1.7, 1.7, 0.06, flat('#1f5e3a'), canvasTexture(256, 256, (ctx, w, h) => {
+    ctx.fillStyle = '#1f6e43';
+    ctx.fillRect(0, 0, w, h);
+    ctx.strokeStyle = '#e0b84f';
+    ctx.lineWidth = 3;
+    for (let i = 0; i < 8; i++) {
+      const p = 40 + i * 25;
+      ctx.beginPath();
+      ctx.moveTo(p, 0);
+      ctx.lineTo(p, 40 + (i % 3) * 8);
+      ctx.moveTo(p, h);
+      ctx.lineTo(p, h - 40 - (i % 2) * 10);
+      ctx.moveTo(0, p);
+      ctx.lineTo(40 + (i % 2) * 10, p);
+      ctx.moveTo(w, p);
+      ctx.lineTo(w - 40 - (i % 3) * 8, p);
+      ctx.stroke();
+    }
+  }));
+  board.rotation.x = -Math.PI / 2;
+  board.position.y = 0.2;
+  group.add(board);
+  for (const [x, z] of [[-0.7, -0.7], [0.7, -0.7], [-0.7, 0.7], [0.7, 0.7]]) group.add(box(0.08, 0.17, 0.08, flat('#3a4358'), x, 0.085, z));
+
+  // Le boîtier noir de la puce et ses broches dorées.
+  const top = 0.23;
+  group.add(box(0.9, 0.1, 0.9, flat('#1b1e26', { roughness: 0.4 }), 0, top + 0.05, 0));
+  const gold = flat('#e0b84f', { metalness: 0.7, roughness: 0.3 });
+  const pins = new THREE.InstancedMesh(new THREE.BoxGeometry(0.05, 0.03, 0.12), gold, 28);
+  const dummy = new THREE.Object3D();
+  let n = 0;
+  for (let side = 0; side < 4; side++) {
+    for (let i = 0; i < 7; i++) {
+      const along = (i - 3) * 0.11;
+      dummy.position.set(0, top + 0.02, 0.5);
+      dummy.position.x = along;
+      dummy.position.applyAxisAngle(new THREE.Vector3(0, 1, 0), (side * Math.PI) / 2);
+      dummy.rotation.set(0, (side * Math.PI) / 2, 0);
+      dummy.updateMatrix();
+      pins.setMatrixAt(n++, dummy.matrix);
+    }
+  }
+  group.add(pins);
+
+  // Deux hémisphères bosselés, séparés par un sillon.
+  const pink = flat('#f2a0b4', { roughness: 0.7 });
+  for (const sideX of [-1, 1]) {
+    const geo = new THREE.IcosahedronGeometry(0.3, 2);
+    const p = geo.attributes.position;
+    const v = new THREE.Vector3();
+    for (let i = 0; i < p.count; i++) {
+      v.fromBufferAttribute(p, i);
+      const bump = 1 + 0.08 * Math.sin(v.x * 31 + v.y * 17) * Math.sin(v.z * 27 - v.y * 11);
+      v.multiplyScalar(bump);
+      p.setXYZ(i, v.x, v.y, v.z);
+    }
+    geo.computeVertexNormals();
+    const half = new THREE.Mesh(geo, pink);
+    half.scale.set(0.85, 0.8, 1.25);
+    half.position.set(sideX * 0.18, top + 0.38, 0);
+    group.add(half);
+  }
+
+  // Pistes lumineuses qui montent de la puce vers le cerveau.
+  const glow = new THREE.MeshBasicMaterial({ color: '#7ef0ff', transparent: true, opacity: 0.6 });
+  for (let i = 0; i < 6; i++) {
+    const angle = (i / 6) * Math.PI * 2;
+    const trace = box(0.025, 0.012, 0.32, glow, Math.cos(angle) * 0.28, top + 0.105, Math.sin(angle) * 0.28);
+    trace.rotation.y = -angle + Math.PI / 2;
+    group.add(trace);
+  }
+  return { chip: group, glow };
+}
+
+// Roue de vélo : pneu, jante et quelques rayons, dans le plan xy. Elle tourne autour de z.
+function bikeWheel(radius, tire, rim) {
+  const wheel = new THREE.Group();
+  wheel.add(new THREE.Mesh(new THREE.TorusGeometry(radius, 0.03, 6, 20), tire));
+  wheel.add(new THREE.Mesh(new THREE.TorusGeometry(radius - 0.04, 0.012, 4, 20), rim));
+  for (let i = 0; i < 4; i++) {
+    const spoke = box(0.008, radius * 2 - 0.08, 0.008, rim);
+    spoke.rotation.z = (i * Math.PI) / 4;
+    wheel.add(spoke);
+  }
+  return wheel;
+}
+
+// Tube entre deux points du plan de la roue (x vers l'avant, y vers le haut).
+function tube(material, [x0, y0], [x1, y1], radius = 0.022, z = 0) {
+  const length = Math.hypot(x1 - x0, y1 - y0);
+  const mesh = new THREE.Mesh(new THREE.CylinderGeometry(radius, radius, length, 6), material);
+  mesh.position.set((x0 + x1) / 2, (y0 + y1) / 2, z);
+  mesh.rotation.z = Math.atan2(y1 - y0, x1 - x0) - Math.PI / 2;
+  return mesh;
+}
+
+// Vélo de voyage, avant vers +x : cadre, porte-bagages à l'avant et à l'arrière, sacoches. Renvoie le vélo et ses
+// roues, qui tournent quand il roule.
+export function buildBike() {
+  const bike = new THREE.Group();
+  const frame = flat('#2f6fb5', { metalness: 0.3, roughness: 0.5 });
+  const dark = flat('#1f2430');
+  const rim = flat('#c9d0d6', { metalness: 0.6, roughness: 0.3 });
+  const r = 0.3;
+  const rear = [-0.5, r];
+  const front = [0.5, r];
+  const crank = [-0.05, r - 0.02];
+  const seat = [-0.15, 0.78];
+  const head = [0.36, 0.78];
+  const wheels = [rear, front].map(([x, y]) => {
+    const wheel = bikeWheel(r, dark, rim);
+    wheel.position.set(x, y, 0);
+    bike.add(wheel);
+    return wheel;
+  });
+  for (const [a, b] of [[rear, crank], [rear, seat], [crank, seat], [crank, head], [seat, head], [head, front]]) {
+    bike.add(tube(frame, a, b));
+  }
+  bike.add(tube(rim, seat, [seat[0] - 0.03, seat[1] + 0.1], 0.015));
+  bike.add(box(0.2, 0.04, 0.09, dark, seat[0] - 0.04, seat[1] + 0.12, 0));
+  bike.add(tube(rim, head, [head[0] - 0.04, head[1] + 0.14], 0.015));
+  bike.add(box(0.04, 0.03, 0.42, dark, head[0] - 0.05, head[1] + 0.15, 0));
+
+  // Porte-bagages : plateaux au-dessus des roues et sacoches de chaque côté.
+  const rack = flat('#3a4358', { metalness: 0.4 });
+  bike.add(box(0.42, 0.02, 0.16, rack, -0.48, 0.66, 0));
+  bike.add(tube(rack, [-0.3, 0.66], seat, 0.012));
+  bike.add(tube(rack, [-0.62, 0.66], rear, 0.012));
+  bike.add(box(0.3, 0.02, 0.14, rack, 0.52, 0.6, 0));
+  bike.add(tube(rack, [0.52, 0.6], front, 0.012));
+  const bags = [flat('#d4483b'), flat('#f2b33d')];
+  for (const z of [-0.12, 0.12]) {
+    bike.add(box(0.3, 0.26, 0.09, bags[0], -0.5, 0.52, z));
+    bike.add(box(0.2, 0.2, 0.08, bags[1], 0.52, 0.5, z));
+  }
+  bike.add(box(0.3, 0.12, 0.16, flat('#2f9e5b'), -0.48, 0.73, 0));
+  return { bike, wheels };
+}
+
+// ULM pendulaire, avant vers +x : un chariot à trois roues, l'aile delta au-dessus sur son mât, l'hélice derrière.
+// Renvoie l'appareil et l'hélice, qui tourne.
+export function buildMicrolight() {
+  const ulm = new THREE.Group();
+  const white = flat('#f4f4f4', { roughness: 0.6 });
+  const dark = flat('#2a3142');
+  const steel = flat('#c9d0d6', { metalness: 0.5, roughness: 0.3 });
+
+  // Chariot : nacelle profilée, deux sièges en tandem, train tricycle.
+  const pod = new THREE.Mesh(new THREE.SphereGeometry(0.22, 10, 8), flat('#d4483b', { roughness: 0.5 }));
+  pod.scale.set(2.1, 0.9, 0.9);
+  pod.position.set(0.1, 0.42, 0);
+  ulm.add(pod);
+  ulm.add(box(0.75, 0.04, 0.05, steel, -0.25, 0.32, 0));
+  const tire = new THREE.CylinderGeometry(0.09, 0.09, 0.05, 10);
+  for (const [x, z] of [[0.48, 0], [-0.3, -0.36], [-0.3, 0.36]]) {
+    const wheel = new THREE.Mesh(tire, dark);
+    wheel.rotation.x = Math.PI / 2;
+    wheel.position.set(x, 0.09, z);
+    ulm.add(wheel);
+    ulm.add(tube(steel, [x, 0.09], [x * 0.6, 0.34], 0.012, z * 0.8));
+  }
+
+  // Mât et aile delta : un triangle à bord de fuite échancré, légèrement en flèche.
+  ulm.add(tube(steel, [-0.15, 0.42], [-0.05, 1.25], 0.02));
+  ulm.add(tube(steel, [0.35, 0.45], [0.05, 1.12], 0.012));
+  const wingShape = new THREE.Shape([
+    new THREE.Vector2(0.55, 0),
+    new THREE.Vector2(-0.45, 1.25),
+    new THREE.Vector2(-0.25, 0.2),
+    new THREE.Vector2(-0.3, 0),
+    new THREE.Vector2(-0.25, -0.2),
+    new THREE.Vector2(-0.45, -1.25),
+  ]);
+  const wing = new THREE.Mesh(new THREE.ShapeGeometry(wingShape), flat('#f2b33d', { side: THREE.DoubleSide, roughness: 0.6 }));
+  wing.rotation.x = -Math.PI / 2;
+  wing.position.set(0, 1.28, 0);
+  ulm.add(wing);
+  ulm.add(box(1.0, 0.03, 0.03, white, 0.03, 1.29, 0));
+
+  // Hélice propulsive derrière le moteur.
+  ulm.add(box(0.16, 0.14, 0.16, dark, -0.4, 0.5, 0));
+  const propeller = new THREE.Group();
+  propeller.position.set(-0.5, 0.5, 0);
+  propeller.add(box(0.03, 0.62, 0.06, white));
+  ulm.add(propeller);
+  return { ulm, propeller };
 }

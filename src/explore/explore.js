@@ -31,10 +31,12 @@ const IDLE_SPIN = 0.06; // rotation lente quand on ne touche à rien, en radians
 // Distance de la caméra au sol quand on cible un élément, selon sa taille.
 const FOCUS_DIST = {
   solar: 7, forest: 11, pad: 8, clock: 9, house: 6, field: 9, computer: 5.5, guitar: 5.5, speaker: 5.5, eigsi: 8, heriot: 8,
+  chess: 5, chip: 5.5, bike: 8, burj: 11, forum: 8, desal: 8, desertField: 7, troughs: 8, ulm: 11,
 };
 // Un clic sur le sol tout près d'un élément le vise aussi : rayon autour de son ancrage.
 const HIT_RADIUS = {
   solar: 2, forest: 5, pad: 1.8, clock: 1.8, house: 1.4, field: 3, computer: 1.2, guitar: 1.1, speaker: 1.1, eigsi: 2.2, heriot: 2.2,
+  chess: 1, chip: 1.2, bike: 2.4, burj: 1.4, forum: 2.4, desal: 2.4, desertField: 2, troughs: 2.4, ulm: 2.6,
 };
 const HIT_PIXELS = 28;
 

@@ -90,6 +90,42 @@ export const EXPLORE = {
       title: 'Heriot-Watt, Orkney',
       text: 'Texte provisoire : mon passage sur le campus d’Heriot-Watt dans les Orcades.',
     },
+    chess: {
+      title: 'L’échiquier',
+      text: 'Texte provisoire : quelques lignes sur les échecs.',
+    },
+    chip: {
+      title: 'Le cerveau sur une puce',
+      text: 'Texte provisoire : quelques lignes sur l’intelligence artificielle.',
+    },
+    bike: {
+      title: 'Le vélo de voyage',
+      text: 'Texte provisoire : quelques lignes sur mes voyages à vélo.',
+    },
+    burj: {
+      title: 'La Burj Khalifa',
+      text: 'Texte provisoire : quelques lignes sur les Émirats.',
+    },
+    forum: {
+      title: 'Le forum des énergies',
+      text: 'Texte provisoire : ADIPEC à Abu Dhabi et les autres forums de l’énergie auxquels j’ai participé.',
+    },
+    desal: {
+      title: 'L’usine de désalinisation',
+      text: 'Texte provisoire : de l’eau douce produite à partir de l’eau de mer, grâce au soleil.',
+    },
+    desertField: {
+      title: 'Le champ photovoltaïque du désert',
+      text: 'Texte provisoire : les panneaux qui alimentent l’usine de désalinisation.',
+    },
+    troughs: {
+      title: 'Les miroirs cylindro-paraboliques',
+      text: 'Texte provisoire : le soleil concentré sur un tube pour produire de la chaleur.',
+    },
+    ulm: {
+      title: 'L’ULM',
+      text: 'Texte provisoire : quelques lignes sur le vol en ULM.',
+    },
   },
 };
 
