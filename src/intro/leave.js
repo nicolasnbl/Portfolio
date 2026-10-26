@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { TIMELINE, TL } from '../config.js';
-import { buildClock } from '../timeline/clock.js';
+import { OPENING_VIEW, buildClock } from '../timeline/clock.js';
 import { PATH, PLANET_RADIUS } from './planet.js';
 
 // Transition vers la timeline : le satellite quitte la fusée et se met en orbite, la planète tourne sous lui
@@ -11,7 +11,7 @@ const ORBIT_RADIUS = PLANET_RADIUS + 10;
 const SAT_ANGLE = -0.45; // où le satellite termine sa mise en orbite
 const CLOCK_ANGLE = -0.8; // où se trouve l'horloge à la fin de la plongée
 const PLANET_TURN = THREE.MathUtils.degToRad(70); // rotation de la planète pendant la transition
-export const CLOCK_SCALE = 0.4;
+export const CLOCK_SCALE = 0.13; // cadran de rayon 20 ramené à 2,6 sur la planète
 
 const X = new THREE.Vector3(1, 0, 0);
 const Z = new THREE.Vector3(0, 0, 1);
@@ -107,9 +107,9 @@ export function createLeave({ clockSite }) {
     clockView(out, portrait) {
       clockSite.updateWorldMatrix(true, false);
       const lift = 1.4 * CLOCK_SCALE;
-      const dist = (portrait ? 62 : 38) * CLOCK_SCALE;
+      const dist = (portrait ? OPENING_VIEW.portraitHeight : OPENING_VIEW.height) * CLOCK_SCALE;
       out.pos.copy(clockSite.localToWorld(a.set(0, lift + dist, 0.01 * CLOCK_SCALE)));
-      out.look.copy(clockSite.localToWorld(a.set(0, lift, -0.6 * CLOCK_SCALE)));
+      out.look.copy(clockSite.localToWorld(a.set(0, lift, OPENING_VIEW.lookZ * CLOCK_SCALE)));
       out.up.copy(b.set(0, 0, -1).transformDirection(clockSite.matrixWorld));
       out.fov = 40;
     },

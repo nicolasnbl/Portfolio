@@ -231,6 +231,32 @@ footer {
   color: var(--accent);
 }
 
+.skills,
+.contact-links {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+.skills li {
+  padding: 0.6rem 0;
+  border-top: 1px solid var(--border);
+}
+
+.skills strong {
+  display: block;
+  color: var(--text);
+  font-weight: 600;
+}
+
+.contact-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem 1.6rem;
+}
+
 .section-link {
   color: var(--accent);
   text-decoration: none;
@@ -543,7 +569,9 @@ body.explore-body {
   position: absolute;
   top: 38%;
   right: max(5vw, 24px);
-  width: min(360px, 34vw);
+  width: min(380px, 34vw);
+  max-height: calc(62% - 24px);
+  overflow-y: auto;
   padding: 1.6rem 1.6rem 1.4rem;
   pointer-events: auto;
   background: var(--panel);
@@ -625,6 +653,7 @@ body.explore-body {
     left: 16px;
     bottom: max(16px, env(safe-area-inset-bottom, 0px));
     width: auto;
+    max-height: 55%;
     transform: translateY(16px);
   }
 
