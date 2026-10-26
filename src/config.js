@@ -1,10 +1,10 @@
-// Contenu et rythme de l'intro. Les titres sont provisoires : à remplacer par les vrais.
+// Contenu et rythme de l'intro.
 export const INTRO = {
   name: 'Nicolas',
   titles: [
-    { text: 'Une idée', start: 0.4, end: 2.6 },
-    { text: 'Des fondations solides', start: 2.9, end: 5.0 },
-    { text: 'Le décollage', start: 6.0, end: 8.6 },
+    { text: 'Bienvenue', start: 0.4, end: 2.6 },
+    { text: 'Découvrez mon parcours', start: 2.9, end: 5.0 },
+    { text: 'Attachez vos ceintures', start: 6.0, end: 8.6 },
   ],
   scrollHint: 'Scroll pour découvrir',
   // Menu relié au satellite. soon : entrée visible mais pas encore active ; action : animation avant de changer de page.
@@ -32,7 +32,6 @@ export const T = {
 
 // Mode « Explorer le monde » : la planète au centre, que l'on fait tourner, et ses éléments à cliquer.
 // page : true pour une page pas encore faite, ou l'adresse de la page. Sans page, l'élément n'a que sa fiche.
-// Les textes sont provisoires.
 export const EXPLORE = {
   hint: 'Glisse pour faire tourner la planète, zoome, clique sur ce qui t’intrigue',
   // Affichée sur les étoiles, entre l'accueil et la page Explorer.
@@ -42,17 +41,17 @@ export const EXPLORE = {
   pageSoon: 'Page à venir',
   elements: {
     solar: {
-      title: 'La centrale solaire',
-      text: 'Texte provisoire : là où tout commence. Une page dédiée racontera ce projet.',
+      title: 'La centrale solaire flottante',
+      text: 'Le solaire flottant, c’est mon fil rouge. Chez TotalEnergies OneTech, j’ai analysé les données de sites tests et du prototype de la startup SolarinBlue pour mieux comprendre comment des panneaux se comportent sur l’eau. Une page dédiée racontera ce projet.',
       page: true,
     },
     forest: {
       title: 'La forêt',
-      text: 'Texte provisoire : quelques lignes sur ce que cette forêt représente.',
+      text: 'Très sensible à la nature, je tiens à participer à la protection de l’environnement. C’est ce qui m’a mené vers les énergies renouvelables, et ce qui donne du sens à mon travail au quotidien.',
     },
     pad: {
       title: 'Le pas de tir',
-      text: 'Texte provisoire : le point de départ des projets. Une page dédiée arrive.',
+      text: 'Tout a commencé ici. Plus jeune, je fabriquais mes propres fusées, et c’est pour elles que j’ai appris à coder et à modéliser en 3D. Une page dédiée racontera ces projets.',
       page: true,
     },
     clock: {
@@ -62,69 +61,75 @@ export const EXPLORE = {
     },
     house: {
       title: 'La maison solaire',
-      text: 'Texte provisoire : une maison qui produit sa propre énergie, en Corse.',
+      text: 'Mes premiers projets d’ingénieur, chez Solaire Corse : de la maison individuelle de 3 kWp au bâtiment de 250 kWp, de la simulation PVSyst jusqu’au plan AutoCAD.',
     },
     field: {
       title: 'Le champ photovoltaïque',
-      text: 'Texte provisoire : quelques lignes sur ce champ de panneaux.',
+      text: 'Plus de 500 MWp de centrales au sol en Espagne. Chez TotalEnergies Iberica, je suis leur production chaque semaine, entre données SCADA, Databricks et Power BI, pour repérer ce qui sous-performe.',
     },
     computer: {
       title: 'L’ordinateur',
-      text: 'Texte provisoire : mes projets de code, à retrouver sur GitHub.',
+      text: 'J’ai appris à coder très jeune, en C, pour programmer les minuteries de mes fusées, puis pour tous les projets qui ont suivi. C’est là que je suis devenu autodidacte : j’ai aussi appris seul la modélisation 3D avec Fusion 360 et CATIA V5, indispensables pour concevoir mes fusées, et Blender pour le côté artistique, à imaginer des systèmes solaires et des planètes de toutes sortes. Aujourd’hui, Python, JavaScript et Databricks sont mes outils d’ingénieur au quotidien.',
       page: 'https://github.com/nicolasnbl',
       link: 'Voir mon GitHub',
     },
     guitar: {
       title: 'La guitare électrique',
-      text: 'Texte provisoire : quelques lignes sur la musique et la guitare.',
+      text: 'Je ne joue pas de guitare, mais j’ai toujours aimé fabriquer des choses. Alors je me suis lancé le défi d’en construire une : l’électronique commandée en ligne, le bois acheté en magasin de bricolage, et les tutos trouvés sur internet. Quelques erreurs en chemin, corrigées une à une, et aujourd’hui elle sonne parfaitement.',
     },
     speaker: {
       title: 'L’enceinte',
-      text: 'Texte provisoire : quelques lignes sur ce que j’écoute.',
+      text: 'Au lycée, avec un ami qui fabriquait des enceintes, on a créé Cibel : un site pour commander des enceintes sur mesure en bois de qualité. On y concevait son enceinte directement en ligne, avec une visualisation 3D du résultat dans un environnement interactif en Three.js, et une page d’animation 3D au scroll réalisée sous Blender. Six mois de développement, à une époque où l’IA ne codait pas encore à notre place. Le site était presque terminé, mais l’organisation et la logistique nous ont rattrapés : une leçon aussi précieuse que le code.',
     },
     eigsi: {
       title: 'L’EIGSI',
-      text: 'Texte provisoire : mon école d’ingénieurs.',
+      text: 'Mon école d’ingénieurs à La Rochelle, majeure Énergie et Environnement. Cinq ans qui m’ont emmené jusqu’à Valence et vers un moteur d’ULM à l’hydrogène.',
     },
     heriot: {
       title: 'Heriot-Watt, Orkney',
-      text: 'Texte provisoire : mon passage sur le campus d’Heriot-Watt dans les Orcades.',
+      text: 'Un master en énergies renouvelables sur le campus des Orcades, au milieu des éoliennes et des courants marins. Obtenu avec mention (Merit).',
     },
     chess: {
       title: 'L’échiquier',
-      text: 'Texte provisoire : quelques lignes sur les échecs.',
+      text: 'Mon père m’a appris les échecs quand j’étais petit, mais je ne m’y suis vraiment mis qu’en école d’ingénieurs. Je me suis fixé un défi : atteindre 2000 Elo. J’y suis arrivé, et j’en suis fier. Pour moi, les échecs ne sont pas qu’un jeu, c’est un entraînement pour le cerveau : ils ont énormément développé ma capacité à rester concentré longtemps, un atout dans mes projets comme au travail.',
     },
     chip: {
       title: 'Le cerveau sur une puce',
-      text: 'Texte provisoire : quelques lignes sur l’intelligence artificielle.',
+      text: 'L’IA appliquée à l’énergie. Formé à la Hi! PARIS Summer School (École polytechnique et HEC) en 2025, j’ai pu construire des modèles de prédiction de haute précision sur le comportement d’une cellule photovoltaïque quand l’humidité et la ventilation augmentent son refroidissement.',
     },
     bike: {
       title: 'Le vélo de voyage',
-      text: 'Texte provisoire : quelques lignes sur mes voyages à vélo.',
+      text: 'Avec mon meilleur ami, on s’est lancé un défi : rejoindre à vélo notre lieu de vacances en Bretagne. Six jours de Marly-le-Roi à Perros-Guirec, par la Normandie et la côte bretonne, en camping, la tente et les affaires sur les porte-bagages. La première étape a donné le ton : 200 km jusqu’à Deauville. Un peu traumatisant, mais des souvenirs et un dépassement de soi inoubliables.',
     },
     burj: {
       title: 'La Burj Khalifa',
-      text: 'Texte provisoire : quelques lignes sur les Émirats.',
+      text: 'Plus jeune, des projets comme Masdar me faisaient rêver : je m’imaginais travailler un jour sur ce genre de ville du futur. Après mon master, je suis parti trois mois aux Émirats, où Heriot-Watt a un campus. J’y ai rencontré l’un des professeurs avec qui j’ai travaillé mon mémoire, et terminé les simulations MATLAB que je n’avais pas eu le temps d’inclure dans la version finale. J’en ai aussi profité pour aller à la rencontre de nombreux professionnels du secteur. Je n’y suis pas resté : le mode de vie ne me correspondait pas totalement, mais je garde une vraie admiration pour le potentiel d’innovation de la région.',
+    },
+    crane: {
+      title: 'Le chantier d’Anjaza',
+      text: 'Avec un ami qui vit aux Émirats, j’ai lancé Anjaza, une plateforme qui met en relation particuliers et professionnels de confiance pour les interventions du quotidien. J’en ai créé le site et l’application mobile, avec plus de 25 collaborateurs. Le chantier continue : le projet est toujours en développement.',
+      page: 'https://anjaza.com',
+      link: 'Voir Anjaza',
     },
     forum: {
       title: 'Le forum des énergies',
-      text: 'Texte provisoire : ADIPEC à Abu Dhabi et les autres forums de l’énergie auxquels j’ai participé.',
+      text: 'Aller à ADIPEC, à Abu Dhabi, et à d’autres forums de l’énergie, c’était une initiative personnelle : je voulais voir le secteur de l’intérieur. J’y ai rencontré beaucoup de professionnels qui m’ont expliqué leur métier tel qu’il est vraiment. Ces échanges m’ont énormément appris, et c’est en partie grâce à eux que je me suis lancé en confiance dans le monde de l’énergie.',
     },
     desal: {
       title: 'L’usine de désalinisation',
-      text: 'Texte provisoire : de l’eau douce produite à partir de l’eau de mer, grâce au soleil.',
+      text: 'L’accès à une eau potable produite proprement sera l’un des grands défis du monde de demain, et c’est un sujet qui me passionne. J’ai donc proposé moi-même ce thème de mémoire à Heriot-Watt, puis je l’ai affiné avec l’un de mes professeurs : produire de l’eau douce à partir d’eau de mer grâce au soleil. En modélisant l’usine sous MATLAB/Simulink et en estimant sa production sur une année, j’ai pu apporter des analyses complémentaires et contribuer, à mon échelle, à la recherche sur ce sujet.',
     },
     desertField: {
       title: 'Le champ photovoltaïque du désert',
-      text: 'Texte provisoire : les panneaux qui alimentent l’usine de désalinisation.',
+      text: 'L’électricité solaire qui fait tourner le dessalement par osmose inverse, l’une des technologies comparées dans mon mémoire.',
     },
     troughs: {
       title: 'Les miroirs cylindro-paraboliques',
-      text: 'Texte provisoire : le soleil concentré sur un tube pour produire de la chaleur.',
+      text: 'L’autre voie : concentrer le soleil pour produire de la chaleur et distiller l’eau. Laquelle des deux est la meilleure ? C’est une question que je me posais bien avant de commencer mes recherches, et y répondre est devenu le cœur de mon mémoire.',
     },
     ulm: {
       title: 'L’ULM',
-      text: 'Texte provisoire : quelques lignes sur le vol en ULM.',
+      text: 'Mon projet d’innovation à l’EIGSI, avec Air Hydro Atlantic : adapter un moteur d’ULM pour qu’il fonctionne à l’hydrogène. Conception des pièces d’intégration des injecteurs, calculs thermodynamiques de combustion : j’ai adoré travailler sur un projet aussi ambitieux.',
     },
   },
 };
@@ -147,14 +152,72 @@ export const LEAVE = {
   end: 4.6, // ouverture de la page timeline
 };
 
-// Timeline : étapes provisoires, sans contenu, de la plus récente à la plus ancienne. kind : 'experience' ou 'formation'.
+// Timeline : étapes du parcours, de la plus récente à la plus ancienne. kind : 'experience' ou 'formation'.
+// logo : sigle affiché dans la pastille, en attendant les vrais logos. highlights : 2-3 réalisations, avec en évidence
+// un chiffre ou un mot-clé.
 export const TIMELINE = {
   entries: [
-    { kind: 'experience' },
-    { kind: 'experience' },
-    { kind: 'experience' },
-    { kind: 'formation' },
-    { kind: 'formation' },
+    {
+      kind: 'experience',
+      logo: 'TE',
+      org: 'TotalEnergies Iberica',
+      role: 'Analyste performance solaire PV (VIE)',
+      place: 'Espagne',
+      dates: 'juin 2026 – aujourd’hui',
+      highlights: [
+        { key: '500+ MWp', text: 'Reporting hebdomadaire et KPI automatisés sur un portefeuille PV utility-scale espagnol' },
+        { key: 'Databricks', text: 'Pipelines de données, notebooks Python et tableaux de bord Power BI' },
+        { key: 'SCADA', text: 'Surveillance automatisée à partir des alertes Bazefield pour détecter les sous-performances' },
+      ],
+    },
+    {
+      kind: 'experience',
+      logo: 'TE',
+      org: 'TotalEnergies OneTech',
+      role: 'Ingénieur R&D solaire flottant',
+      place: 'France',
+      dates: 'mai 2025 – mai 2026',
+      highlights: [
+        { key: 'Publication', text: 'Méthodes d’analyse de performance du PV flottant, dont le prototype SolarinBlue' },
+        { key: 'ML', text: 'Modèles qui prédisent la performance des modules et la température de cellule' },
+        { key: 'VAN / TRI', text: 'Coauteur d’un guide technique et financier sur le revamping de centrales PV' },
+      ],
+    },
+    {
+      kind: 'experience',
+      logo: 'SC',
+      org: 'Solaire Corse',
+      role: 'Ingénieur projets solaires',
+      place: 'Corse',
+      dates: 'fév. – mai 2025',
+      highlights: [
+        { key: '3 → 250 kWp', text: 'Conception d’installations : PVSyst, plans AutoCAD, matériel et câbles AC/DC' },
+        { key: 'JavaScript', text: 'Outils internes pour accélérer le bureau d’études' },
+      ],
+    },
+    {
+      kind: 'formation',
+      logo: 'HW',
+      org: 'Heriot-Watt University',
+      role: 'MSc Renewable and Sustainable Energy, with Merit',
+      place: 'Orcades, Royaume-Uni',
+      dates: '2023 – 2024',
+      highlights: [
+        { key: 'Mémoire', text: 'Dessalement solaire : technologies comparées, usine modélisée sous MATLAB/Simulink' },
+      ],
+    },
+    {
+      kind: 'formation',
+      logo: 'EI',
+      org: 'EIGSI',
+      role: 'Diplôme d’ingénieur, majeure Énergie et Environnement',
+      place: 'La Rochelle',
+      dates: '2019 – 2024',
+      highlights: [
+        { key: 'Hydrogène', text: 'Moteur d’ULM adapté à l’hydrogène pour Air Hydro Atlantic' },
+        { key: 'Valence', text: 'Semestre européen à l’Universitat Politècnica de València (2022)' },
+      ],
+    },
   ],
   stepAngle: 30, // écart entre deux étapes sur le cadran, en degrés (30 = une heure)
   direction: -1, // sens de rotation : -1 antihoraire (on remonte le temps), 1 horaire

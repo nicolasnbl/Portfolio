@@ -165,6 +165,85 @@ export function buildBurj() {
   return tower;
 }
 
+// Chantier d'Anjaza : un immeuble en construction (dalles de béton, poteaux du dernier étage, échafaudage) et une
+// grue à tour jaune dont la flèche tourne et le crochet monte une charge. Renvoie aussi la flèche et le crochet pour
+// les animer.
+export function buildCrane() {
+  const site = new THREE.Group();
+  const concrete = flat('#c9c4bb');
+  const yellow = flat('#f2b632');
+  const dark = flat('#3a3f47');
+  const scaffold = flat('#8f969c', { metalness: 0.3 });
+  site.add(box(2.4, 0.06, 1.8, flat('#bfa77f'), 0, 0.03, 0));
+
+  // Immeuble : trois dalles pleines, puis les poteaux de l'étage en cours.
+  const b = { x: -0.45, z: 0, w: 1.1, d: 1.1, floor: 0.34 };
+  for (let i = 0; i < 3; i++) {
+    site.add(box(b.w, b.floor - 0.06, b.d, flat(i % 2 ? '#d6d1c8' : '#c9c4bb'), b.x, 0.06 + i * b.floor + (b.floor - 0.06) / 2, b.z));
+    site.add(box(b.w + 0.04, 0.05, b.d + 0.04, concrete, b.x, 0.06 + (i + 1) * b.floor - 0.025, b.z));
+  }
+  const top = 0.06 + 3 * b.floor;
+  for (const [dx, dz] of [[-1, -1], [1, -1], [-1, 1], [1, 1], [0, -1], [0, 1]]) {
+    site.add(box(0.07, b.floor * 0.7, 0.07, concrete, b.x + (dx * (b.w - 0.08)) / 2, top + b.floor * 0.35, b.z + (dz * (b.d - 0.08)) / 2));
+  }
+  // Échafaudage sur la façade avant (+z).
+  const front = b.z + b.d / 2 + 0.12;
+  for (let i = 0; i < 4; i++) site.add(box(0.025, top + 0.25, 0.025, scaffold, b.x - b.w / 2 + i * (b.w / 3), (top + 0.25) / 2, front));
+  for (let j = 1; j <= 3; j++) site.add(box(b.w + 0.04, 0.025, 0.025, scaffold, b.x, j * b.floor, front));
+  for (let j = 1; j <= 3; j++) site.add(box(b.w, 0.02, 0.16, flat('#a07a4f'), b.x, j * b.floor - 0.02, front - 0.06));
+
+  // Grue : mât en treillis (quatre montants et des traverses), cabine, flèche et contre-flèche qui tournent ensemble.
+  const mast = { x: 0.75, z: -0.3, h: 2.5, s: 0.16 };
+  for (const [dx, dz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) {
+    site.add(box(0.03, mast.h, 0.03, yellow, mast.x + (dx * mast.s) / 2, mast.h / 2, mast.z + (dz * mast.s) / 2));
+  }
+  for (let y = 0.2; y < mast.h; y += 0.25) {
+    site.add(box(mast.s, 0.02, 0.02, yellow, mast.x, y, mast.z - mast.s / 2));
+    site.add(box(mast.s, 0.02, 0.02, yellow, mast.x, y, mast.z + mast.s / 2));
+    site.add(box(0.02, 0.02, mast.s, yellow, mast.x - mast.s / 2, y, mast.z));
+    site.add(box(0.02, 0.02, mast.s, yellow, mast.x + mast.s / 2, y, mast.z));
+  }
+  site.add(box(0.5, 0.1, 0.5, dark, mast.x, 0.05, mast.z));
+
+  const jib = new THREE.Group();
+  jib.position.set(mast.x, mast.h, mast.z);
+  site.add(jib);
+  jib.add(box(0.22, 0.18, 0.22, flat('#eef1f3'), 0.13, 0.09, 0.0));
+  jib.add(box(0.12, 0.08, 0.1, flat('#7fb8de', { roughness: 0.3 }), 0.2, 0.11, 0.07));
+  const reach = 2.0;
+  jib.add(box(reach, 0.08, 0.1, yellow, -reach / 2, 0.22, 0));
+  jib.add(box(0.7, 0.08, 0.1, yellow, 0.35, 0.22, 0));
+  jib.add(box(0.26, 0.22, 0.2, flat('#7d838a'), 0.62, 0.12, 0));
+  const peak = box(0.05, 0.42, 0.05, yellow, 0, 0.47, 0);
+  jib.add(peak);
+  for (const [x, length] of [[-reach / 2, reach], [0.33, 0.66]]) {
+    const tie = box(Math.hypot(length, 0.4), 0.015, 0.015, dark, x, 0.47, 0);
+    tie.rotation.z = Math.sign(x) * Math.atan2(0.4, length) * -1;
+    jib.add(tie);
+  }
+
+  // Chariot et crochet, au-dessus du dernier étage de l'immeuble ; la charge est une palette de briques.
+  const trolley = new THREE.Group();
+  trolley.position.set(-1.2, 0.17, 0);
+  jib.add(trolley);
+  trolley.add(box(0.12, 0.05, 0.12, dark, 0, 0, 0));
+  const hook = new THREE.Group();
+  trolley.add(hook);
+  const cable = box(0.012, 1, 0.012, dark, 0, -0.5, 0);
+  hook.add(cable);
+  const load = new THREE.Group();
+  load.add(box(0.26, 0.04, 0.2, flat('#a07a4f'), 0, 0, 0));
+  load.add(box(0.22, 0.12, 0.16, flat('#c0603f'), 0, 0.08, 0));
+  hook.add(load);
+  const setDrop = (drop) => {
+    cable.scale.y = drop;
+    cable.position.y = -drop / 2;
+    load.position.y = -drop - 0.14;
+  };
+  setDrop(0.8);
+  return { site, jib, setDrop };
+}
+
 // Palmier : tronc courbé en quelques tronçons, palmes en lames inclinées.
 export function buildPalm(rand) {
   const palm = new THREE.Group();

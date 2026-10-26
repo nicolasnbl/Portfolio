@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { seededRandom } from './math.js';
-import { buildBurj, buildDesalination, buildDune, buildForum, buildPalm, buildTroughField } from './desert.js';
+import { buildBurj, buildCrane, buildDesalination, buildDune, buildForum, buildPalm, buildTroughField } from './desert.js';
 import {
   buildBike,
   buildBrainChip,
@@ -129,6 +129,7 @@ const CLOCK_SPOTS = { field: [7.5, 3.5], eigsi: [-6.5, -5], chip: [-1.5, -6.8] }
 const DESERT_RADIUS = 11;
 const DESERT_SPOTS = {
   burj: [0.5, 1.2], forum: [-3.2, -4.6], field: [4.6, 4.4], troughs: [4.4, -3.8], desal: [-7.6, 1.6], strip: [-2.6, 6],
+  crane: [-3.6, 1.4],
 };
 const ROUGH = [[3, 0.08, 0.6], [5, 0.06, 2], [9, 0.04, 1]];
 const JAGGED = [[3, 0.12, 1], [5, 0.09, 2.1], [8, 0.06, 0.4], [13, 0.04, 3]];
@@ -589,8 +590,8 @@ export function buildPlanet({ radius = PLANET_RADIUS, treeCount = 46, clockDir =
     addElement('chip', chip);
   }
 
-  // Continent désert : la tour, le forum, l'usine de désalinisation sur la côte, ses deux champs solaires, la piste
-  // de l'ULM, des palmiers et des dunes.
+  // Continent désert : la tour, le chantier d'Anjaza, le forum, l'usine de désalinisation sur la côte, ses deux
+  // champs solaires, la piste de l'ULM, des palmiers et des dunes.
   const desert = tangentFrame(LANDS.desert);
   const dspot = ([x, y]) => frameToDir(desert, x, y, R);
   const burj = buildBurj();
@@ -604,6 +605,8 @@ export function buildPlanet({ radius = PLANET_RADIUS, treeCount = 46, clockDir =
   placeFacing(planet, desertField, dspot(DESERT_SPOTS.field), dspot([4.6, -2]), R);
   const troughs = buildTroughField(R);
   placeFacing(planet, troughs, dspot(DESERT_SPOTS.troughs), dspot([4.4, -10]), R);
+  const crane = buildCrane();
+  placeFacing(planet, crane.site, dspot(DESERT_SPOTS.crane), desert.center, R);
 
   const airfield = new THREE.Group();
   planet.add(airfield);
@@ -616,7 +619,7 @@ export function buildPlanet({ radius = PLANET_RADIUS, treeCount = 46, clockDir =
   else placeFacing(airfield, ulm, frameToDir(stripFrame, -0.8, 0, R), frameToDir(stripFrame, -0.8, -3, R), R);
 
   const desertSpots = Object.entries(DESERT_SPOTS);
-  const desertClear = { burj: 1.6, forum: 3, field: 2.8, troughs: 2.8, desal: 3, strip: 2.6 };
+  const desertClear = { burj: 1.6, forum: 3, field: 2.8, troughs: 2.8, desal: 3, strip: 2.6, crane: 2 };
   for (let placed = 0, tries = 0; placed < 26 && tries < 600; tries++) {
     const x = (rand() - 0.5) * DESERT_RADIUS * 2;
     const y = (rand() - 0.5) * DESERT_RADIUS * 2;
@@ -630,6 +633,7 @@ export function buildPlanet({ radius = PLANET_RADIUS, treeCount = 46, clockDir =
   addElement('desal', desal);
   addElement('desertField', desertField);
   addElement('troughs', troughs);
+  addElement('crane', crane.site);
   addElement('ulm', airfield, strip);
 
   function animate(time) {
@@ -644,6 +648,10 @@ export function buildPlanet({ radius = PLANET_RADIUS, treeCount = 46, clockDir =
     for (const wheel of wheels) wheel.rotation.z = -bikeDistance / 0.3;
     propeller.rotation.x = time * 30;
     if (ULM_FLIES) placeOnLoop(ulm, stripFrame, ULM_LOOP, ((time * ULM_SPEED) / loopLength(ULM_LOOP)) * Math.PI * 2, R, 2.4, 0.3);
+    // La grue pivote d'un côté à l'autre et le crochet descend quand la flèche passe au-dessus de l'immeuble.
+    const swing = Math.sin(time * 0.35);
+    crane.jib.rotation.y = 0.7 * swing;
+    crane.setDrop(0.65 + 0.45 * (1 - Math.abs(swing)));
     if (chipGlow) chipGlow.opacity = 0.35 + 0.35 * (0.5 + 0.5 * Math.sin(time * 3));
   }
 

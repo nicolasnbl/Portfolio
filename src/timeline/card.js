@@ -1,14 +1,16 @@
 import * as THREE from 'three';
 import { CARD } from './clock.js';
 
-// Carte provisoire d'une étape, en formes simples : logo, intitulé, rôle, dates, puis 2-3 réalisations chiffrées.
-// Elle est dessinée dans une texture posée sur la face de la trotteuse.
+// Carte d'une étape : pastille avec le sigle, intitulé, rôle, lieu et dates, puis 2-3 réalisations avec un mot-clé
+// en évidence. Elle est dessinée dans une texture posée sur la face de la trotteuse.
 const KIND = {
   experience: { label: 'Expérience', color: '#ffd89a' },
   formation: { label: 'Formation', color: '#9fd3ff' },
 };
 
 const PX = 2048; // résolution le long de la trotteuse
+const FONT = '"Space Grotesk", system-ui, sans-serif';
+const INK = '#1d2433';
 
 function roundRect(ctx, x, y, w, h, r, color) {
   ctx.fillStyle = color;
@@ -17,46 +19,110 @@ function roundRect(ctx, x, y, w, h, r, color) {
   ctx.fill();
 }
 
+// Coupe le texte en lignes de largeur maximale ; la dernière ligne autorisée finit par une ellipse si ça déborde.
+function wrap(ctx, text, maxWidth, maxLines = Infinity) {
+  const lines = [];
+  let line = '';
+  for (const word of text.split(' ')) {
+    const next = line ? `${line} ${word}` : word;
+    if (ctx.measureText(next).width <= maxWidth || !line) line = next;
+    else {
+      lines.push(line);
+      line = word;
+    }
+  }
+  if (line) lines.push(line);
+  if (lines.length > maxLines) {
+    lines.length = maxLines;
+    let last = lines[maxLines - 1];
+    while (last && ctx.measureText(`${last}…`).width > maxWidth) last = last.slice(0, -1);
+    lines[maxLines - 1] = `${last.trimEnd()}…`;
+  }
+  return lines;
+}
+
+function fillLines(ctx, lines, x, y, lineHeight) {
+  lines.forEach((line, i) => ctx.fillText(line, x, y + i * lineHeight));
+  return y + lines.length * lineHeight;
+}
+
+function logo(ctx, entry, cx, cy, r) {
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.92)';
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = INK;
+  ctx.font = `700 ${Math.round(r * 0.72)}px ${FONT}`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(entry.logo ?? '', cx, cy + r * 0.04);
+  ctx.textAlign = 'left';
+}
+
+// Pastille du mot-clé, à la largeur de son texte.
+function keyPill(ctx, key, x, y, color, size) {
+  ctx.font = `700 ${size}px ${FONT}`;
+  const width = ctx.measureText(key).width + size * 1.1;
+  roundRect(ctx, x, y, width, size * 1.7, size * 0.4, color);
+  ctx.fillStyle = INK;
+  ctx.textBaseline = 'middle';
+  ctx.fillText(key, x + size * 0.55, y + size * 0.87);
+  ctx.textBaseline = 'top';
+  return width;
+}
+
+function kindPill(ctx, kind, x, y, size) {
+  ctx.font = `600 ${size}px ${FONT}`;
+  const label = kind.label.toUpperCase();
+  const width = ctx.measureText(label).width + size * 1.6;
+  roundRect(ctx, x, y, width, size * 1.8, size * 0.9, kind.color);
+  ctx.fillStyle = INK;
+  ctx.textBaseline = 'middle';
+  ctx.fillText(label, x + size * 0.8, y + size * 0.92);
+  ctx.textBaseline = 'top';
+}
+
 function drawHorizontal(ctx, w, h, entry, index, total) {
   const kind = KIND[entry.kind] ?? KIND.experience;
   const pad = 40;
   roundRect(ctx, 8, 8, w - 16, h - 16, 36, 'rgba(0, 0, 0, 0.14)');
 
-  // Logo de l'entreprise ou de l'école.
-  const r = (h - pad * 2) / 2 - 10;
-  ctx.fillStyle = 'rgba(255, 255, 255, 0.92)';
-  ctx.beginPath();
-  ctx.arc(pad + r + 10, h / 2, r, 0, Math.PI * 2);
-  ctx.fill();
+  const r = (h - pad * 2) / 2 - 30;
+  logo(ctx, entry, pad + r + 10, h / 2, r);
 
-  // Intitulé, rôle, dates et type.
-  const x = pad + r * 2 + 70;
-  ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
-  ctx.font = '700 40px "Space Grotesk", system-ui, sans-serif';
+  // Intitulé, rôle, lieu et dates, type.
+  const x = pad + r * 2 + 60;
+  const colWidth = 640;
   ctx.textBaseline = 'top';
-  ctx.fillText(`${String(index + 1).padStart(2, '0')} / ${String(total).padStart(2, '0')}`, x, pad + 6);
-  roundRect(ctx, x, pad + 70, 520 - (index % 2) * 90, 56, 14, 'rgba(255, 255, 255, 0.95)');
-  roundRect(ctx, x, pad + 150, 380 + (index % 3) * 40, 34, 10, 'rgba(255, 255, 255, 0.6)');
-  roundRect(ctx, x, h - pad - 46, 220, 46, 23, 'rgba(255, 255, 255, 0.85)');
-  roundRect(ctx, x + 240, h - pad - 46, 240, 46, 23, kind.color);
-  ctx.fillStyle = '#1d2433';
-  ctx.font = '600 26px "Space Grotesk", system-ui, sans-serif';
-  ctx.textBaseline = 'middle';
-  ctx.textAlign = 'center';
-  ctx.fillText(kind.label.toUpperCase(), x + 360, h - pad - 22);
-  ctx.textAlign = 'left';
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.55)';
+  ctx.font = `700 30px ${FONT}`;
+  ctx.fillText(`${String(index + 1).padStart(2, '0')} / ${String(total).padStart(2, '0')}`, x, pad + 4);
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.97)';
+  ctx.font = `700 50px ${FONT}`;
+  let y = fillLines(ctx, wrap(ctx, entry.org, colWidth, 1), x, pad + 50, 58);
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
+  ctx.font = `500 32px ${FONT}`;
+  y = fillLines(ctx, wrap(ctx, entry.role, colWidth, 2), x, y + 10, 40);
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+  ctx.font = `500 28px ${FONT}`;
+  fillLines(ctx, [`${entry.place} · ${entry.dates}`], x, y + 8, 34);
+  kindPill(ctx, kind, x, h - pad - 46, 25);
 
-  // Séparateur, puis les réalisations : un chiffre en évidence et une ligne de texte.
-  const sx = x + 640;
+  // Séparateur, puis les réalisations : le mot-clé en évidence et une ligne de texte.
+  const sx = x + colWidth + 50;
   ctx.fillStyle = 'rgba(255, 255, 255, 0.35)';
   ctx.fillRect(sx, pad, 4, h - pad * 2);
-  const rows = 3 - (index % 2);
+  const items = entry.highlights ?? [];
   const rowH = (h - pad * 2) / 3;
-  for (let i = 0; i < rows; i++) {
-    const y = pad + rowH * i + (rowH - 52) / 2 + ((3 - rows) * rowH) / 2;
-    roundRect(ctx, sx + 50, y, 130, 52, 12, kind.color);
-    roundRect(ctx, sx + 210, y + 12, 620 - ((i + index) % 3) * 110, 28, 10, 'rgba(255, 255, 255, 0.6)');
-  }
+  const textX = sx + 50;
+  const textWidth = w - pad - 20 - textX;
+  items.forEach((item, i) => {
+    const y0 = pad + rowH * i + ((3 - items.length) * rowH) / 2 + 6;
+    keyPill(ctx, item.key, textX, y0, kind.color, 26);
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
+    ctx.font = `500 27px ${FONT}`;
+    fillLines(ctx, wrap(ctx, item.text, textWidth, 2), textX, y0 + 54, 32);
+  });
 }
 
 function drawVertical(ctx, w, h, entry, index, total) {
@@ -65,41 +131,34 @@ function drawVertical(ctx, w, h, entry, index, total) {
   roundRect(ctx, 8, 8, w - 16, h - 16, 36, 'rgba(0, 0, 0, 0.14)');
   const inner = w - pad * 2;
 
-  ctx.fillStyle = 'rgba(255, 255, 255, 0.92)';
-  ctx.beginPath();
-  ctx.arc(w / 2, pad + inner / 2, inner / 2 - 20, 0, Math.PI * 2);
-  ctx.fill();
+  logo(ctx, entry, w / 2, pad + inner / 2, inner / 2 - 40);
 
-  let y = pad + inner + 40;
-  ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
-  ctx.font = '700 40px "Space Grotesk", system-ui, sans-serif';
+  let y = pad + inner + 30;
   ctx.textBaseline = 'top';
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.55)';
+  ctx.font = `700 32px ${FONT}`;
   ctx.fillText(`${String(index + 1).padStart(2, '0')} / ${String(total).padStart(2, '0')}`, pad, y);
-  y += 80;
-  roundRect(ctx, pad, y, inner, 56, 14, 'rgba(255, 255, 255, 0.95)');
-  y += 90;
-  roundRect(ctx, pad, y, inner * 0.75, 34, 10, 'rgba(255, 255, 255, 0.6)');
-  y += 70;
-  roundRect(ctx, pad, y, inner * 0.7, 46, 23, 'rgba(255, 255, 255, 0.85)');
-  y += 66;
-  roundRect(ctx, pad, y, inner * 0.8, 46, 23, kind.color);
-  ctx.fillStyle = '#1d2433';
-  ctx.font = '600 24px "Space Grotesk", system-ui, sans-serif';
-  ctx.textBaseline = 'middle';
-  ctx.textAlign = 'center';
-  ctx.fillText(kind.label.toUpperCase(), pad + inner * 0.4, y + 23);
-  ctx.textAlign = 'left';
+  y += 60;
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.97)';
+  ctx.font = `700 48px ${FONT}`;
+  y = fillLines(ctx, wrap(ctx, entry.org, inner, 2), pad, y, 56);
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
+  ctx.font = `500 32px ${FONT}`;
+  y = fillLines(ctx, wrap(ctx, entry.role, inner, 3), pad, y + 14, 40);
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+  ctx.font = `500 28px ${FONT}`;
+  y = fillLines(ctx, wrap(ctx, `${entry.place} · ${entry.dates}`, inner, 2), pad, y + 12, 34);
+  kindPill(ctx, kind, pad, y + 24, 24);
 
-  y += 110;
+  y += 130;
   ctx.fillStyle = 'rgba(255, 255, 255, 0.35)';
   ctx.fillRect(pad, y, inner, 4);
-  y += 60;
-  const rows = 3 - (index % 2);
-  for (let i = 0; i < rows; i++) {
-    roundRect(ctx, pad, y, 130, 52, 12, kind.color);
-    roundRect(ctx, pad, y + 76, inner * (0.95 - ((i + index) % 3) * 0.15), 28, 10, 'rgba(255, 255, 255, 0.6)');
-    roundRect(ctx, pad, y + 122, inner * 0.6, 28, 10, 'rgba(255, 255, 255, 0.6)');
-    y += 230;
+  y += 50;
+  for (const item of entry.highlights ?? []) {
+    keyPill(ctx, item.key, pad, y, kind.color, 28);
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
+    ctx.font = `500 28px ${FONT}`;
+    y = fillLines(ctx, wrap(ctx, item.text, inner, 5), pad, y + 64, 36) + 50;
   }
 }
 
@@ -137,7 +196,9 @@ export function buildCard(vertical) {
     (vertical ? drawVertical : drawHorizontal)(ctx, canvas.width, canvas.height, shown.entry, shown.index, shown.total);
     texture.needsUpdate = true;
   };
-  document.fonts?.load('700 40px "Space Grotesk"').then(draw, () => {});
+  if (document.fonts) {
+    Promise.all([document.fonts.load('700 40px "Space Grotesk"'), document.fonts.load('500 40px "Space Grotesk"')]).then(draw, draw);
+  }
 
   return {
     mesh,
