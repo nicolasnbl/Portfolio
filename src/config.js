@@ -153,69 +153,69 @@ export const LEAVE = {
 };
 
 // Timeline : étapes du parcours, de la plus récente à la plus ancienne. kind : 'experience' ou 'formation'.
-// logo : sigle affiché dans la pastille, en attendant les vrais logos. highlights : 2-3 réalisations, avec en évidence
-// un chiffre ou un mot-clé.
+// logo : image de l'entreprise ou de l'école, dans public/logos. highlights : 2-3 réalisations courtes (une ligne
+// et demie au plus), avec en évidence un chiffre ou un mot-clé.
 export const TIMELINE = {
   entries: [
     {
       kind: 'experience',
-      logo: 'TE',
+      logo: './logos/totalenergies.png',
       org: 'TotalEnergies Iberica',
       role: 'Analyste performance solaire PV (VIE)',
       place: 'Espagne',
       dates: 'juin 2026 – aujourd’hui',
       highlights: [
-        { key: '500+ MWp', text: 'Reporting hebdomadaire et KPI automatisés sur un portefeuille PV utility-scale espagnol' },
-        { key: 'Databricks', text: 'Pipelines de données, notebooks Python et tableaux de bord Power BI' },
-        { key: 'SCADA', text: 'Surveillance automatisée à partir des alertes Bazefield pour détecter les sous-performances' },
+        { key: '500+ MWp', text: 'Reporting et KPI automatisés sur un portefeuille PV espagnol' },
+        { key: 'Databricks', text: 'Pipelines Python, notebooks et tableaux de bord Power BI' },
+        { key: 'SCADA', text: 'Détection automatique des sous-performances (Bazefield)' },
       ],
     },
     {
       kind: 'experience',
-      logo: 'TE',
+      logo: './logos/totalenergies.png',
       org: 'TotalEnergies OneTech',
       role: 'Ingénieur R&D solaire flottant',
       place: 'France',
       dates: 'mai 2025 – mai 2026',
       highlights: [
-        { key: 'Publication', text: 'Méthodes d’analyse de performance du PV flottant, dont le prototype SolarinBlue' },
-        { key: 'ML', text: 'Modèles qui prédisent la performance des modules et la température de cellule' },
-        { key: 'VAN / TRI', text: 'Coauteur d’un guide technique et financier sur le revamping de centrales PV' },
+        { key: 'Publication', text: 'Analyse du PV flottant, dont le prototype SolarinBlue' },
+        { key: 'ML', text: 'Prédiction de la performance et de la température des modules' },
+        { key: 'VAN / TRI', text: 'Coauteur d’un guide technique et financier sur le revamping' },
       ],
     },
     {
       kind: 'experience',
-      logo: 'SC',
+      logo: './logos/solaire-corse.png',
       org: 'Solaire Corse',
       role: 'Ingénieur projets solaires',
       place: 'Corse',
       dates: 'fév. – mai 2025',
       highlights: [
-        { key: '3 → 250 kWp', text: 'Conception d’installations : PVSyst, plans AutoCAD, matériel et câbles AC/DC' },
+        { key: '3 → 250 kWp', text: 'Conception d’installations sous PVSyst et AutoCAD' },
         { key: 'JavaScript', text: 'Outils internes pour accélérer le bureau d’études' },
       ],
     },
     {
       kind: 'formation',
-      logo: 'HW',
+      logo: './logos/heriot-watt.png',
       org: 'Heriot-Watt University',
       role: 'MSc Renewable and Sustainable Energy, with Merit',
       place: 'Orcades, Royaume-Uni',
       dates: '2023 – 2024',
       highlights: [
-        { key: 'Mémoire', text: 'Dessalement solaire : technologies comparées, usine modélisée sous MATLAB/Simulink' },
+        { key: 'Mémoire', text: 'Dessalement solaire modélisé sous MATLAB/Simulink' },
       ],
     },
     {
       kind: 'formation',
-      logo: 'EI',
+      logo: './logos/eigsi.png',
       org: 'EIGSI',
       role: 'Diplôme d’ingénieur, majeure Énergie et Environnement',
       place: 'La Rochelle',
       dates: '2019 – 2024',
       highlights: [
         { key: 'Hydrogène', text: 'Moteur d’ULM adapté à l’hydrogène pour Air Hydro Atlantic' },
-        { key: 'Valence', text: 'Semestre européen à l’Universitat Politècnica de València (2022)' },
+        { key: 'Valence', text: 'Semestre européen à l’Universitat Politècnica de València' },
       ],
     },
   ],
