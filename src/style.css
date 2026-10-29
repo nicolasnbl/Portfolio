@@ -257,6 +257,61 @@ footer {
   gap: 0.6rem 1.6rem;
 }
 
+/* Side projects : une carte par projet, deux colonnes sur grand écran. */
+.projects {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr));
+  gap: 1.2rem;
+  margin-top: 1.5rem;
+}
+
+.project {
+  display: flex;
+  flex-direction: column;
+  padding: 1.4rem 1.5rem;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.project h3 {
+  margin: 0 0 0.6rem;
+  font-size: 1.4rem;
+}
+
+.project p {
+  margin: 0 0 1rem;
+}
+
+.project .project-tag {
+  margin: 0 0 0.4rem;
+  color: var(--accent);
+  font-size: 0.75rem;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+}
+
+.project-keys {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: auto 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.project-keys li {
+  padding: 0.25rem 0.7rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--text);
+  font-size: 0.8rem;
+}
+
+.project .section-link {
+  margin-top: 1rem;
+}
+
 .section-link {
   color: var(--accent);
   text-decoration: none;
