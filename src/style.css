@@ -308,7 +308,87 @@ footer {
   font-size: 0.8rem;
 }
 
-.project .section-link {
+.project /* Parcours façon LinkedIn : logo à gauche, poste, entreprise, dates, puis le détail. */
+.career-title {
+  margin: 2rem 0 0.4rem;
+  font-size: 1.3rem;
+}
+
+.career {
+  margin-bottom: 0.5rem;
+}
+
+.job {
+  display: grid;
+  grid-template-columns: 56px 1fr;
+  gap: 1rem;
+  padding: 1.2rem 0;
+  border-top: 1px solid var(--border);
+}
+
+.job-logo {
+  width: 56px;
+  height: 56px;
+  object-fit: contain;
+  padding: 6px;
+  border-radius: 10px;
+  background: #fff;
+}
+
+.job h4 {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.job .job-org {
+  margin: 0.15rem 0 0;
+  color: var(--text);
+}
+
+.job .job-meta {
+  margin: 0.1rem 0 0.6rem;
+  font-size: 0.85rem;
+}
+
+.job ul {
+  margin: 0;
+  padding-left: 1.1rem;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+.job li + li {
+  margin-top: 0.3rem;
+}
+
+.job .job-skills {
+  margin: 0.6rem 0 0;
+  font-size: 0.85rem;
+}
+
+.job-skills strong {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.career-link {
+  display: inline-block;
+  margin-top: 1rem;
+}
+
+@media (max-width: 600px) {
+  .job {
+    grid-template-columns: 44px 1fr;
+    gap: 0.8rem;
+  }
+
+  .job-logo {
+    width: 44px;
+    height: 44px;
+  }
+}
+
+.section-link {
   margin-top: 1rem;
 }
 
