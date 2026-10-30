@@ -265,6 +265,10 @@ footer {
   margin-top: 1.5rem;
 }
 
+.career-title + .projects {
+  margin-top: 0.8rem;
+}
+
 .project {
   display: flex;
   flex-direction: column;
@@ -323,7 +327,8 @@ footer {
   font-size: 0.8rem;
 }
 
-/* Parcours façon LinkedIn : logo à gauche, poste, entreprise, dates, puis le détail. */
+/* Parcours façon LinkedIn : logo à gauche, poste, entreprise, dates, puis le détail.
+   Les mêmes sous-titres séparent les startups des projets. */
 .career-title {
   margin: 2rem 0 0.4rem;
   font-size: 1.3rem;
@@ -446,10 +451,23 @@ footer {
 }
 
 .project-helper {
+  display: block;
+  flex-shrink: 0;
+  border-radius: 50%;
+  border: 2px solid var(--border);
+  transition: border-color 0.2s;
+}
+
+.project-helper:hover,
+.project-helper:focus-visible {
+  border-color: var(--accent);
+}
+
+.project-helper img {
+  display: block;
   width: 32px;
   height: 32px;
   border-radius: 50%;
-  border: 2px solid var(--border);
   object-fit: cover;
 }
 
