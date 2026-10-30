@@ -231,23 +231,147 @@ footer {
   color: var(--accent);
 }
 
-.skills {
+/* Compétences : langages + Databricks, puis BI, puis le reste en pastilles. */
+.stack {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 1rem;
+  margin-top: 1.5rem;
+}
+
+.stack-card {
+  padding: 1.2rem 1.4rem;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.stack-bi,
+.stack-other {
+  grid-column: 1 / -1;
+}
+
+.stack-card h3 {
+  margin: 0 0 1rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.stack-tiles,
+.stack-chips,
+.trainings {
   margin: 0;
   padding: 0;
   list-style: none;
-  color: var(--muted);
-  line-height: 1.6;
 }
 
-.skills li {
-  padding: 0.6rem 0;
+.stack-tiles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem 1.6rem;
+}
+
+.stack-tiles li {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  font-weight: 600;
+  font-size: 1.1rem;
+}
+
+/* Fond blanc façon icône d'appli : les logos sombres (Three.js, C) restent lisibles. */
+.stack-tiles img,
+.stack-chips img {
+  box-sizing: content-box;
+  background: #fff;
+  object-fit: contain;
+}
+
+.stack-tiles img {
+  width: 36px;
+  height: 36px;
+  padding: 8px;
+  border-radius: 12px;
+}
+
+.stack-tiles small {
+  display: block;
+  font-size: 0.85rem;
+  font-weight: 400;
+  color: var(--muted);
+}
+
+.stack-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+.stack-chips li {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0.9rem 0.4rem 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--text);
+  font-size: 0.95rem;
+}
+
+.stack-chips li:not(:has(img)) {
+  padding-left: 0.9rem;
+}
+
+.stack-chips img {
+  width: 18px;
+  height: 18px;
+  padding: 3px;
+  border-radius: 50%;
+}
+
+.stack-langs {
+  margin: 1.2rem 0 0;
+  padding-top: 1rem;
   border-top: 1px solid var(--border);
 }
 
-.skills strong {
-  display: block;
+.stack-langs strong {
+  margin-right: 0.6rem;
   color: var(--text);
   font-weight: 600;
+}
+
+@media (max-width: 600px) {
+  .stack {
+    grid-template-columns: 1fr;
+  }
+}
+
+.trainings {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
+  gap: 1rem;
+  margin-top: 1.5rem;
+}
+
+.trainings li {
+  padding: 1.2rem 1.4rem;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.trainings h3 {
+  margin: 0 0 0.4rem;
+  font-size: 1.15rem;
+}
+
+.trainings p {
+  margin: 0;
 }
 
 /* Contact : texte et icônes à gauche, CV en aperçu un peu à l'écart à droite. */
