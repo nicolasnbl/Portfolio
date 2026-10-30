@@ -326,6 +326,26 @@ footer {
   border-top: 1px solid var(--border);
 }
 
+/* Deux postes chez le même groupe : une ligne relie les logos pour marquer la progression. */
+.job-linked {
+  position: relative;
+}
+
+.job-linked::after {
+  content: '';
+  position: absolute;
+  left: 27px;
+  top: calc(1.2rem + 56px + 8px);
+  bottom: calc(-1.2rem + 8px);
+  width: 2px;
+  border-radius: 2px;
+  background: linear-gradient(var(--border), var(--accent));
+}
+
+.job-linked + .job {
+  border-top-color: transparent;
+}
+
 .job-logo {
   width: 56px;
   height: 56px;
@@ -385,6 +405,11 @@ footer {
   .job-logo {
     width: 44px;
     height: 44px;
+  }
+
+  .job-linked::after {
+    left: 21px;
+    top: calc(1.2rem + 44px + 8px);
   }
 }
 
