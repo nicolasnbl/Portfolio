@@ -323,7 +323,7 @@ footer {
   font-size: 0.8rem;
 }
 
-.project /* Parcours façon LinkedIn : logo à gauche, poste, entreprise, dates, puis le détail. */
+/* Parcours façon LinkedIn : logo à gauche, poste, entreprise, dates, puis le détail. */
 .career-title {
   margin: 2rem 0 0.4rem;
   font-size: 1.3rem;
@@ -428,8 +428,29 @@ footer {
   }
 }
 
-.section-link {
+.project .section-link {
   margin-top: 1rem;
+}
+
+/* Pied de carte : le lien à gauche, en petit à droite la photo de qui m'a aidé (façon contributeurs GitHub). */
+.project-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.project-foot .section-link {
+  margin-top: 0;
+}
+
+.project-helper {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 2px solid var(--border);
+  object-fit: cover;
 }
 
 .section-link {
