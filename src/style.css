@@ -257,6 +257,220 @@ footer {
   gap: 0.6rem 1.6rem;
 }
 
+/* Side projects : une carte par projet, deux colonnes sur grand écran. */
+.projects {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr));
+  gap: 1.2rem;
+  margin-top: 1.5rem;
+}
+
+.career-title + .projects {
+  margin-top: 0.8rem;
+}
+
+.project {
+  display: flex;
+  flex-direction: column;
+  padding: 1.4rem 1.5rem;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.project h3 {
+  margin: 0 0 0.6rem;
+  font-size: 1.4rem;
+}
+
+.project p {
+  margin: 0 0 1rem;
+}
+
+.project-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 1rem;
+  margin-bottom: 0.4rem;
+}
+
+.project-year {
+  flex-shrink: 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.project .project-tag {
+  margin: 0;
+  color: var(--accent);
+  font-size: 0.75rem;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+}
+
+.project-keys {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: auto 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.project-keys li {
+  padding: 0.25rem 0.7rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--text);
+  font-size: 0.8rem;
+}
+
+/* Parcours façon LinkedIn : logo à gauche, poste, entreprise, dates, puis le détail.
+   Les mêmes sous-titres séparent les startups des projets. */
+.career-title {
+  margin: 2rem 0 0.4rem;
+  font-size: 1.3rem;
+}
+
+.career {
+  margin-bottom: 0.5rem;
+}
+
+.job {
+  display: grid;
+  grid-template-columns: 56px 1fr;
+  gap: 1rem;
+  padding: 1.2rem 0;
+  border-top: 1px solid var(--border);
+}
+
+/* Deux postes chez le même groupe : une ligne relie les logos pour marquer la progression. */
+.job-linked {
+  position: relative;
+}
+
+.job-linked::after {
+  content: '';
+  position: absolute;
+  left: 27px;
+  top: calc(1.2rem + 56px + 8px);
+  bottom: calc(-1.2rem + 8px);
+  width: 2px;
+  border-radius: 2px;
+  background: linear-gradient(var(--border), var(--accent));
+}
+
+.job-linked + .job {
+  border-top-color: transparent;
+}
+
+.job-logo {
+  width: 56px;
+  height: 56px;
+  object-fit: contain;
+  padding: 6px;
+  border-radius: 10px;
+  background: #fff;
+}
+
+.job h4 {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
+.job .job-org {
+  margin: 0.15rem 0 0;
+  color: var(--text);
+}
+
+.job .job-meta {
+  margin: 0.1rem 0 0.6rem;
+  font-size: 0.85rem;
+}
+
+.job ul {
+  margin: 0;
+  padding-left: 1.1rem;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+.job li + li {
+  margin-top: 0.3rem;
+}
+
+.job .job-skills {
+  margin: 0.6rem 0 0;
+  font-size: 0.85rem;
+}
+
+.job-skills strong {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.career-link {
+  display: inline-block;
+  margin-top: 1rem;
+}
+
+@media (max-width: 600px) {
+  .job {
+    grid-template-columns: 44px 1fr;
+    gap: 0.8rem;
+  }
+
+  .job-logo {
+    width: 44px;
+    height: 44px;
+  }
+
+  .job-linked::after {
+    left: 21px;
+    top: calc(1.2rem + 44px + 8px);
+  }
+}
+
+.project .section-link {
+  margin-top: 1rem;
+}
+
+/* Pied de carte : le lien à gauche, en petit à droite la photo de qui m'a aidé (façon contributeurs GitHub). */
+.project-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.project-foot .section-link {
+  margin-top: 0;
+}
+
+.project-helper {
+  display: block;
+  flex-shrink: 0;
+  border-radius: 50%;
+  border: 2px solid var(--border);
+  transition: border-color 0.2s;
+}
+
+.project-helper:hover,
+.project-helper:focus-visible {
+  border-color: var(--accent);
+}
+
+.project-helper img {
+  display: block;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
 .section-link {
   color: var(--accent);
   text-decoration: none;
@@ -660,4 +874,17 @@ body.explore-body {
   .explore-card.is-open {
     transform: none;
   }
+}
+
+/* Pages projet (fusées, guitare) : en attendant le récit complet et les images. */
+.project-page {
+  padding: 10vh 0;
+}
+
+.project-page section {
+  margin-top: 0;
+}
+
+.project-soon {
+  font-style: italic;
 }
