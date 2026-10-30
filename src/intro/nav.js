@@ -92,23 +92,35 @@ export function createNav(nav, items, { onAction } = {}) {
       const portrait = w < h;
       nav.classList.toggle('is-portrait', portrait);
       const n = entries.length;
-      const spacing = portrait ? Math.min(58, h * 0.07) : Math.min(76, h * 0.095);
+      const spacing = Math.min(76, h * 0.095);
       // Rayon approximatif du satellite à l'écran : les lignes partent de son bord, pas de son centre.
       const radius = Math.min(w, h) * (portrait ? 0.07 : 0.06);
 
       // Grand écran : éventail à droite du satellite, comme sur le croquis.
-      // Écran vertical : colonne dans le ciel, au-dessus et à droite du satellite, libellés à gauche des points.
+      // Écran vertical : éventail en demi-cercle au-dessus du satellite, libellés au-dessus des points.
       const widest = Math.max(...entries.map((e) => e.label.offsetWidth));
-      const colX = portrait
-        ? w - 28
-        : Math.min(anchor.x + Math.max(200, w * 0.16), w - widest - 64);
-      const colY = portrait ? Math.max(90, anchor.y - h * 0.34) : anchor.y;
+      const colX = Math.min(anchor.x + Math.max(200, w * 0.16), w - widest - 64);
+      const colY = anchor.y;
+      const arc = Math.min(w * 0.4, 180);
 
       entries.forEach((entry, i) => {
         const k = i - (n - 1) / 2;
-        // L'éventail se resserre vers le satellite aux extrémités, comme un arc.
-        const dotX = portrait ? colX : colX - k * k * 18;
-        const dotY = portrait ? colY + i * spacing : colY + k * spacing;
+        let dotX;
+        let dotY;
+        if (portrait) {
+          // De gauche à droite, de 160° à 20°.
+          const angle = Math.PI * (0.5 - (k / (n - 1)) * 0.78);
+          dotX = anchor.x + Math.cos(angle) * arc;
+          dotY = anchor.y - Math.sin(angle) * arc;
+          // Le libellé reste centré sur son point, sauf s'il sortirait de l'écran.
+          const half = entry.label.offsetWidth / 2;
+          const shift = Math.min(w - 12 - half, Math.max(12 + half, dotX)) - dotX;
+          entry.li.style.setProperty('--label-shift', `${shift}px`);
+        } else {
+          // L'éventail se resserre vers le satellite aux extrémités, comme un arc.
+          dotX = colX - k * k * 18;
+          dotY = colY + k * spacing;
+        }
 
         const hide = !exit ? 0 : i === exit.index ? progress(exit.p, 0.55, 1) : progress(exit.p, 0, 0.55);
         const p = easeOutCubic(progress(reveal, i * 0.16, i * 0.16 + 0.5)) * (1 - hide);

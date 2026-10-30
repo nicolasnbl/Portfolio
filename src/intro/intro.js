@@ -54,7 +54,7 @@ const CAMERA_KEYS = [
     tilt: 30,
     fov: 50,
     shift: [0.3, 0.3],
-    portrait: { tilt: 62, shift: [0.35, -0.12], scale: 3 },
+    portrait: { tilt: 62, shift: [0.04, -0.2], scale: 3 },
   },
 ];
 
@@ -556,20 +556,25 @@ export function createIntro({ canvas, overlay, onStart, onEnd }) {
     const h = window.innerHeight;
     let nameX = (namePoint.x * 0.5 + 0.5) * w;
     let nameY = (-namePoint.y * 0.5 + 0.5) * h;
-    // Écran large : le nom finit bien à gauche de la coiffe, dans l'espace libre au-dessus de la planète.
-    // Écran vertical : une fois sorti, il monte se poser en haut à gauche, au-dessus du menu, pour dégager la fusée.
-    const slide = portrait ? -40 : -60;
+    // Écran large : le nom sort de la coiffe en glissant vers la gauche et finit dans l'espace libre au-dessus de la planète.
+    // Écran vertical : il sort vers le haut, puis monte se poser en haut, centré, au-dessus du menu, pour dégager la fusée.
+    const reveal = progress(nameP, 0.85, 1);
     if (portrait) {
       const lift = easeInOutCubic(progress(t, T.nameEnd - 0.2, T.nameEnd + 0.6));
-      const width = nameEl.offsetWidth;
-      nameX = lerp(nameX, 24 + width * (1 - slide / 100), lift);
-      nameY = lerp(nameY, h * 0.11, lift);
+      nameX = lerp(nameX, w / 2, lift);
+      nameY = lerp(nameY, h * 0.11 + nameEl.offsetHeight / 2, lift);
+      // Bord bas du bloc posé sur la coiffe : tout ce qui dépasse sous elle est masqué pendant la sortie.
+      nameEl.style.transform = 'translate(-50%, -100%)';
+      nameSlide.style.transform = `translateY(${lerp(100, 0, nameP)}%)`;
+      nameEl.style.clipPath = `inset(-60% -60% ${-80 * reveal}px -60%)`;
+    } else {
+      nameEl.style.transform = '';
+      nameSlide.style.transform = `translateX(${lerp(100, -60, nameP)}%)`;
+      // Pendant la sortie, tout ce qui dépasse à droite de la coiffe est masqué ; à la fin, le halo du texte se libère.
+      nameEl.style.clipPath = `inset(-60% ${-80 * reveal}px -60% -60%)`;
     }
     nameEl.style.left = `${nameX}px`;
     nameEl.style.top = `${nameY}px`;
-    nameSlide.style.transform = `translateX(${lerp(100, slide, nameP)}%)`;
-    // Pendant la sortie, tout ce qui dépasse à droite de la coiffe est masqué ; à la fin, le halo du texte se libère.
-    nameEl.style.clipPath = `inset(-60% ${-80 * progress(nameP, 0.85, 1)}px -60% -60%)`;
     hintEl.style.opacity = progress(t, T.end - 0.3, T.end + 0.4);
     if (leaveU >= 0) {
       const fade = 1 - progress(leaveU, 0, 0.4);
