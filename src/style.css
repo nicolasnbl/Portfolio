@@ -655,6 +655,18 @@ footer {
   opacity: 1;
 }
 
+/* Écran vertical : le libellé passe au-dessus de son point, centré sur lui. */
+.intro-nav.is-portrait .intro-nav-label {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% - 0.3rem);
+  transform: translate(calc(-50% + var(--label-shift, 0px)), calc((1 - var(--label, 0)) * 8px));
+}
+
+.intro-nav.is-portrait .is-hover .intro-nav-text {
+  transform: translateY(-2px);
+}
+
 /* Écran vertical : pas d'étiquette « Bientôt », elle décentrerait l'entrée. */
 .intro-nav.is-portrait .intro-nav-item[data-soon]::after {
   display: none;
