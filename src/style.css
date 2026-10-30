@@ -286,14 +286,33 @@ footer {
   border-radius: 50%;
   color: var(--text);
   background: rgba(255, 255, 255, 0.04);
-  transition: color 0.2s, border-color 0.2s, transform 0.2s;
+  transition: color 0.2s, border-color 0.2s, background 0.2s, transform 0.2s;
 }
 
+/* Au survol, chaque pastille prend la couleur de sa marque. */
 .contact-icons a:hover,
 .contact-icons a:focus-visible {
-  color: var(--accent);
-  border-color: var(--accent);
+  color: #fff;
+  border-color: var(--brand);
+  background: var(--brand);
   transform: translateY(-2px);
+}
+
+.icon-mail {
+  --brand: #ea4335;
+}
+
+.icon-linkedin {
+  --brand: #0a66c2;
+}
+
+.icon-github {
+  --brand: #24292f;
+}
+
+.icon-github:hover,
+.icon-github:focus-visible {
+  border-color: rgba(255, 255, 255, 0.5);
 }
 
 .contact-icons svg {
@@ -335,6 +354,10 @@ footer {
 }
 
 @media (max-width: 600px) {
+  .contact-icons {
+    justify-content: center;
+  }
+
   .cv-card {
     width: 100%;
     padding: 2rem 0 0;
