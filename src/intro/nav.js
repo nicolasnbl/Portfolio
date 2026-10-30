@@ -97,17 +97,16 @@ export function createNav(nav, items, { onAction } = {}) {
       const radius = Math.min(w, h) * (portrait ? 0.07 : 0.06);
 
       // Grand écran : éventail à droite du satellite, comme sur le croquis.
-      // Écran vertical : colonne dans le ciel, au-dessus et à droite du satellite, libellés à gauche des points.
+      // Écran vertical : colonne centrée dans le ciel, au-dessus du satellite, chaque entrée centrée sur l'écran.
       const widest = Math.max(...entries.map((e) => e.label.offsetWidth));
-      const colX = portrait
-        ? w - 28
-        : Math.min(anchor.x + Math.max(200, w * 0.16), w - widest - 64);
-      const colY = portrait ? Math.max(90, anchor.y - h * 0.34) : anchor.y;
+      const colX = Math.min(anchor.x + Math.max(200, w * 0.16), w - widest - 64);
+      const colY = portrait ? Math.max(h * 0.22, anchor.y - h * 0.18 - (n - 1) * spacing) : anchor.y;
 
       entries.forEach((entry, i) => {
         const k = i - (n - 1) / 2;
         // L'éventail se resserre vers le satellite aux extrémités, comme un arc.
-        const dotX = portrait ? colX : colX - k * k * 18;
+        // Écran vertical : points alignés à gauche des libellés, le bloc centré (point de 26 px, écart de 1 rem).
+        const dotX = portrait ? (w - widest - 42) / 2 + 13 : colX - k * k * 18;
         const dotY = portrait ? colY + i * spacing : colY + k * spacing;
 
         const hide = !exit ? 0 : i === exit.index ? progress(exit.p, 0.55, 1) : progress(exit.p, 0, 0.55);

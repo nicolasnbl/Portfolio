@@ -655,17 +655,7 @@ footer {
   opacity: 1;
 }
 
-/* Écran vertical : les libellés passent à gauche des balises, alignés sur le bord droit. */
-.intro-nav.is-portrait .intro-nav-item {
-  flex-direction: row-reverse;
-  transform: translate(calc(-100% + 0.7rem + 13px), -50%);
-}
-
-.intro-nav.is-portrait .intro-nav-label {
-  flex-direction: row-reverse;
-  transform: translateX(calc((1 - var(--label, 0)) * 8px));
-}
-
+/* Écran vertical : pas d'étiquette « Bientôt », elle décentrerait l'entrée. */
 .intro-nav.is-portrait .intro-nav-item[data-soon]::after {
   display: none;
 }

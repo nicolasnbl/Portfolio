@@ -54,7 +54,7 @@ const CAMERA_KEYS = [
     tilt: 30,
     fov: 50,
     shift: [0.3, 0.3],
-    portrait: { tilt: 62, shift: [0.35, -0.12], scale: 3 },
+    portrait: { tilt: 62, shift: [0.04, -0.2], scale: 3 },
   },
 ];
 
@@ -557,12 +557,12 @@ export function createIntro({ canvas, overlay, onStart, onEnd }) {
     let nameX = (namePoint.x * 0.5 + 0.5) * w;
     let nameY = (-namePoint.y * 0.5 + 0.5) * h;
     // Écran large : le nom finit bien à gauche de la coiffe, dans l'espace libre au-dessus de la planète.
-    // Écran vertical : une fois sorti, il monte se poser en haut à gauche, au-dessus du menu, pour dégager la fusée.
+    // Écran vertical : une fois sorti, il monte se poser en haut, centré, au-dessus du menu, pour dégager la fusée.
     const slide = portrait ? -40 : -60;
     if (portrait) {
       const lift = easeInOutCubic(progress(t, T.nameEnd - 0.2, T.nameEnd + 0.6));
       const width = nameEl.offsetWidth;
-      nameX = lerp(nameX, 24 + width * (1 - slide / 100), lift);
+      nameX = lerp(nameX, w / 2 + width * (0.5 - slide / 100), lift);
       nameY = lerp(nameY, h * 0.11, lift);
     }
     nameEl.style.left = `${nameX}px`;
