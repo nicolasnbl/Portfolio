@@ -85,7 +85,7 @@ const CORSICA = [
   [8.73, 41.92], [8.6, 42.05], [8.57, 42.2], [8.68, 42.27], [8.6, 42.4], [8.75, 42.57], [8.94, 42.64], [9.15, 42.73],
   [9.26, 42.71], [9.33, 42.95],
 ];
-const CORSICA_LENGTH = 22; // du cap Corse à Bonifacio, en unités de la scène
+const CORSICA_LENGTH = 15; // du cap Corse à Bonifacio, en unités de la scène
 // En unités de la scène, centré sur l'île, nord vers +y.
 function corsicaPoint(lon, lat) {
   const kmPerUnit = 183 / CORSICA_LENGTH;
@@ -124,12 +124,11 @@ const ORKNEY_ISLANDS = [
   [0, 0, 4.2], [6.6, 2.2, 1.8], [-5.6, 3.6, 1.4], [3.2, -5.9, 2.2], [-4.2, -4.6, 1.1], [7.6, -2.6, 0.9],
 ];
 const CLOCK_LAND_RADIUS = 14;
-const CLOCK_SPOTS = { field: [7.5, 3.5], eigsi: [-6.5, -5], chip: [-1.5, -6.8] };
+const CLOCK_SPOTS = { field: [7.5, 3.5], eigsi: [-6.5, -5], chip: [-1.5, -6.8], strip: [3.5, -7] };
 // Continent désert : la tour au milieu, l'usine de désalinisation sur la côte ouest, sa conduite vers la mer.
 const DESERT_RADIUS = 11;
 const DESERT_SPOTS = {
-  burj: [0.5, 1.2], forum: [-3.2, -4.6], field: [4.6, 4.4], troughs: [4.4, -3.8], desal: [-7.6, 1.6], strip: [-2.6, 6],
-  crane: [-3.6, 1.4],
+  burj: [0.5, 1.2], forum: [-3.2, -4.6], field: [4.6, 4.4], troughs: [4.4, -3.8], desal: [-7.6, 1.6], crane: [-3.6, 1.4],
 };
 const ROUGH = [[3, 0.08, 0.6], [5, 0.06, 2], [9, 0.04, 1]];
 const JAGGED = [[3, 0.12, 1], [5, 0.09, 2.1], [8, 0.06, 0.4], [13, 0.04, 3]];
@@ -370,9 +369,9 @@ function buildSmoke(rand) {
 // Sur le continent de l'horloge, l'île de la musique et en Corse, en coordonnées locales (est, nord).
 const MUSIC_SPOTS = { computer: [-3.8, 1.6], guitar: [3.6, 2.4], speaker: [0.4, -3.9], chess: [0, 3.4] };
 const HOUSE_SPOT = corsicaPoint(8.98, 42.12);
-// Boucles parcourues en continu : la piste du vélo au nord de la Corse, et le tour de l'ULM au-dessus de sa piste
-// d'envol. Centre et demi-axes (est, nord) dans le repère de leur terre.
-const BIKE_LOOP = { center: [1.4, 3.4], radii: [1.9, 2.1] };
+// Boucles parcourues en continu : la piste du vélo au sud-ouest de l'île de la musique, et le tour de l'ULM au-dessus
+// de sa piste d'envol, à côté de l'EIGSI. Centre et demi-axes (est, nord) dans le repère de leur terre.
+const BIKE_LOOP = { center: [-2.8, -2.6], radii: [1.7, 1.6] };
 const ULM_LOOP = { center: [0, 0], radii: [3.4, 2.6] };
 const ULM_FLIES = true; // false : l'ULM reste posé sur sa piste
 const BIKE_SPEED = 0.7; // unités par seconde
@@ -503,29 +502,18 @@ export function buildPlanet({ radius = PLANET_RADIUS, treeCount = 46, clockDir =
   const houseDir = frameToDir(corsica, HOUSE_SPOT[0], HOUSE_SPOT[1], R);
   placeFacing(planet, house, houseDir, frameToDir(corsica, HOUSE_SPOT[0] + 1, HOUSE_SPOT[1] - 3, R), R);
   addElement('house', house);
-  for (let placed = 0, tries = 0; placed < 22 && tries < 600; tries++) {
-    const x = (rand() - 0.5) * 10;
+  for (let placed = 0, tries = 0; placed < 14 && tries < 600; tries++) {
+    const x = (rand() - 0.5) * CORSICA_LENGTH * 0.45;
     const y = (rand() - 0.5) * CORSICA_LENGTH;
     if (!insidePolygon(x, y, CORSICA_SHAPE) || Math.hypot(x - HOUSE_SPOT[0], y - HOUSE_SPOT[1]) < 2) continue;
-    if (loopGap(BIKE_LOOP, x, y) < 0.7) continue;
     const edge = CORSICA_SHAPE.some(([px, py]) => Math.hypot(px - x, py - y) < 0.9);
     if (edge) continue;
     placeAtDir(planet, buildTree(rand), frameToDir(corsica, x, y, R), R);
     placed++;
   }
 
-  // Le vélo de voyage fait le tour de sa piste, au nord de l'île.
-  const bikeTour = new THREE.Group();
-  planet.add(bikeTour);
-  bikeTour.add(buildLoopRoad(corsica, BIKE_LOOP, R));
-  const { bike, wheels } = buildBike();
-  bikeTour.add(bike);
-  placeOnLoop(bike, corsica, BIKE_LOOP, 0, R);
-  const bikeAnchor = new THREE.Object3D();
-  placeAtDir(bikeTour, bikeAnchor, frameToDir(corsica, ...BIKE_LOOP.center, R), R);
-  addElement('bike', bikeTour, bikeAnchor);
-
-  // L'île de la musique et du code : l'ordinateur, la guitare et l'enceinte tournés vers le milieu de l'île.
+  // L'île des passions : l'ordinateur, la guitare, l'enceinte et l'échiquier tournés vers le milieu de l'île, et le
+  // vélo de voyage qui fait le tour de sa piste.
   const music = tangentFrame(LANDS.music);
   const musicCenter = music.center;
   const place = (obj, [x, y]) => placeFacing(planet, obj, frameToDir(music, x, y, R), musicCenter, R);
@@ -541,10 +529,21 @@ export function buildPlanet({ radius = PLANET_RADIUS, treeCount = 46, clockDir =
   const chess = buildChess();
   place(chess, MUSIC_SPOTS.chess);
   addElement('chess', chess);
+  const bikeTour = new THREE.Group();
+  planet.add(bikeTour);
+  bikeTour.add(buildLoopRoad(music, BIKE_LOOP, R));
+  const { bike, wheels } = buildBike();
+  bikeTour.add(bike);
+  placeOnLoop(bike, music, BIKE_LOOP, 0, R);
+  const bikeAnchor = new THREE.Object3D();
+  placeAtDir(bikeTour, bikeAnchor, frameToDir(music, ...BIKE_LOOP.center, R), R);
+  addElement('bike', bikeTour, bikeAnchor);
   for (let i = 0; i < 9; i++) {
     const angle = (i / 9) * Math.PI * 2 + rand() * 0.4;
     const r = 5.6 + rand() * 1.4;
-    placeAtDir(planet, buildTree(rand), frameToDir(music, Math.cos(angle) * r, Math.sin(angle) * r, R), R);
+    const [x, y] = [Math.cos(angle) * r, Math.sin(angle) * r];
+    if (loopGap(BIKE_LOOP, x, y) < 0.9) continue;
+    placeAtDir(planet, buildTree(rand), frameToDir(music, x, y, R), R);
   }
 
   // Orkney : le campus d'Heriot-Watt et son éolienne sur la plus grande île de l'archipel.
@@ -553,10 +552,11 @@ export function buildPlanet({ radius = PLANET_RADIUS, treeCount = 46, clockDir =
   placeFacing(planet, campus, frameToDir(orkney, -0.5, 0.4, R), frameToDir(orkney, -0.5, -4, R), R);
   addElement('heriot', campus);
 
-  // Continent de l'horloge : l'emplacement de l'horloge au centre (elle est construite à la demande), l'EIGSI et le
-  // champ à côté, des arbres en couronne autour.
+  // Continent de l'horloge : l'emplacement de l'horloge au centre (elle est construite à la demande), l'EIGSI, le
+  // champ et la piste de l'ULM à côté, des arbres en couronne autour.
   let clockSite = null;
   let chipGlow = null;
+  let flight = null;
   if (clockDir) {
     clockSite = new THREE.Group();
     placeAtDir(planet, clockSite, clockDir, R);
@@ -572,6 +572,17 @@ export function buildPlanet({ radius = PLANET_RADIUS, treeCount = 46, clockDir =
     placeFacing(planet, chip, spot(CLOCK_SPOTS.chip), clockDir, R);
     chipGlow = glow;
 
+    const airfield = new THREE.Group();
+    planet.add(airfield);
+    const stripFrame = tangentFrame(spot(CLOCK_SPOTS.strip));
+    const strip = buildAirstrip();
+    placeFacing(airfield, strip, stripFrame.center, frameToDir(stripFrame, 0, -3, R), R);
+    const { ulm, propeller } = buildMicrolight();
+    airfield.add(ulm);
+    if (ULM_FLIES) placeOnLoop(ulm, stripFrame, ULM_LOOP, 0, R, 2.4, 0.3);
+    else placeFacing(airfield, ulm, frameToDir(stripFrame, -0.8, 0, R), frameToDir(stripFrame, -0.8, -3, R), R);
+    flight = { ulm, propeller, stripFrame };
+
     for (let placed = 0, tries = 0; placed < 20 && tries < 400; tries++) {
       const angle = rand() * Math.PI * 2;
       const r = 3.8 + rand() * 7;
@@ -579,7 +590,7 @@ export function buildPlanet({ radius = PLANET_RADIUS, treeCount = 46, clockDir =
       const y = Math.sin(angle) * r;
       const clear = (p, d) => Math.hypot(x - p[0], y - p[1]) > d;
       if (!insideBlob(x, y, CLOCK_LAND_RADIUS * 0.85, JAGGED) || !clear(CLOCK_SPOTS.field, 4.6) || !clear(CLOCK_SPOTS.eigsi, 3.4)) continue;
-      if (!clear(CLOCK_SPOTS.chip, 1.8)) continue;
+      if (!clear(CLOCK_SPOTS.chip, 1.8) || !clear(CLOCK_SPOTS.strip, 2.8)) continue;
       placeAtDir(planet, buildTree(rand), spot([x, y]), R);
       placed++;
     }
@@ -588,10 +599,11 @@ export function buildPlanet({ radius = PLANET_RADIUS, treeCount = 46, clockDir =
     addElement('eigsi', eigsi);
     addElement('field', field);
     addElement('chip', chip);
+    addElement('ulm', airfield, strip);
   }
 
   // Continent désert : la tour, le chantier d'Anjaza, le forum, l'usine de désalinisation sur la côte, ses deux
-  // champs solaires, la piste de l'ULM, des palmiers et des dunes.
+  // champs solaires, des palmiers et des dunes.
   const desert = tangentFrame(LANDS.desert);
   const dspot = ([x, y]) => frameToDir(desert, x, y, R);
   const burj = buildBurj();
@@ -608,18 +620,8 @@ export function buildPlanet({ radius = PLANET_RADIUS, treeCount = 46, clockDir =
   const crane = buildCrane();
   placeFacing(planet, crane.site, dspot(DESERT_SPOTS.crane), desert.center, R);
 
-  const airfield = new THREE.Group();
-  planet.add(airfield);
-  const stripFrame = tangentFrame(dspot(DESERT_SPOTS.strip));
-  const strip = buildAirstrip();
-  placeFacing(airfield, strip, stripFrame.center, frameToDir(stripFrame, 0, -3, R), R);
-  const { ulm, propeller } = buildMicrolight();
-  airfield.add(ulm);
-  if (ULM_FLIES) placeOnLoop(ulm, stripFrame, ULM_LOOP, 0, R, 2.4, 0.3);
-  else placeFacing(airfield, ulm, frameToDir(stripFrame, -0.8, 0, R), frameToDir(stripFrame, -0.8, -3, R), R);
-
   const desertSpots = Object.entries(DESERT_SPOTS);
-  const desertClear = { burj: 1.6, forum: 3, field: 2.8, troughs: 2.8, desal: 3, strip: 2.6, crane: 2 };
+  const desertClear = { burj: 1.6, forum: 3, field: 2.8, troughs: 2.8, desal: 3, crane: 2 };
   for (let placed = 0, tries = 0; placed < 26 && tries < 600; tries++) {
     const x = (rand() - 0.5) * DESERT_RADIUS * 2;
     const y = (rand() - 0.5) * DESERT_RADIUS * 2;
@@ -634,7 +636,6 @@ export function buildPlanet({ radius = PLANET_RADIUS, treeCount = 46, clockDir =
   addElement('desertField', desertField);
   addElement('troughs', troughs);
   addElement('crane', crane.site);
-  addElement('ulm', airfield, strip);
 
   function animate(time) {
     rotor.rotation.z = -time * 1.4;
@@ -644,10 +645,13 @@ export function buildPlanet({ radius = PLANET_RADIUS, treeCount = 46, clockDir =
     membranes[1].position.z = 0.008 * Math.sin(time * 40) * beat;
 
     const bikeDistance = time * BIKE_SPEED;
-    placeOnLoop(bike, corsica, BIKE_LOOP, (bikeDistance / loopLength(BIKE_LOOP)) * Math.PI * 2, R);
+    placeOnLoop(bike, music, BIKE_LOOP, (bikeDistance / loopLength(BIKE_LOOP)) * Math.PI * 2, R);
     for (const wheel of wheels) wheel.rotation.z = -bikeDistance / 0.3;
-    propeller.rotation.x = time * 30;
-    if (ULM_FLIES) placeOnLoop(ulm, stripFrame, ULM_LOOP, ((time * ULM_SPEED) / loopLength(ULM_LOOP)) * Math.PI * 2, R, 2.4, 0.3);
+    if (flight) {
+      const { ulm, propeller, stripFrame } = flight;
+      propeller.rotation.x = time * 30;
+      if (ULM_FLIES) placeOnLoop(ulm, stripFrame, ULM_LOOP, ((time * ULM_SPEED) / loopLength(ULM_LOOP)) * Math.PI * 2, R, 2.4, 0.3);
+    }
     // La grue pivote d'un côté à l'autre et le crochet descend quand la flèche passe au-dessus de l'immeuble.
     const swing = Math.sin(time * 0.35);
     crane.jib.rotation.y = 0.7 * swing;
