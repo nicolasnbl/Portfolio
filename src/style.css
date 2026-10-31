@@ -402,6 +402,58 @@ footer {
   margin: 0;
 }
 
+/* Publications : même carte que les formations, en une colonne pour les titres longs. */
+.publications {
+  display: grid;
+  gap: 1rem;
+  margin: 1.5rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.publication {
+  display: flex;
+  align-items: flex-start;
+  gap: 1.4rem;
+  padding: 1.4rem 1.5rem;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.publication h3 {
+  margin: 0 0 0.6rem;
+  font-size: 1.2rem;
+  line-height: 1.35;
+}
+
+.publication p {
+  margin: 0 0 0.8rem;
+}
+
+.publication .publication-meta {
+  margin-bottom: 0.4rem;
+  font-size: 0.8rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.publication-note {
+  display: inline-block;
+  padding: 0.3rem 0.8rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+@media (max-width: 600px) {
+  .publication {
+    flex-direction: column;
+  }
+}
+
 /* Contact : texte et icônes à gauche, CV en aperçu un peu à l'écart à droite. */
 .contact-grid {
   display: flex;
