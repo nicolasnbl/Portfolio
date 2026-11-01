@@ -4,6 +4,7 @@ import { buildStars } from '../intro/intro.js';
 import { easeInOutCubic, easeOutCubic, lerp, progress, smoothstep } from '../intro/math.js';
 import { CARD, DIRECTION, ENTRY_ANGLES, OPENING_VIEW as O, buildClock } from './clock.js';
 import { buildCard } from './card.js';
+import { buildClockGround } from './ground.js';
 
 const TAU = Math.PI * 2;
 const STEP_DURATION = 0.9; // secondes pour passer d'une étape à l'autre
@@ -83,6 +84,10 @@ export function createTimeline({ canvas, overlay, onEnd, onStep }) {
 
   const { clock, hand, setProgress, setHighlight } = buildClock();
   scene.add(clock);
+
+  // La planète en fond, comme à la fin de la transition depuis l'accueil.
+  const clockGround = buildClockGround();
+  scene.add(clockGround.ground);
 
   const cards = { horizontal: buildCard(false), vertical: buildCard(true) };
   hand.add(cards.horizontal.mesh, cards.vertical.mesh);
@@ -205,6 +210,7 @@ export function createTimeline({ canvas, overlay, onEnd, onStep }) {
     cards.vertical.mesh.material.opacity = opacity;
     overlay.style.opacity = progress(t, TL.end, TL.end + 0.6);
 
+    clockGround.animate(now);
     placeCamera(t);
     renderer.render(scene, camera);
   }
