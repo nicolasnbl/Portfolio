@@ -12,6 +12,7 @@ export default defineConfig({
         timeline: resolve(import.meta.dirname, 'timeline.html'),
         explore: resolve(import.meta.dirname, 'explore.html'),
         fusees: resolve(import.meta.dirname, 'projet-fusees.html'),
+        sideProjects: resolve(import.meta.dirname, 'side-projects.html'),
         guitare: resolve(import.meta.dirname, 'projet-guitare.html'),
       },
     },
