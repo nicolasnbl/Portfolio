@@ -1333,3 +1333,69 @@ body.explore-body {
 .project-head {
   margin-bottom: 0.8rem;
 }
+
+/* E-mail copié : la pastille rebondit en vert avec une coche, une bulle confirme au-dessus. */
+.contact-icons li {
+  position: relative;
+}
+
+.contact-icons a.copied {
+  color: #fff;
+  border-color: #2ea043;
+  background: #2ea043;
+  animation: copied-pop 0.45s ease;
+}
+
+@keyframes copied-pop {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.18); }
+  70% { transform: scale(0.94); }
+  100% { transform: scale(1); }
+}
+
+.copy-bubble {
+  position: absolute;
+  bottom: calc(100% + 12px);
+  left: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: 0.55rem 0.8rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: #11162b;
+  color: var(--text);
+  font-size: 0.85rem;
+  font-weight: 600;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(6px);
+  transition: opacity 0.2s, transform 0.2s;
+}
+
+.copy-bubble small {
+  color: var(--muted);
+  font-weight: 400;
+  font-size: 0.75rem;
+}
+
+.copy-bubble::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 20px;
+  border: 6px solid transparent;
+  border-top-color: #11162b;
+}
+
+.copy-bubble.show {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .contact-icons a.copied {
+    animation: none;
+  }
+}

@@ -1,5 +1,6 @@
 import './style.css';
 import { createIntro } from './intro/intro.js';
+import { setupMailCopy } from './contact.js';
 
 const intro = createIntro({
   canvas: document.querySelector('#scene'),
@@ -35,3 +36,5 @@ window.addEventListener(
   },
   { passive: true },
 );
+
+setupMailCopy();
