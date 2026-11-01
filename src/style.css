@@ -124,7 +124,7 @@ body.intro-playing {
   width: 22px;
   height: 36px;
   border: 2px solid var(--text);
-  border-radius: 12px;
+  border-radius: 6px;
   position: relative;
 }
 
@@ -176,7 +176,7 @@ section {
   padding: 3rem clamp(1rem, 4vw, 3rem);
   background: var(--panel);
   border: 1px solid var(--border);
-  border-radius: 24px;
+  border-radius: 12px;
   backdrop-filter: blur(12px);
 }
 
@@ -242,7 +242,7 @@ footer {
 .stack-card {
   padding: 1.2rem 1.4rem;
   border: 1px solid var(--border);
-  border-radius: 18px;
+  border-radius: 8px;
   background: rgba(255, 255, 255, 0.03);
 }
 
@@ -294,7 +294,7 @@ footer {
   width: 36px;
   height: 36px;
   padding: 8px;
-  border-radius: 12px;
+  border-radius: 6px;
 }
 
 .stack-tiles small {
@@ -363,7 +363,7 @@ footer {
   gap: 1.2rem;
   padding: 1.2rem 1.4rem;
   border: 1px solid var(--border);
-  border-radius: 18px;
+  border-radius: 8px;
   background: rgba(255, 255, 255, 0.03);
 }
 
@@ -375,7 +375,7 @@ footer {
   width: 96px;
   height: 72px;
   padding: 10px;
-  border-radius: 12px;
+  border-radius: 6px;
   background: #fff;
 }
 
@@ -417,7 +417,7 @@ footer {
   gap: 1.4rem;
   padding: 1.4rem 1.5rem;
   border: 1px solid var(--border);
-  border-radius: 18px;
+  border-radius: 8px;
   background: rgba(255, 255, 255, 0.03);
 }
 
@@ -587,7 +587,7 @@ footer {
   flex-direction: column;
   padding: 1.4rem 1.5rem;
   border: 1px solid var(--border);
-  border-radius: 18px;
+  border-radius: 8px;
   background: rgba(255, 255, 255, 0.03);
 }
 
@@ -684,7 +684,7 @@ footer {
   height: 56px;
   object-fit: contain;
   padding: 6px;
-  border-radius: 10px;
+  border-radius: 6px;
   background: #fff;
 }
 
@@ -1105,7 +1105,7 @@ body.explore-body {
   pointer-events: auto;
   background: var(--panel);
   border: 1px solid var(--border);
-  border-radius: 18px;
+  border-radius: 8px;
   backdrop-filter: blur(10px);
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
   opacity: 0;
@@ -1202,4 +1202,102 @@ body.explore-body {
 
 .project-soon {
   font-style: italic;
+}
+
+/* Accueil : aperçu court des side projects (icône, nom, année) et un seul lien à droite vers side-projects.html. */
+.side-preview {
+  display: flex;
+  align-items: flex-start;
+  gap: 1.5rem 2.5rem;
+  flex-wrap: wrap;
+  margin-top: 1.6rem;
+}
+
+.side-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.2rem 1.6rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.side-list li {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+  width: 88px;
+  text-align: center;
+}
+
+.side-icon {
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+  margin-bottom: 0.1rem;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.side-icon svg {
+  width: 30px;
+  height: 30px;
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.side-name {
+  font-size: 0.9rem;
+}
+
+.side-year {
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.side-year {
+  white-space: nowrap;
+}
+
+/* Le lien se cale juste à droite de la liste, à hauteur du centre des icônes. */
+.side-preview .section-link {
+  flex-shrink: 0;
+  margin-top: 20px;
+}
+
+.back-link {
+  margin-top: 2rem;
+}
+
+@media (max-width: 600px) {
+  .side-list {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    width: 100%;
+    gap: 0.5rem;
+  }
+
+  .side-list li {
+    width: auto;
+  }
+
+  .side-year {
+    white-space: normal;
+  }
+
+  .side-preview .section-link {
+    margin-top: 0;
+  }
+
+  .side-icon {
+    width: 56px;
+    height: 56px;
+  }
 }
