@@ -5,7 +5,7 @@ export const INTRO = {
   titles: [
     { text: 'Bienvenue', start: 0.4, end: 2.6 },
     { text: 'Découvrez mon parcours', start: 2.9, end: 5.0 },
-    { text: 'et bien plus encore', start: 6.0, end: 8.6 },
+    { text: 'Et bien plus encore', start: 6.0, end: 8.6 },
   ],
   scrollHint: 'Scroll pour découvrir',
   // Menu relié au satellite. soon : entrée visible mais pas encore active ; action : animation avant de changer de page.
