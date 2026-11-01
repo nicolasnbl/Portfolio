@@ -130,6 +130,7 @@ export function createIntro({ canvas, overlay, onStart, onEnd }) {
   });
   const nameEl = overlay.querySelector('.intro-name');
   const nameSlide = nameEl.querySelector('.intro-name-slide');
+  const lastNameEl = nameEl.querySelector('.intro-name-last');
   const hintEl = overlay.querySelector('.intro-hint');
   const quoteEl = overlay.querySelector('.explore-quote');
   quoteEl.textContent = EXPLORE.quote;
@@ -532,6 +533,10 @@ export function createIntro({ canvas, overlay, onStart, onEnd }) {
     const nameP = easeOutCubic(progress(t, T.nameStart, T.nameEnd));
     namePoint.copy(rocketPos).addScaledVector(rocketDir, FAIRING_CENTER).project(camera);
     nameEl.style.opacity = progress(t, T.nameStart, T.nameStart + 0.2);
+    // Le nom de famille se pose sous le prénom une fois celui-ci sorti, comme une signature.
+    const lastP = easeOutCubic(progress(t, T.nameEnd - 0.2, T.nameEnd + 0.4));
+    lastNameEl.style.opacity = lastP;
+    lastNameEl.style.transform = `translateX(${(1 - lastP) * 0.6}em)`;
     const portrait = camera.aspect < 1;
     const w = window.innerWidth;
     const h = window.innerHeight;
@@ -682,6 +687,7 @@ export function createIntro({ canvas, overlay, onStart, onEnd }) {
   requestAnimationFrame(frame);
 
   nameEl.querySelector('.intro-name-main').textContent = INTRO.name;
+  lastNameEl.textContent = INTRO.surname;
   hintEl.querySelector('span').textContent = INTRO.scrollHint;
 
   return {
