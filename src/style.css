@@ -1219,7 +1219,7 @@ body.explore-body {
   }
 }
 
-/* Pages projet (fusées, guitare) : en attendant le récit complet et les images. */
+/* Pages projet (fusées, guitare) : récit avec photos et vidéo. */
 .project-page {
   padding: 10vh 0;
 }
@@ -1230,6 +1230,73 @@ body.explore-body {
 
 .project-soon {
   font-style: italic;
+}
+
+.project-story > p {
+  max-width: 68ch;
+  line-height: 1.7;
+}
+
+.project-story figure {
+  margin: 0;
+}
+
+.project-story img,
+.project-story video {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: #000;
+}
+
+.project-story figcaption {
+  margin-top: 0.45rem;
+  color: var(--muted, var(--text));
+  font-size: 0.82rem;
+}
+
+.story-media {
+  margin: 2rem 0 !important;
+}
+
+/* Fusée 3 : trois vues verticales (vidéo en premier), puis trois vues horizontales. */
+.story-gallery {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+  margin: 2rem 0;
+}
+
+.story-gallery img {
+  height: auto;
+  aspect-ratio: 16 / 10;
+  object-fit: cover;
+}
+
+.story-gallery img[height="1400"],
+.story-gallery video {
+  aspect-ratio: 9 / 16;
+  object-fit: cover;
+}
+
+@media (max-width: 640px) {
+  .story-gallery {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .story-video,
+  .story-gallery figure:last-child {
+    grid-column: 1 / -1;
+  }
+
+  .story-video video {
+    width: auto;
+    max-width: 100%;
+    height: 75vh;
+    margin: 0 auto;
+  }
 }
 
 /* Accueil : aperçu court des side projects (icône, nom, année) et un seul lien à droite vers side-projects.html. */
