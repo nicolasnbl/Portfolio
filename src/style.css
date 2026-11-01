@@ -1640,3 +1640,26 @@ body.explore-body {
     transition: none !important;
   }
 }
+
+/* Indication discrète sous les compétences : apparaît au survol de la section (toujours visible sur écran tactile). */
+.stack-hint {
+  margin: 1.2rem 0 0;
+  font-size: 0.8rem;
+  color: var(--muted);
+  text-align: center;
+  opacity: 0;
+  transform: translateY(4px);
+  transition: opacity 0.4s ease, transform 0.4s ease;
+}
+
+#stack:is(:hover, :focus-within) .stack-hint {
+  opacity: 0.75;
+  transform: none;
+}
+
+@media (hover: none) {
+  .stack-hint {
+    opacity: 0.75;
+    transform: none;
+  }
+}
