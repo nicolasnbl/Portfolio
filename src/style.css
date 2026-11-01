@@ -1324,3 +1324,12 @@ body.explore-body {
 .project[id] {
   scroll-margin-top: 2rem;
 }
+
+/* Titre du projet et année sur la même ligne, en haut de la carte. */
+.project-head h3 {
+  margin: 0;
+}
+
+.project-head {
+  margin-bottom: 0.8rem;
+}
