@@ -1399,3 +1399,244 @@ body.explore-body {
     animation: none;
   }
 }
+
+/* ---------- Compétences cliquables : halo Gemini sur la carte qui les cite ---------- */
+.skill-link {
+  cursor: pointer;
+  border-radius: 6px;
+  transition: color 0.2s, border-color 0.2s;
+}
+
+.stack-tiles .skill-link:hover,
+.stack-tiles .skill-link:focus-visible {
+  color: var(--accent);
+  outline: none;
+}
+
+.stack-chips .skill-link:hover,
+.stack-chips .skill-link:focus-visible {
+  border-color: var(--accent);
+  color: var(--accent);
+  outline: none;
+}
+
+.has-halo {
+  position: relative;
+}
+
+/* Bande bleu, violet, rose : background-size 300 % et position 0 % → 100 %,
+   la bande traverse la carte une fois de droite à gauche. */
+.halo-sweep {
+  position: absolute;
+  inset: 0.3rem -0.9rem;
+  border-radius: 8px;
+  pointer-events: none;
+  background-image: linear-gradient(
+    100deg,
+    transparent 0 38%,
+    rgba(66, 133, 244, 0.3) 44%,
+    rgba(155, 114, 203, 0.34) 50%,
+    rgba(217, 101, 112, 0.3) 56%,
+    transparent 62% 100%
+  );
+  background-size: 300% 100%;
+  mix-blend-mode: screen;
+  animation:
+    halo-sweep 1.3s cubic-bezier(0.4, 0, 0.2, 1) forwards,
+    halo-glow 1.6s ease-out forwards;
+}
+
+@keyframes halo-sweep {
+  from { background-position: 0% 0; }
+  to { background-position: 100% 0; }
+}
+
+@keyframes halo-glow {
+  0% { box-shadow: none; }
+  30% { box-shadow: 0 0 0 1px #9b72cb, 0 0 28px rgba(155, 114, 203, 0.35); }
+  100% { box-shadow: 0 0 0 1px transparent, 0 0 28px transparent; }
+}
+
+.mention {
+  transition: color 1.2s ease;
+}
+
+.mention.is-lit {
+  color: var(--accent);
+  font-weight: 600;
+  transition: color 0.3s ease 0.4s;
+}
+
+/* ---------- Icônes side projects : anneau en orbite + mouvement propre à chaque projet ---------- */
+.side-list a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.side-icon {
+  position: relative;
+  transition: transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.35s, background 0.35s;
+}
+
+.side-icon svg {
+  overflow: visible;
+}
+
+@property --orbit {
+  syntax: '<angle>';
+  inherits: false;
+  initial-value: 0deg;
+}
+
+.side-icon::before {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: 50%;
+  padding: 2px;
+  background: conic-gradient(from var(--orbit), var(--accent), #d96570, #9b72cb, #4285f4, var(--accent));
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+
+@keyframes orbit {
+  to { --orbit: 360deg; }
+}
+
+.side-list a:is(:hover, :focus-visible, .is-playing) .side-icon {
+  transform: translateY(-6px) scale(1.06);
+  background: rgba(255, 179, 71, 0.08);
+  box-shadow: 0 10px 30px rgba(255, 179, 71, 0.18);
+}
+
+.side-list a:is(:hover, :focus-visible, .is-playing) .side-icon::before {
+  opacity: 1;
+  animation: orbit 2.2s linear infinite;
+}
+
+.side-list a:focus-visible {
+  outline: none;
+}
+
+/* Anjaza : la maison se dessine trait par trait. */
+.side-icon .draw {
+  stroke-dasharray: 1;
+}
+
+.side-list a:is(:hover, :focus-visible, .is-playing) .draw {
+  animation: icon-draw 0.9s ease-in-out both;
+}
+
+.side-list a:is(:hover, :focus-visible, .is-playing) .draw + .draw {
+  animation-delay: 0.25s;
+}
+
+@keyframes icon-draw {
+  from { stroke-dashoffset: 1; }
+  to { stroke-dashoffset: 0; }
+}
+
+/* Cibel : le téléphone vibre, l'objectif pulse. */
+.side-icon .phone,
+.side-icon .lens {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.side-list a:is(:hover, :focus-visible, .is-playing) .phone {
+  animation: icon-buzz 0.5s ease-in-out 2;
+}
+
+.side-list a:is(:hover, :focus-visible, .is-playing) .lens {
+  animation: icon-pulse 0.9s ease-out;
+}
+
+@keyframes icon-buzz {
+  0%, 100% { transform: rotate(0); }
+  20% { transform: rotate(-9deg); }
+  40% { transform: rotate(8deg); }
+  60% { transform: rotate(-6deg); }
+  80% { transform: rotate(4deg); }
+}
+
+@keyframes icon-pulse {
+  40% { transform: scale(1.35); }
+}
+
+/* Guitare : grattée, puis une onde sonore. */
+.side-icon .guitar {
+  transform-box: fill-box;
+  transform-origin: 40% 70%;
+}
+
+.side-icon .wave {
+  opacity: 0;
+  transform-box: view-box;
+  transform-origin: 10px 15px;
+}
+
+.side-list a:is(:hover, :focus-visible, .is-playing) .guitar {
+  animation: icon-strum 0.8s cubic-bezier(0.3, 1.6, 0.5, 1);
+}
+
+.side-list a:is(:hover, :focus-visible, .is-playing) .wave {
+  animation: icon-wave 0.9s ease-out 0.15s;
+}
+
+@keyframes icon-strum {
+  30% { transform: rotate(-14deg); }
+}
+
+@keyframes icon-wave {
+  0% { opacity: 0; transform: scale(0.6); }
+  40% { opacity: 1; }
+  100% { opacity: 0; transform: scale(1.3); }
+}
+
+/* Fusées : la fusée tremble, décolle avec sa flamme et revient sur son pas de tir. */
+.side-icon .rocket {
+  transform-box: view-box;
+}
+
+.side-icon .flame {
+  stroke: #ff7a3d;
+  opacity: 0;
+  transform-box: view-box;
+  transform-origin: 12px 19px;
+}
+
+.side-list a:is(:hover, :focus-visible, .is-playing) .rocket {
+  animation: icon-liftoff 1.4s cubic-bezier(0.5, 0, 0.3, 1);
+}
+
+.side-list a:is(:hover, :focus-visible, .is-playing) .flame {
+  animation: icon-flame 1.4s ease-out;
+}
+
+@keyframes icon-liftoff {
+  0% { transform: translateY(0); }
+  15% { transform: translate(-0.6px, 0.4px); }
+  22% { transform: translate(0.6px, 0); }
+  60% { transform: translateY(-9px); opacity: 1; }
+  61% { transform: translateY(-9px); opacity: 0; }
+  62% { transform: translateY(10px); opacity: 0; }
+  100% { transform: translateY(0); opacity: 1; }
+}
+
+@keyframes icon-flame {
+  0%, 10% { opacity: 0; transform: scaleY(0.3); }
+  25%, 55% { opacity: 1; transform: scaleY(1.2); }
+  60%, 100% { opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .side-icon,
+  .side-icon *,
+  .side-icon::before {
+    animation: none !important;
+    transition: none !important;
+  }
+}
