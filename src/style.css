@@ -485,6 +485,7 @@ footer {
 }
 
 .no-ai-tag {
+  margin-left: auto;
   padding: 0.15rem 0.5rem;
   border: 1px solid var(--border);
   border-radius: 4px;
