@@ -1301,3 +1301,26 @@ body.explore-body {
     height: 56px;
   }
 }
+
+/* Chaque pastille de l'accueil mène à son projet sur side-projects.html. */
+.side-list a {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.4rem;
+  color: inherit;
+  text-decoration: none;
+}
+
+.side-list a:hover .side-icon,
+.side-list a:focus-visible .side-icon {
+  border-color: var(--accent);
+}
+
+.project-year {
+  margin-left: auto;
+}
+
+.project[id] {
+  scroll-margin-top: 2rem;
+}
