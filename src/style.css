@@ -52,8 +52,10 @@ body.intro-playing {
   font-size: clamp(1.8rem, 5vw, 3.6rem);
   font-weight: 700;
   letter-spacing: -0.02em;
-  color: #0d1b2a;
-  text-shadow: 0 2px 18px rgba(255, 255, 255, 0.6);
+  color: #fff;
+  text-shadow:
+    0 1px 2px rgba(8, 20, 40, 0.35),
+    0 4px 24px rgba(8, 20, 40, 0.35);
   opacity: 0;
 }
 
@@ -84,8 +86,12 @@ body.intro-playing {
   will-change: transform;
 }
 
-.intro-name-main {
+.intro-name-title {
   margin: 0;
+}
+
+.intro-name-main {
+  display: block;
   font-size: clamp(3rem, 11vw, 8rem);
   font-weight: 700;
   letter-spacing: -0.03em;
@@ -95,6 +101,28 @@ body.intro-playing {
   background-clip: text;
   color: transparent;
   filter: drop-shadow(0 0 30px rgba(255, 200, 120, 0.35));
+}
+
+/* Nom de famille : petites capitales espacées, calées à droite sous le prénom, comme une signature. */
+.intro-name-last {
+  display: block;
+  margin-top: 0.5em;
+  padding-right: 0.6em;
+  text-align: right;
+  font-size: clamp(0.9rem, 2.2vw, 1.6rem);
+  font-weight: 500;
+  letter-spacing: 0.45em;
+  text-transform: uppercase;
+  line-height: 1;
+  color: #ffd89a;
+  opacity: 0;
+}
+
+/* Écran large : décalé vers la gauche pour ne pas toucher la fusée. */
+@media (min-aspect-ratio: 1/1) {
+  .intro-name-last {
+    padding-right: 1.6em;
+  }
 }
 
 .intro-hint {
