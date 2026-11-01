@@ -170,7 +170,9 @@ function groundAt(dir, lands, R) {
   return s > start && s < end && Math.abs(w) < halfWidth ? 'grass' : null;
 }
 
-function buildGlobe(R, lands) {
+// focus : { dir, radius } pour ne garder que les facettes à moins de `radius` (en unités, le long de la surface) de
+// la direction `dir`.
+function buildGlobe(R, lands, focus = null) {
   // Assez fin pour que le contour de la Corse se reconnaisse.
   const geometry = new THREE.IcosahedronGeometry(R, 72);
   const pos = geometry.attributes.position;
@@ -194,7 +196,46 @@ function buildGlobe(R, lands) {
   }
 
   geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+  if (focus) cropGlobe(geometry, focus.dir, Math.cos(focus.radius / R));
   return new THREE.Mesh(geometry, flat('#ffffff', { vertexColors: true, roughness: 0.7 }));
+}
+
+// Retire les facettes dont le centre est à plus d'un certain angle (cosinus `minDot`) de `dir`.
+function cropGlobe(geometry, dir, minDot) {
+  const pos = geometry.attributes.position;
+  const col = geometry.attributes.color;
+  const keptPos = [];
+  const keptCol = [];
+  const center = new THREE.Vector3();
+  const v = new THREE.Vector3();
+  for (let i = 0; i < pos.count; i += 3) {
+    center.set(0, 0, 0);
+    for (let k = 0; k < 3; k++) center.add(v.fromBufferAttribute(pos, i + k));
+    if (center.normalize().dot(dir) < minDot) continue;
+    for (let k = 0; k < 3; k++) {
+      keptPos.push(pos.getX(i + k), pos.getY(i + k), pos.getZ(i + k));
+      keptCol.push(col.getX(i + k), col.getY(i + k), col.getZ(i + k));
+    }
+  }
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(keptPos, 3));
+  geometry.setAttribute('color', new THREE.Float32BufferAttribute(keptCol, 3));
+  geometry.deleteAttribute('normal');
+  geometry.deleteAttribute('uv');
+  geometry.computeVertexNormals();
+}
+
+// Retire de `group` les objets posés à plus de `maxAngle` de `dir`. Les groupes posés au centre de la planète (forêt,
+// piste du vélo, aérodrome) sont triés objet par objet.
+function keepNear(group, dir, maxAngle, keep = []) {
+  for (const child of [...group.children]) {
+    if (keep.includes(child)) continue;
+    if (child.position.lengthSq() < 1e-6 && child.children.length) {
+      keepNear(child, dir, maxAngle);
+      if (!child.children.length) group.remove(child);
+    } else if (child.position.angleTo(dir) > maxAngle) {
+      group.remove(child);
+    }
+  }
 }
 
 // Face avant d'un panneau : cellules bleues séparées par un fin quadrillage clair.
@@ -454,11 +495,14 @@ function buildAirstrip() {
 // photovoltaïque et quelques arbres.
 // Renvoie aussi `elements` : les éléments que l'on peut viser en explorant la planète, avec leur point d'ancrage,
 // et `animate(time)`, qui fait tourner l'éolienne, vibrer l'enceinte, rouler le vélo et voler l'ULM.
-export function buildPlanet({ radius = PLANET_RADIUS, treeCount = 46, clockDir = null } = {}) {
+// focus : { dir, radius } pour ne garder que le décor autour de `dir` (repère de la planète), à moins de `radius`
+// le long de la surface : la page timeline n'a besoin que du continent de l'horloge. Tout est construit dans le même
+// ordre que sur l'accueil (même tirage aléatoire), pour que les arbres soient aux mêmes places.
+export function buildPlanet({ radius = PLANET_RADIUS, treeCount = 46, clockDir = null, focus = null } = {}) {
   const R = radius;
   const rand = seededRandom(42);
   const planet = new THREE.Group();
-  const globe = buildGlobe(R, buildLands(R, clockDir));
+  const globe = buildGlobe(R, buildLands(R, clockDir), focus);
   planet.add(globe);
 
   // Halo d'atmosphère, surtout visible une fois dans l'espace.
@@ -602,6 +646,21 @@ export function buildPlanet({ radius = PLANET_RADIUS, treeCount = 46, clockDir =
     addElement('ulm', airfield, strip);
   }
 
+  // L'ULM et la puce, seuls éléments animés du continent de l'horloge.
+  function animateClockLand(time) {
+    if (flight) {
+      const { ulm, propeller, stripFrame } = flight;
+      propeller.rotation.x = time * 30;
+      if (ULM_FLIES) placeOnLoop(ulm, stripFrame, ULM_LOOP, ((time * ULM_SPEED) / loopLength(ULM_LOOP)) * Math.PI * 2, R, 2.4, 0.3);
+    }
+    if (chipGlow) chipGlow.opacity = 0.35 + 0.35 * (0.5 + 0.5 * Math.sin(time * 3));
+  }
+
+  if (focus) {
+    keepNear(planet, focus.dir, focus.radius / R, [globe, atmosphere]);
+    return { planet, globe, clockSite, elements: [], animate: animateClockLand };
+  }
+
   // Continent désert : la tour, le chantier d'Anjaza, le forum, l'usine de désalinisation sur la côte, ses deux
   // champs solaires, des palmiers et des dunes.
   const desert = tangentFrame(LANDS.desert);
@@ -647,16 +706,11 @@ export function buildPlanet({ radius = PLANET_RADIUS, treeCount = 46, clockDir =
     const bikeDistance = time * BIKE_SPEED;
     placeOnLoop(bike, music, BIKE_LOOP, (bikeDistance / loopLength(BIKE_LOOP)) * Math.PI * 2, R);
     for (const wheel of wheels) wheel.rotation.z = -bikeDistance / 0.3;
-    if (flight) {
-      const { ulm, propeller, stripFrame } = flight;
-      propeller.rotation.x = time * 30;
-      if (ULM_FLIES) placeOnLoop(ulm, stripFrame, ULM_LOOP, ((time * ULM_SPEED) / loopLength(ULM_LOOP)) * Math.PI * 2, R, 2.4, 0.3);
-    }
+    animateClockLand(time);
     // La grue pivote d'un côté à l'autre et le crochet descend quand la flèche passe au-dessus de l'immeuble.
     const swing = Math.sin(time * 0.35);
     crane.jib.rotation.y = 0.7 * swing;
     crane.setDrop(0.65 + 0.45 * (1 - Math.abs(swing)));
-    if (chipGlow) chipGlow.opacity = 0.35 + 0.35 * (0.5 + 0.5 * Math.sin(time * 3));
   }
 
   return { planet, globe, pad, padTop: 0.3, smoke, clockSite, elements, animate };

@@ -147,24 +147,6 @@ export function createIntro({ canvas, overlay, onStart, onEnd }) {
   // Lumière qui suit la caméra pendant la plongée, comme sur la page timeline.
   const headlight = new THREE.DirectionalLight('#ffffff', 0);
   scene.add(headlight, headlight.target);
-  // Matériaux de la planète (hors horloge), qui s'effacent à la fin pour ne laisser que le cadran sur les étoiles.
-  let planetMaterials = null;
-  function fadePlanet(opacity) {
-    if (!planetMaterials) {
-      if (opacity >= 1) return;
-      const inClock = new Set();
-      clockSite.traverse((o) => inClock.add(o));
-      planetMaterials = [];
-      planet.traverse((o) => {
-        if (o.material && !inClock.has(o)) planetMaterials.push({ mat: o.material, base: o.material.opacity });
-      });
-    }
-    for (const { mat, base } of planetMaterials) {
-      mat.transparent = opacity < 1 || base < 1;
-      mat.opacity = base * opacity;
-    }
-  }
-
   function startLeave(index) {
     if (leaveU >= 0 || departU >= 0) return;
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
@@ -189,7 +171,6 @@ export function createIntro({ canvas, overlay, onStart, onEnd }) {
     rocket.visible = true;
     sun.position.copy(SUN_START);
     headlight.intensity = 0;
-    fadePlanet(1);
     nav.reset();
     navEl.inert = false;
     onEnd();
@@ -609,9 +590,8 @@ export function createIntro({ canvas, overlay, onStart, onEnd }) {
     navEl.style.visibility = t > T.navStart && navReveal > 0 && !(departU >= 0 && departDir > 0 && departU > 1) ? 'visible' : 'hidden';
     nav.update(satAnchor, navReveal, clock, navExit);
 
-    // Fin de la plongée : la planète s'efface autour de l'horloge, qui reste seule sur les étoiles comme sur la page timeline.
+    // Fin de la plongée : la planète reste, la page timeline reprend le même décor autour de l'horloge.
     if (leaveU >= 0) {
-      fadePlanet(1 - smoothstep(progress(leaveU, LEAVE.diveEnd - 0.5, LEAVE.end - 0.1)));
       headlight.intensity = 0.9 * smoothstep(progress(leaveU, LEAVE.orbitEnd, LEAVE.diveEnd));
       headlight.position.copy(camera.position);
       headlight.target.position.copy(camLook);
