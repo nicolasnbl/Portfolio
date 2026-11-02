@@ -130,13 +130,13 @@ const CLOCK_SPOTS = { field: [7.5, 3.5], eigsi: [-6.5, -5], chip: [-1.5, -6.8], 
 // lignes électriques.
 const DESERT_RADIUS = 11;
 const DESERT_SPOTS = {
-  burj: [0.5, 1.2], forum: [-2.6, -5], field: [-6.4, 5.6], troughs: [-7.2, -2.5], desal: [-7.6, 1.6], crane: [-3.6, 1.4],
+  burj: [3.6, 3.4], forum: [4, -5], field: [-6, 6.6], troughs: [-6.6, -4.4], desal: [-7.6, 1.6], crane: [-0.6, -0.8],
 };
 // Lignes électriques : le transformateur au bord de la centrale, les poteaux, puis le mur est du hall de l'usine
 // où arrivent les câbles (x, y et hauteur).
 const DESERT_LINES = [
-  { from: [-5, 4], poles: [[-5.3, 3.2], [-5.8, 2.6]], to: [-6.62, 2.5, 0.68] },
-  { from: [-5.5, -1.5], poles: [[-5.1, -0.5], [-5.5, 0.4], [-5.9, 1.2]], to: [-6.62, 1.4, 0.68] },
+  { from: [-4.4, 5], poles: [[-4.7, 3.9], [-5.3, 3], [-5.9, 2.5]], to: [-6.62, 2.5, 0.68] },
+  { from: [-4.6, -3.4], poles: [[-4.5, -2.2], [-4.8, -1], [-5.3, 0.1], [-5.9, 1.1]], to: [-6.62, 1.4, 0.68] },
 ];
 const ROUGH = [[3, 0.08, 0.6], [5, 0.06, 2], [9, 0.04, 1]];
 const JAGGED = [[3, 0.12, 1], [5, 0.09, 2.1], [8, 0.06, 0.4], [13, 0.04, 3]];
@@ -758,7 +758,8 @@ export function buildPlanet({ radius = PLANET_RADIUS, treeCount = 46, clockDir =
   const desert = tangentFrame(LANDS.desert);
   const dspot = ([x, y]) => frameToDir(desert, x, y, R);
   const burj = buildBurj();
-  placeFacing(planet, burj, dspot(DESERT_SPOTS.burj), dspot([0.5, -4]), R);
+  const [bx, by] = DESERT_SPOTS.burj;
+  placeFacing(planet, burj, dspot(DESERT_SPOTS.burj), dspot([bx, by - 5]), R);
   const forum = buildForum();
   placeFacing(planet, forum, dspot(DESERT_SPOTS.forum), desert.center, R);
   const desal = buildDesalination();
