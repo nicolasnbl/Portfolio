@@ -5,7 +5,7 @@ import { CLOCK_DIR, createLeave } from './leave.js';
 import { COMPANION_FOV, COMPANION_QUAT, companionLocal, saveHandoff } from '../explore/companion.js';
 import { createNav } from './nav.js';
 import { PROJECT_SUN, STOPS, stopQuat, stopTarget, stopView } from '../projects/view.js';
-import { FAIRING_CENTER, buildRocket, setFairingOpen, setThrust } from './rocket.js';
+import { FAIRING_CENTER, buildRocket, setBoostersOff, setFairingOpen, setThrust } from './rocket.js';
 import { clamp01, easeInOutCubic, easeOutCubic, lerp, progress, seededRandom, smoothstep } from './math.js';
 
 // Trajectoire : départ à la verticale, puis la fusée s'incline vers la caméra (virage gravitationnel).
@@ -443,6 +443,7 @@ export function createIntro({ canvas, overlay, onStart, onEnd }) {
       rocket.position.copy(rocketPos);
       rocket.quaternion.setFromUnitVectors(UP, rocketDir);
     }
+    setBoostersOff(rocketParts, progress(t, T.boosterSep, T.boosterSepEnd));
     setThrust(rocketParts, t >= T.liftoff - 0.15 && climb < 0.9, clock);
     updateSmoke(smoke, progress(t, T.liftoff - 0.1, T.liftoff + 2.2));
 
