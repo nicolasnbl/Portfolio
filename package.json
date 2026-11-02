@@ -8,12 +8,16 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "models": "for f in tools/blender/out/*.glb; do npx -y @gltf-transform/cli@4 meshopt \"$f\" /tmp/model.glb && gzip -9 -n -c /tmp/model.glb > \"src/assets/models/$(basename \"$f\").gz\"; done"
+    "models": "node tools/compress-models.mjs"
   },
   "dependencies": {
     "three": "^0.186.1"
   },
   "devDependencies": {
+    "@gltf-transform/core": "^4.5.1",
+    "@gltf-transform/extensions": "^4.5.1",
+    "@gltf-transform/functions": "^4.5.1",
+    "meshoptimizer": "^1.3.0",
     "vite": "^8.3.4"
   }
 }
