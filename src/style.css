@@ -1849,3 +1849,30 @@ body.explore-body {
 .planet-page .back-link {
   text-shadow: 0 2px 16px rgba(0, 0, 0, 0.8);
 }
+
+/* Clic sur « En savoir plus » : le texte s'efface pendant que la planète va au projet, puis la page projet apparaît
+   sur le même plan. */
+.planet-page .project-page {
+  transition: opacity 0.6s ease;
+}
+
+body.is-leaving .project-page {
+  opacity: 0;
+  pointer-events: none;
+}
+
+body.is-arriving .project-page {
+  animation: planet-page-in 0.7s ease both;
+}
+
+@keyframes planet-page-in {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+}
+
+/* Pages projet : le texte monte jusqu'au quart de l'écran. */
+.planet-page[data-zoom] .planet-hero {
+  height: 26vh;
+}

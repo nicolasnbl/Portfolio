@@ -19,12 +19,13 @@ const PAD_DIR = new THREE.Vector3(Math.sin(PATH.pad / R), Math.cos(PATH.pad / R)
 
 // Arrêts de la caméra. key : élément de la planète (voir buildPlanet), ou land : une terre entière.
 // height : altitude de la caméra, back : son recul, lift : hauteur du point visé, en unités de la scène.
-// zone : décor à garder autour. portrait : recul supplémentaire sur écran vertical.
+// zone : décor à garder autour. portrait : recul supplémentaire sur écran vertical. top : décalage vers le haut
+// de l'image sur la page projet.
 export const STOPS = {
   passions: { land: 'music', height: 13, back: 15, zone: 'music', portrait: 1.35 },
   anjaza: { key: 'crane', height: 5.5, back: 7.5, zone: 'desert' },
   cibel: { key: 'speaker', height: 3.6, back: 5, zone: 'music', portrait: 1.5 },
-  guitare: { key: 'guitar', height: 3.6, back: 5, lift: 1, zone: 'music', portrait: 1.5 },
+  guitare: { key: 'guitar', height: 5.5, back: 8.5, lift: 1, zone: 'music', portrait: 1.2, top: 0.76 },
   fusees: { key: 'pad', height: 7, back: 19, lift: 2.2, zone: 'pad', portrait: 1.2 },
 };
 
@@ -64,16 +65,17 @@ export function stopQuat({ anchor, front }, out = new THREE.Quaternion()) {
   return out;
 }
 
-// Cadrage d'un arrêt. zoom < 1 rapproche la caméra (pages projet).
+// Cadrage d'un arrêt. zoom < 1 rapproche la caméra. top : page projet, dont le texte commence au quart de l'écran ;
+// le sujet monte alors tout en haut.
 // shift : le sujet est remonté dans le haut de l'image, au-dessus des cartes.
-export function stopView(stop, aspect, out, zoom = 1) {
+export function stopView(stop, aspect, out, zoom = 1, top = false) {
   const portrait = aspect < 1;
   const k = zoom * (portrait ? (stop.portrait ?? 1) : 1);
   out.pos.copy(SPOT).multiplyScalar(R + stop.height * k).addScaledVector(FWD, -stop.back * k);
   out.look.copy(SPOT).multiplyScalar(R + (stop.lift ?? 0.6));
   out.up.copy(SPOT);
   out.fov = portrait ? 50 : 40;
-  out.shift = [0, portrait ? 0.38 : 0.34];
+  out.shift = [0, top ? (stop.top ?? 0.64) : portrait ? 0.38 : 0.34];
   return out;
 }
 

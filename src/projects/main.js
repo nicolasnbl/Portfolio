@@ -6,8 +6,8 @@ import { buildRocket } from '../intro/rocket.js';
 import { PROJECT_SUN, STOPS, stopQuat, stopTarget, stopView, zonesFor } from './view.js';
 
 // Fond des pages side projects : la planète de l'accueil, dont on ne construit que les terres des projets de la page.
-// Chaque bloc marqué data-stop amène son projet sous la caméra quand il arrive à l'écran (ou au survol) ; la planète
-// tourne doucement de l'un à l'autre. Sur une page projet, la caméra se rapproche de l'élément à l'ouverture.
+// Les blocs marqués data-stop sont les projets que la planète peut montrer. Sur une page projet, la caméra est au
+// plus près de l'élément.
 
 const canvas = document.querySelector('#scene');
 const stopEls = [...document.querySelectorAll('[data-stop]')];
@@ -15,6 +15,7 @@ const names = [...new Set(stopEls.map((el) => el.dataset.stop))];
 const params = new URLSearchParams(window.location.search);
 const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 // Page projet : plus près de l'élément que sur la page des side projects.
+const projectPage = document.body.dataset.zoom !== undefined;
 const closeZoom = Number(document.body.dataset.zoom ?? 1);
 
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
@@ -55,29 +56,37 @@ const makeView = () => ({ pos: new THREE.Vector3(), look: new THREE.Vector3(), u
 const view = makeView();
 const target = makeView();
 
-// Arrêt actif : le bloc survolé, sinon le dernier bloc dont le haut a passé les deux tiers de l'écran (dans une
-// rangée de cartes, la première).
-let hovered = null;
-for (const el of stopEls) {
-  el.addEventListener('pointerenter', () => (hovered = el.dataset.stop));
-  el.addEventListener('pointerleave', () => hovered === el.dataset.stop && (hovered = null));
-  el.addEventListener('focusin', () => (hovered = el.dataset.stop));
-  el.addEventListener('focusout', () => (hovered = null));
+// Arrêt actif : la planète reste sur le premier (le haut de page), sans suivre le survol ni le défilement. Un clic sur
+// « En savoir plus » d'un projet fait tourner la planète jusqu'à lui et s'en approche, puis sa page s'ouvre sur ce
+// même plan (?from=projects).
+const LEAVE_TIME = 1.7; // secondes, du clic à l'ouverture de la page projet
+const PROJECT_ZOOM = 0.9; // même valeur que data-zoom des pages projet
+let current = names[0];
+let leaving = null;
+for (const link of document.querySelectorAll('[data-stop] a[data-project-link]')) {
+  link.addEventListener('click', (e) => {
+    if (e.metaKey || e.ctrlKey || e.shiftKey || reducedMotion || leaving) return;
+    e.preventDefault();
+    const name = link.closest('[data-stop]').dataset.stop;
+    leaving = {
+      u: 0,
+      href: `${link.getAttribute('href')}?from=projects`,
+      fromQuat: planet.quaternion.clone(),
+      toQuat: quats[name],
+      from: { ...view, pos: view.pos.clone(), look: view.look.clone(), up: view.up.clone(), shift: [...view.shift] },
+      to: stopView(STOPS[name], camera.aspect, makeView(), PROJECT_ZOOM, true),
+    };
+    current = name;
+    document.body.classList.add('is-leaving');
+  });
 }
-function activeStop() {
-  if (hovered) return hovered;
-  const line = window.innerHeight * 0.62;
-  let name = names[0];
-  let top = -Infinity;
-  for (const el of stopEls) {
-    const t = el.getBoundingClientRect().top;
-    if (t <= line && t > top + 1) {
-      name = el.dataset.stop;
-      top = t;
-    }
-  }
-  return name;
-}
+// Retour par le bouton Précédent : on retrouve le haut de la page.
+window.addEventListener('pageshow', (e) => {
+  if (!e.persisted || !leaving) return;
+  leaving = null;
+  current = names[0];
+  document.body.classList.remove('is-leaving');
+});
 
 function resize() {
   renderer.setSize(window.innerWidth, window.innerHeight, false);
@@ -87,13 +96,23 @@ window.addEventListener('resize', resize);
 resize();
 
 // Départ : le plan exact de la fin de la transition depuis l'accueil, sinon un peu plus haut, et la caméra descend.
-const fromIntro = params.get('from') === 'intro';
-if (fromIntro) window.history.replaceState(null, '', window.location.pathname + window.location.hash);
-let current = activeStop();
+// Depuis la page des side projects, le plan exact de la fin de son départ.
+const from = params.get('from');
+if (from) window.history.replaceState(null, '', window.location.pathname + window.location.hash);
+if (from === 'projects') document.body.classList.add('is-arriving');
 planet.quaternion.copy(quats[current]);
-// Page projet : on part du cadrage de la page des side projects, puis on s'approche.
-const startZoom = reducedMotion ? closeZoom : fromIntro || closeZoom < 1 ? 1 : 1.3;
-stopView(STOPS[current], camera.aspect, view, startZoom);
+// Arrivée directe sur une page projet : on part du cadrage de la page des side projects, puis on s'approche.
+const startZoom = reducedMotion || from === 'projects' ? closeZoom : from === 'intro' ? 1 : closeZoom * 1.3;
+stopView(STOPS[current], camera.aspect, view, startZoom, projectPage);
+
+const easeInOutCubic = (x) => (x < 0.5 ? 4 * x * x * x : 1 - (-2 * x + 2) ** 3 / 2);
+function blendView(a, b, k, out) {
+  out.pos.lerpVectors(a.pos, b.pos, k);
+  out.look.lerpVectors(a.look, b.look, k);
+  out.up.lerpVectors(a.up, b.up, k).normalize();
+  out.fov = a.fov + (b.fov - a.fov) * k;
+  out.shift = [a.shift[0] + (b.shift[0] - a.shift[0]) * k, a.shift[1] + (b.shift[1] - a.shift[1]) * k];
+}
 
 let last = performance.now();
 function frame(now) {
@@ -101,17 +120,23 @@ function frame(now) {
   last = now;
   const time = now / 1000;
 
-  current = activeStop();
-  stopView(STOPS[current], camera.aspect, target, closeZoom);
-  // Amorti : la planète tourne vers le projet actif, la caméra glisse vers son cadrage.
-  const k = reducedMotion ? 1 : 1 - Math.exp(-dt * 2.2);
-  planet.quaternion.slerp(quats[current], k);
-  view.pos.lerp(target.pos, k);
-  view.look.lerp(target.look, k);
-  view.up.lerp(target.up, k).normalize();
-  view.fov += (target.fov - view.fov) * k;
-  view.shift[0] += (target.shift[0] - view.shift[0]) * k;
-  view.shift[1] += (target.shift[1] - view.shift[1]) * k;
+  if (leaving) {
+    // Vers une page projet : trajet minuté, pour arriver pile sur le premier plan de la page.
+    leaving.u += dt;
+    const k = easeInOutCubic(Math.min(1, leaving.u / LEAVE_TIME));
+    planet.quaternion.slerpQuaternions(leaving.fromQuat, leaving.toQuat, k);
+    blendView(leaving.from, leaving.to, k, view);
+    if (leaving.u >= LEAVE_TIME && !leaving.gone) {
+      leaving.gone = true;
+      window.location.href = leaving.href;
+    }
+  } else {
+    stopView(STOPS[current], camera.aspect, target, closeZoom, projectPage);
+    // Amorti : la caméra glisse vers son cadrage (descente à l'arrivée, ou approche sur une page projet).
+    const k = reducedMotion ? 1 : 1 - Math.exp(-dt * 2.2);
+    planet.quaternion.slerp(quats[current], k);
+    blendView(view, target, k, view);
+  }
   animate(time);
 
   camera.position.copy(view.pos);
