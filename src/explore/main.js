@@ -4,6 +4,7 @@ import { EXPLORE, EXPLORE_T } from '../config.js';
 import { buildStars } from '../intro/intro.js';
 import { CLOCK_DIR, createLeave } from '../intro/leave.js';
 import { easeInOutCubic, progress, smoothstep } from '../intro/math.js';
+import { setupLook } from '../intro/look.js';
 import { buildPlanet } from '../intro/planet.js';
 import { buildSatellite } from '../intro/rocket.js';
 import { COMPANION_FOV, COMPANION_QUAT, companionLocal, loadHandoff } from './companion.js';
@@ -30,6 +31,7 @@ scene.add(new THREE.HemisphereLight('#ffffff', '#5a6b8c', 1.4));
 const sun = new THREE.DirectionalLight('#fff1d6', 2.4);
 sun.position.set(20, 30, 18);
 scene.add(sun);
+setupLook(renderer, scene, sun);
 const stars = buildStars();
 scene.add(stars);
 
@@ -42,6 +44,9 @@ const { planet, globe, clockSite, elements, animate } = buildPlanet({
 });
 createLeave({ clockSite }).buildClock();
 scene.add(planet);
+// Ici, les nuages passent partout, y compris au-dessus du trajet de la fusée (dégagé seulement pour l'intro).
+const clouds = planet.getObjectByName('nuages');
+if (clouds) clouds.userData.clearPath = false;
 
 const { satellite } = buildSatellite();
 scene.add(satellite);

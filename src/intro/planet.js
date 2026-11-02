@@ -1,5 +1,7 @@
 import * as THREE from 'three';
 import { seededRandom } from './math.js';
+import { atmosphereMaterial, bindAtmosphere, buildClouds, enableShadows, globeMaterial } from './look.js';
+import { part } from './models.js';
 import { buildBurj, buildCrane, buildDesalination, buildDune, buildForum, buildPalm, buildTroughField } from './desert.js';
 import {
   buildBike,
@@ -204,8 +206,13 @@ function buildGlobe(R, lands, focus = null) {
   }
 
   geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+  // Eau et terres réalistes : le matériau lit la carte des terres dans les couleurs, avant le rognage.
+  const material = globeMaterial(geometry);
   if (focus) cropGlobe(geometry, focus.dir, Math.cos(focus.radius / R));
-  return new THREE.Mesh(geometry, flat('#ffffff', { vertexColors: true, roughness: 0.7 }));
+  const globe = new THREE.Mesh(geometry, material);
+  globe.name = 'globe';
+  globe.userData.radius = R;
+  return globe;
 }
 
 // Retire les facettes dont le centre est à plus d'un certain angle (cosinus `minDot`) de `dir`.
@@ -270,38 +277,14 @@ function panelFaceTexture() {
   return texture;
 }
 
+// Centrale solaire flottante (modèle Blender) : flotteurs en grille, panneaux inclinés vers +z, allées, chemin de
+// câbles, bouées d'amarrage. Un peu réduite pour garder l'emprise de l'ancienne.
+const SOLAR_PLANT_SCALE = 0.75;
 function buildSolarPlant() {
   const plant = new THREE.Group();
-  const float = new THREE.Mesh(new THREE.BoxGeometry(2.6, 0.12, 1.8), flat('#e9eef2'));
-  float.position.y = 0.06;
-  plant.add(float);
-
-  // Ordre des faces d'une BoxGeometry : +x, -x, +y (face avant du panneau), -y, +z, -z.
-  const frameMat = flat('#9aa5ad', { metalness: 0.3 });
-  const faceMat = new THREE.MeshStandardMaterial({ map: panelFaceTexture(), metalness: 0.3, roughness: 0.35 });
-  const panelMats = [frameMat, frameMat, faceMat, frameMat, frameMat, frameMat];
-  const panelGeo = new THREE.BoxGeometry(0.7, 0.04, 0.5);
-  const postGeo = new THREE.CylinderGeometry(0.03, 0.03, 0.2, 6);
-  for (let x = 0; x < 3; x++) {
-    for (let z = 0; z < 2; z++) {
-      const panel = new THREE.Mesh(panelGeo, panelMats);
-      panel.position.set(-0.8 + x * 0.8, 0.28, -0.4 + z * 0.8);
-      // Inclinés vers +z, c'est-à-dire vers la caméra.
-      panel.rotation.x = 0.45;
-      plant.add(panel);
-      const post = new THREE.Mesh(postGeo, frameMat);
-      post.position.set(panel.position.x, 0.18, panel.position.z);
-      plant.add(post);
-    }
-  }
-
-  const buoyGeo = new THREE.SphereGeometry(0.1, 8, 6);
-  const buoyMat = flat('#ff7a45');
-  for (const [x, z] of [[-1.5, 1.1], [1.5, 1.1], [-1.5, -1.1], [1.5, -1.1]]) {
-    const buoy = new THREE.Mesh(buoyGeo, buoyMat);
-    buoy.position.set(x, 0.05, z);
-    plant.add(buoy);
-  }
+  const model = part('centrale', 'centrale');
+  model.scale.multiplyScalar(SOLAR_PLANT_SCALE);
+  plant.add(model);
   return plant;
 }
 
@@ -589,11 +572,19 @@ export function buildPlanet({ radius = PLANET_RADIUS, treeCount = 46, clockDir =
   planet.add(globe);
 
   // Halo d'atmosphère, surtout visible une fois dans l'espace.
-  const atmosphere = new THREE.Mesh(
-    new THREE.SphereGeometry(R * 1.08, 48, 32),
-    new THREE.MeshBasicMaterial({ color: '#8fd3ff', transparent: true, opacity: 0.18, side: THREE.BackSide }),
-  );
+  const atmosphere = new THREE.Mesh(new THREE.SphereGeometry(R * 1.05, 64, 32), atmosphereMaterial());
+  bindAtmosphere(atmosphere, globe);
   planet.add(atmosphere);
+
+  // Fin de construction : nuages (sauf sur la page timeline, qui ne montre qu'un continent), puis ombres.
+  const finish = (withClouds = true) => {
+    if (withClouds) {
+      const avoid = [{ dir: surfaceDir((PATH.solar + PATH.landEnd) / 2, 0, R), angle: (PATH.landEnd - PATH.solar + 14) / (2 * R) }];
+      if (clockDir) avoid.push({ dir: clockDir.clone().normalize(), angle: 16 / R });
+      planet.add(buildClouds(R, avoid));
+    }
+    enableShadows(planet);
+  };
 
   const solar = buildSolarPlant();
   placeAtDir(planet, solar, surfaceDir(PATH.solar, 0, R), R, 0.02);
@@ -742,6 +733,7 @@ export function buildPlanet({ radius = PLANET_RADIUS, treeCount = 46, clockDir =
   // La timeline : seulement le continent de l'horloge.
   if (focus && !Array.isArray(focus)) {
     keepNear(planet, zones, R, [globe, atmosphere]);
+    finish(false);
     return { planet, globe, clockSite, elements: [], animate: animateClockLand };
   }
 
@@ -750,6 +742,7 @@ export function buildPlanet({ radius = PLANET_RADIUS, treeCount = 46, clockDir =
   const desertDir = LANDS.desert.clone().normalize();
   if (zones && !zones.some(({ dir, radius: r }) => dir.angleTo(desertDir) * R < r + DESERT_RADIUS)) {
     keepNear(planet, zones, R, [globe, atmosphere]);
+    finish();
     return { planet, globe, pad, smoke, clockSite, elements: keptElements(), animate };
   }
 
@@ -803,6 +796,7 @@ export function buildPlanet({ radius = PLANET_RADIUS, treeCount = 46, clockDir =
   addElement('crane', crane.site);
 
   if (zones) keepNear(planet, zones, R, [globe, atmosphere]);
+  finish();
   return { planet, globe, pad, padTop: 0.3, smoke, clockSite, elements: keptElements(), animate };
 
   // Éléments encore présents après le tri des zones.

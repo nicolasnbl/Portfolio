@@ -23,6 +23,9 @@ export const T = {
   rollEnd: 5.0,
   liftoff: 5.2,
   climbEnd: 9.4,
+  // Largage des deux boosters, vers la fin de la montée.
+  boosterSep: 7.9,
+  boosterSepEnd: 9.5,
   fairingStart: 9.4,
   fairingEnd: 10.1,
   nameStart: 10.2,

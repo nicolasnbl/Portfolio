@@ -46,6 +46,10 @@ export function createExplore({ planet, globe, radius, elements, camera, canvas,
   const FRAME_DIR = frameDir.clone().normalize();
   const FRAME_UP = new THREE.Vector3(0, 1, 0).addScaledVector(FRAME_DIR, -FRAME_DIR.y).normalize();
   const FRAME_RIGHT = new THREE.Vector3().crossVectors(FRAME_UP, FRAME_DIR).normalize();
+  // Les nuages filent à contre-sens de la rotation lente du globe (relatif à la planète : ils la compensent puis vont
+  // au-delà dans l'autre sens).
+  const clouds = planet.getObjectByName('nuages');
+  if (clouds) clouds.userData.spin = { axis: FRAME_UP, rate: -(IDLE_SPIN + 0.035) };
   const user = new THREE.Quaternion(); // rotation donnée à la planète, en plus de son orientation de départ
   const q = new THREE.Quaternion();
   const a = new THREE.Vector3();
