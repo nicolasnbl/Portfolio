@@ -125,11 +125,19 @@ const ORKNEY_ISLANDS = [
 ];
 const CLOCK_LAND_RADIUS = 14;
 const CLOCK_SPOTS = { field: [7.5, 3.5], eigsi: [-6.5, -5], chip: [-1.5, -6.8], strip: [3.5, -7] };
-// Continent désert : la tour au milieu, l'usine de désalinisation sur la côte ouest, sa conduite vers la mer.
+// Continent désert : la tour au milieu, l'usine de désalinisation sur la côte ouest, sa conduite vers la mer, et ses
+// deux centrales solaires juste à côté (le champ photovoltaïque au nord, les miroirs au sud), reliées à elle par des
+// lignes électriques.
 const DESERT_RADIUS = 11;
 const DESERT_SPOTS = {
-  burj: [0.5, 1.2], forum: [-3.2, -4.6], field: [4.6, 4.4], troughs: [4.4, -3.8], desal: [-7.6, 1.6], crane: [-3.6, 1.4],
+  burj: [0.5, 1.2], forum: [-2.6, -5], field: [-6.4, 5.6], troughs: [-7.2, -2.5], desal: [-7.6, 1.6], crane: [-3.6, 1.4],
 };
+// Lignes électriques : le transformateur au bord de la centrale, les poteaux, puis le mur est du hall de l'usine
+// où arrivent les câbles (x, y et hauteur).
+const DESERT_LINES = [
+  { from: [-5, 4], poles: [[-5.3, 3.2], [-5.8, 2.6]], to: [-6.62, 2.5, 0.68] },
+  { from: [-5.5, -1.5], poles: [[-5.1, -0.5], [-5.5, 0.4], [-5.9, 1.2]], to: [-6.62, 1.4, 0.68] },
+];
 const ROUGH = [[3, 0.08, 0.6], [5, 0.06, 2], [9, 0.04, 1]];
 const JAGGED = [[3, 0.12, 1], [5, 0.09, 2.1], [8, 0.06, 0.4], [13, 0.04, 3]];
 
@@ -333,6 +341,72 @@ function buildSolarHouse() {
   panels.position.addScaledVector(new THREE.Vector3(0, Math.cos(slope), Math.sin(slope)), 0.03);
   house.add(panels);
   return house;
+}
+
+// Transformateur au pied d'une ligne électrique : un caisson gris et ses deux isolateurs, au sommet desquels partent
+// les câbles.
+const TRANSFORMER_HEIGHT = 0.5;
+function buildTransformer() {
+  const group = new THREE.Group();
+  const body = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.36, 0.34), flat('#8f9aa3', { metalness: 0.3 }));
+  body.position.y = 0.18;
+  group.add(body);
+  const insulator = new THREE.CylinderGeometry(0.03, 0.04, 0.14, 6);
+  for (const x of [-POLE_ARM, POLE_ARM]) {
+    const mesh = new THREE.Mesh(insulator, flat('#c8643b'));
+    mesh.position.set(x, 0.43, 0);
+    group.add(mesh);
+  }
+  return group;
+}
+
+// Ligne électrique : un poteau en bois à chaque point de `dirs` (repère de la planète), sa traverse en travers de la
+// ligne, et deux câbles qui pendent d'un poteau à l'autre. start et end ({ dir, height }) : là où les câbles partent
+// et arrivent, avant le premier poteau et après le dernier.
+const POLE_HEIGHT = 0.9;
+const POLE_ARM = 0.16;
+function buildPowerLine(parent, dirs, R, { start = null, end = null } = {}) {
+  const wood = flat('#7a5636');
+  const cable = flat('#2b2f38', { roughness: 0.6 });
+  const poleGeo = new THREE.CylinderGeometry(0.025, 0.035, POLE_HEIGHT, 6);
+  const armGeo = new THREE.BoxGeometry(POLE_ARM * 2 + 0.08, 0.035, 0.035);
+  const tops = [[], []];
+  const sides = [];
+  const route = [start?.dir, ...dirs, end?.dir].filter(Boolean);
+  dirs.forEach((dir) => {
+    const i = route.indexOf(dir);
+    const next = route[Math.min(i + 1, route.length - 1)];
+    const prev = route[Math.max(i - 1, 0)];
+    const pole = new THREE.Group();
+    const shaft = new THREE.Mesh(poleGeo, wood);
+    shaft.position.y = POLE_HEIGHT / 2;
+    const arm = new THREE.Mesh(armGeo, wood);
+    arm.position.y = POLE_HEIGHT - 0.06;
+    pole.add(shaft, arm);
+    // Face avant dans le sens de la ligne : la traverse (le long de x) lui est perpendiculaire.
+    placeFacing(parent, pole, dir, next.clone().sub(prev).add(dir), R);
+    pole.updateMatrix();
+    sides.push(new THREE.Vector3(POLE_ARM, 0, 0).applyQuaternion(pole.quaternion));
+    for (const [k, side] of [[0, -1], [1, 1]]) {
+      tops[k].push(new THREE.Vector3(side * POLE_ARM, POLE_HEIGHT - 0.03, 0).applyMatrix4(pole.matrix));
+    }
+  });
+  // Les deux bouts : écartés comme sur le poteau voisin.
+  const tip = ({ dir, height }, side, k) => dir.clone().multiplyScalar(R + height).addScaledVector(side, k ? 1 : -1);
+  tops.forEach((points, k) => {
+    if (start) points.unshift(tip(start, sides[0], k));
+    if (end) points.push(tip(end, sides[sides.length - 1], k));
+  });
+  for (const points of tops) {
+    for (let i = 0; i + 1 < points.length; i++) {
+      const a = points[i];
+      const b = points[i + 1];
+      const mid = a.clone().add(b).multiplyScalar(0.5);
+      const sag = mid.clone().normalize().multiplyScalar(-0.1 * a.distanceTo(b));
+      const curve = new THREE.QuadraticBezierCurve3(a, mid.add(sag), b);
+      parent.add(new THREE.Mesh(new THREE.TubeGeometry(curve, 10, 0.009, 4), cable));
+    }
+  }
 }
 
 // Grand champ de panneaux en rangées, en une seule géométrie instanciée. Le sol suit la courbure de la planète.
@@ -691,9 +765,21 @@ export function buildPlanet({ radius = PLANET_RADIUS, treeCount = 46, clockDir =
   const [dx, dy] = DESERT_SPOTS.desal;
   placeFacing(planet, desal, dspot(DESERT_SPOTS.desal), dspot([dx - 6, dy]), R);
   const desertField = buildSolarField(R, { rows: 3, cols: 5 });
-  placeFacing(planet, desertField, dspot(DESERT_SPOTS.field), dspot([4.6, -2]), R);
-  const troughs = buildTroughField(R);
-  placeFacing(planet, troughs, dspot(DESERT_SPOTS.troughs), dspot([4.4, -10]), R);
+  const [fx, fy] = DESERT_SPOTS.field;
+  placeFacing(planet, desertField, dspot(DESERT_SPOTS.field), dspot([fx, fy - 6]), R);
+  const troughs = buildTroughField(R, { length: 3 });
+  const [tx, ty] = DESERT_SPOTS.troughs;
+  placeFacing(planet, troughs, dspot(DESERT_SPOTS.troughs), dspot([tx, ty - 6]), R);
+  const powerLines = new THREE.Group();
+  planet.add(powerLines);
+  for (const { from, poles, to } of DESERT_LINES) {
+    const box = buildTransformer();
+    placeFacing(powerLines, box, dspot(from), dspot(poles[0]), R);
+    buildPowerLine(powerLines, poles.map(dspot), R, {
+      start: { dir: dspot(from), height: TRANSFORMER_HEIGHT },
+      end: { dir: dspot(to), height: to[2] },
+    });
+  }
   crane = buildCrane();
   placeFacing(planet, crane.site, dspot(DESERT_SPOTS.crane), desert.center, R);
 
@@ -704,6 +790,7 @@ export function buildPlanet({ radius = PLANET_RADIUS, treeCount = 46, clockDir =
     const y = (rand() - 0.5) * DESERT_RADIUS * 2;
     if (!insideBlob(x, y, DESERT_RADIUS * 0.85, JAGGED)) continue;
     if (desertSpots.some(([key, [px, py]]) => Math.hypot(x - px, y - py) < desertClear[key])) continue;
+    if (DESERT_LINES.some(({ from, poles }) => [from, ...poles].some(([px, py]) => Math.hypot(x - px, y - py) < 0.9))) continue;
     placeAtDir(planet, placed % 3 ? buildPalm(rand) : buildDune(rand), dspot([x, y]), R);
     placed++;
   }
