@@ -159,6 +159,7 @@ function blur(src, W, H, radius, passes) {
   let a = Float32Array.from(src);
   let b = new Float32Array(W * H);
   const n = 2 * radius + 1;
+  const row = (y) => Math.min(H - 1, Math.max(0, y)) * W;
   for (let p = 0; p < passes; p++) {
     for (let y = 0; y < H; y++) {
       let sum = 0;
@@ -168,11 +169,13 @@ function blur(src, W, H, radius, passes) {
         sum += a[y * W + ((x + radius + 1) % W)] - a[y * W + ((x - radius + W) % W)];
       }
     }
+    // Passe verticale en fenêtre glissante, comme l'horizontale (bords répétés) : même résultat, bien plus rapide.
     for (let x = 0; x < W; x++) {
+      let sum = 0;
+      for (let k = -radius; k <= radius; k++) sum += b[row(k) + x];
       for (let y = 0; y < H; y++) {
-        let sum = 0;
-        for (let k = -radius; k <= radius; k++) sum += b[Math.min(H - 1, Math.max(0, y + k)) * W + x];
         a[y * W + x] = sum / n;
+        sum += b[row(y + radius + 1) + x] - b[row(y - radius) + x];
       }
     }
   }

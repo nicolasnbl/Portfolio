@@ -143,13 +143,28 @@ const DESERT_LINES = [
 const ROUGH = [[3, 0.08, 0.6], [5, 0.06, 2], [9, 0.04, 1]];
 const JAGGED = [[3, 0.12, 1], [5, 0.09, 2.1], [8, 0.06, 0.4], [13, 0.04, 3]];
 
+// Distance maximale au centre d'une île ronde (insideBlob) : rayon × (1 + somme des amplitudes).
+const blobReach = (radius, harmonics) => radius * (1 + harmonics.reduce((sum, [, amp]) => sum + Math.abs(amp), 0));
+
+// reach : aucun point de la terre n'est plus loin que cette distance du centre de son repère. groundAt s'en sert pour
+// écarter d'un coup les facettes trop loin, sans changer le résultat.
 function buildLands(R, clockDir) {
   const lands = [
-    { frame: tangentFrame(LANDS.corsica), contains: (x, y) => insidePolygon(x, y, CORSICA_SHAPE) },
-    { frame: tangentFrame(LANDS.music), contains: (x, y) => insideBlob(x, y, MUSIC_RADIUS, ROUGH) },
-    { frame: tangentFrame(LANDS.desert), contains: (x, y) => insideBlob(x, y, DESERT_RADIUS, JAGGED), sand: true },
+    {
+      frame: tangentFrame(LANDS.corsica),
+      reach: Math.max(...CORSICA_SHAPE.map(([x, y]) => Math.hypot(x, y))),
+      contains: (x, y) => insidePolygon(x, y, CORSICA_SHAPE),
+    },
+    { frame: tangentFrame(LANDS.music), reach: blobReach(MUSIC_RADIUS, ROUGH), contains: (x, y) => insideBlob(x, y, MUSIC_RADIUS, ROUGH) },
+    {
+      frame: tangentFrame(LANDS.desert),
+      reach: blobReach(DESERT_RADIUS, JAGGED),
+      contains: (x, y) => insideBlob(x, y, DESERT_RADIUS, JAGGED),
+      sand: true,
+    },
     {
       frame: tangentFrame(LANDS.orkney),
+      reach: Math.max(...ORKNEY_ISLANDS.map(([cx, cy, r], i) => Math.hypot(cx, cy) + blobReach(r, [[3, 0.14, i], [5, 0.08, 2 * i]]))),
       contains: (x, y) => ORKNEY_ISLANDS.some(([cx, cy, r], i) => insideBlob(x - cx, y - cy, r, [[3, 0.14, i], [5, 0.08, 2 * i]])),
     },
   ];
@@ -158,18 +173,22 @@ function buildLands(R, clockDir) {
     const under = (x, y, [cx, cy], r) => Math.hypot(x - cx, y - cy) < r;
     lands.push({
       frame: tangentFrame(clockDir),
+      reach: Math.max(blobReach(CLOCK_LAND_RADIUS, JAGGED), Math.hypot(...CLOCK_SPOTS.field) + 5.5, Math.hypot(...CLOCK_SPOTS.eigsi) + 4.5),
       contains: (x, y) =>
         insideBlob(x, y, CLOCK_LAND_RADIUS, JAGGED) || under(x, y, CLOCK_SPOTS.field, 5.5) || under(x, y, CLOCK_SPOTS.eigsi, 4.5),
     });
   }
+  // Marge de sécurité contre les arrondis.
+  for (const land of lands) land.reach2 = (land.reach + 0.5) ** 2;
   return lands;
 }
 
 // Nature du sol en `dir` : 'sand', 'grass' ou null pour l'eau.
+const _ground = new THREE.Vector2();
 function groundAt(dir, lands, R) {
-  const p = new THREE.Vector2();
-  for (const { frame, contains, sand } of lands) {
-    if (dirToFrame(frame, dir, R, p) && contains(p.x, p.y)) return sand ? 'sand' : 'grass';
+  const p = _ground;
+  for (const { frame, contains, sand, reach2 } of lands) {
+    if (dirToFrame(frame, dir, R, p) && p.x * p.x + p.y * p.y < reach2 && contains(p.x, p.y)) return sand ? 'sand' : 'grass';
   }
   // Le continent du trajet : de la forêt jusqu'au pas de tir.
   const s = Math.atan2(dir.x, dir.y) * R;
@@ -563,7 +582,9 @@ function buildAirstrip() {
 // le long de la surface : la page timeline n'a besoin que du continent de l'horloge, et le globe lui-même est rogné.
 // Un tableau de zones garde le globe entier mais seulement le décor de ces zones (pages des side projects). Tout est
 // construit dans le même ordre que sur l'accueil (même tirage aléatoire), pour que les arbres soient aux mêmes places.
-export function buildPlanet({ radius = PLANET_RADIUS, treeCount = 46, clockDir = null, focus = null } = {}) {
+// lateClouds : les nuages ne sont pas construits tout de suite ; la page appelle addClouds() quand elle veut (l'accueil,
+// après sa première image : ils n'apparaissent qu'au bout de 3 s d'intro).
+export function buildPlanet({ radius = PLANET_RADIUS, treeCount = 46, clockDir = null, focus = null, lateClouds = false } = {}) {
   const R = radius;
   const rand = seededRandom(42);
   const planet = new THREE.Group();
@@ -577,13 +598,20 @@ export function buildPlanet({ radius = PLANET_RADIUS, treeCount = 46, clockDir =
   planet.add(atmosphere);
 
   // Fin de construction : nuages (sauf sur la page timeline, qui ne montre qu'un continent), puis ombres.
+  let addClouds = () => null;
   const finish = (withClouds = true) => {
-    if (withClouds) {
-      const avoid = [{ dir: surfaceDir((PATH.solar + PATH.landEnd) / 2, 0, R), angle: (PATH.landEnd - PATH.solar + 14) / (2 * R) }];
-      if (clockDir) avoid.push({ dir: clockDir.clone().normalize(), angle: 16 / R });
-      planet.add(buildClouds(R, avoid));
-    }
     enableShadows(planet);
+    if (!withClouds) return;
+    const avoid = [{ dir: surfaceDir((PATH.solar + PATH.landEnd) / 2, 0, R), angle: (PATH.landEnd - PATH.solar + 14) / (2 * R) }];
+    if (clockDir) avoid.push({ dir: clockDir.clone().normalize(), angle: 16 / R });
+    addClouds = () => {
+      addClouds = () => null;
+      const clouds = buildClouds(R, avoid);
+      enableShadows(clouds);
+      planet.add(clouds);
+      return clouds;
+    };
+    if (!lateClouds) addClouds();
   };
 
   const solar = buildSolarPlant();
@@ -797,7 +825,7 @@ export function buildPlanet({ radius = PLANET_RADIUS, treeCount = 46, clockDir =
 
   if (zones) keepNear(planet, zones, R, [globe, atmosphere]);
   finish();
-  return { planet, globe, pad, padTop: 0.3, smoke, clockSite, elements: keptElements(), animate };
+  return { planet, globe, pad, padTop: 0.3, smoke, clockSite, elements: keptElements(), animate, addClouds: () => addClouds() };
 
   // Éléments encore présents après le tri des zones.
   function keptElements() {

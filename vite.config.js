@@ -5,9 +5,9 @@ import { defineConfig } from 'vite';
 // les annonce en tête de chaque page (<link rel="preload">) : le navigateur les télécharge en même temps que le
 // JavaScript au lieu d'attendre qu'il soit lu. En build, les noms portent l'empreinte ajoutée par Vite.
 const PRELOADS = [
-  { source: 'src/assets/models/fusee.glb', as: 'fetch' },
-  { source: 'src/assets/models/satellite.glb', as: 'fetch' },
-  { source: 'src/assets/models/centrale-flottante.glb', as: 'fetch' },
+  { source: 'src/assets/models/fusee.glb.gz', as: 'fetch' },
+  { source: 'src/assets/models/satellite.glb.gz', as: 'fetch' },
+  { source: 'src/assets/models/centrale-flottante.glb.gz', as: 'fetch' },
   { source: 'src/assets/fonts/space-grotesk-latin.woff2', as: 'font', type: 'font/woff2' },
 ];
 

@@ -18,6 +18,9 @@ const CLIMB_TURN = THREE.MathUtils.degToRad(20); // inclinaison en fin de monté
 const DEPART_EJECT = 8;
 const DEPART_AWAY = THREE.MathUtils.degToRad(108);
 
+// Instant de l'intro (en secondes) où les premiers nuages entrent dans le cadre.
+const CLOUDS_NEEDED = 2.2;
+
 const SKY = new THREE.Color('#bfe6ff');
 const SPACE = new THREE.Color('#05060f');
 
@@ -120,7 +123,12 @@ export function createIntro({ canvas, overlay, onStart, onEnd }) {
   scene.add(stars);
 
   const isSmall = window.innerWidth < 768;
-  const { planet, pad, padTop, smoke, clockSite, elements } = buildPlanet({ treeCount: isSmall ? 26 : 46, clockDir: CLOCK_DIR });
+  // Les nuages ne se voient qu'au bout de 3 s d'intro : construits juste après la première image (voir plus bas).
+  const { planet, pad, padTop, smoke, clockSite, elements, addClouds } = buildPlanet({
+    treeCount: isSmall ? 26 : 46,
+    clockDir: CLOCK_DIR,
+    lateClouds: true,
+  });
   // Vers la page des side projects : orientation de la planète et cadrage du haut de cette page.
   const projectsQuat = stopQuat(stopTarget('passions', elements));
   const leave = createLeave({ clockSite });
@@ -691,6 +699,8 @@ export function createIntro({ canvas, overlay, onStart, onEnd }) {
       if (departDir < 0 && departU <= 0) endReturn(now / 1000);
     }
     boost = Math.max(0, boost - dt * 10);
+    // Intro accélérée avant que les nuages soient prêts : on les construit tout de suite.
+    if (t > CLOUDS_NEEDED) addClouds();
     render(t, now / 1000);
     if (departDir > 0 && departU >= EXPLORE_T.depart && !navigated) {
       navigated = true;
@@ -722,12 +732,29 @@ export function createIntro({ canvas, overlay, onStart, onEnd }) {
   }
   // Les shaders se compilent avant la première image, en parallèle quand le navigateur le permet
   // (KHR_parallel_shader_compile) : la page ne se fige pas pendant la compilation.
+  // Intro sautée ou reprise plus loin : les nuages sont à l'image dès le début.
+  if (t > CLOUDS_NEEDED) addClouds();
   renderer
     .compileAsync(scene, camera)
     .catch(() => {})
     .then(() => {
       last = performance.now();
       requestAnimationFrame(frame);
+      // Après la première image, quand le navigateur est libre : nuages construits et compilés hors de l'image.
+      (window.requestIdleCallback ?? setTimeout)(
+        () => {
+          const clouds = addClouds();
+          if (!clouds) return;
+          clouds.visible = false;
+          renderer
+            .compileAsync(clouds, camera, scene)
+            .catch(() => {})
+            .then(() => {
+              clouds.visible = true;
+            });
+        },
+        { timeout: 600 },
+      );
     });
 
   nameEl.querySelector('.intro-name-main').textContent = INTRO.name;
