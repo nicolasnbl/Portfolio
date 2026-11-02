@@ -1,6 +1,7 @@
 import './style.css';
 import { createIntro } from './intro/intro.js';
 import { setupMailCopy } from './contact.js';
+import { setupSkillLinks, setupSideIcons } from './skills.js';
 
 const intro = createIntro({
   canvas: document.querySelector('#scene'),
@@ -38,3 +39,5 @@ window.addEventListener(
 );
 
 setupMailCopy();
+setupSkillLinks();
+setupSideIcons();
