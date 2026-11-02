@@ -47,7 +47,7 @@
       <section id="produit">
         <h2>Side projects</h2>
         <!-- Aperçu court : le détail des projets est sur side-projects.html. -->
-        <div class="side-preview">
+        <div class="side-preview" data-halo="fusion catia blender">
           <ul class="side-list">
             <li>
               <a href="./side-projects.html#anjaza">
@@ -90,7 +90,7 @@
           <div class="job-body">
             <h4>Analyste performance solaire PV</h4>
             <p class="job-org">TotalEnergies Iberica · VIE</p>
-            <p class="job-meta">juin 2026 – aujourd’hui · Espagne</p>
+            <p class="job-meta">juin 2026 – aujourd’hui · <span class="mention" data-skill="espagnol">Espagne</span></p>
             <ul>
               <li>Automatisation du reporting hebdomadaire et du calcul des KPI de performance d’un portefeuille PV au sol de plus de 500 MWp.</li>
               <li>Pipelines de données et notebooks d’analyse <span class="mention" data-skill="python">Python</span> sous <span class="mention" data-skill="databricks">Databricks</span>, tableaux de bord <span class="mention" data-skill="powerbi">Power BI</span> sur la production, la disponibilité et la performance des sites.</li>
@@ -113,7 +113,7 @@
             <p class="job-skills"><strong>Compétences :</strong> <span class="mention" data-skill="python">Python</span> · Machine learning · Analyse financière</p>
           </div>
         </article>
-        <article class="job">
+        <article class="job" data-halo="excel">
           <img class="job-logo" src="./logos/solaire-corse.png" alt="Solaire Corse" width="56" height="56" loading="lazy" />
           <div class="job-body">
             <h4>Ingénieur projets solaires</h4>
@@ -151,10 +151,10 @@
               <p class="job-org">Pyroalliance (ArianeGroup) · Stage</p>
               <p class="job-meta">mai – sept. 2022 · Les Mureaux</p>
               <ul>
-                <li>Programmation en C d’un outil de modélisation pyrotechnique, avec une équipe d’ingénieurs de conception.</li>
+                <li>Programmation en <span class="mention" data-skill="c">C</span> d’un outil de modélisation pyrotechnique, avec une équipe d’ingénieurs de conception.</li>
                 <li>Calculs de combustion de propergol solide.</li>
               </ul>
-              <p class="job-skills"><strong>Compétences :</strong> C · Calcul énergétique</p>
+              <p class="job-skills"><strong>Compétences :</strong> <span class="mention" data-skill="c">C</span> · Calcul énergétique</p>
             </div>
           </article>
           </div>
@@ -166,7 +166,7 @@
           <div class="job-body">
             <h4>MSc Renewable and Sustainable Energy, with Merit</h4>
             <p class="job-org">Heriot-Watt University</p>
-            <p class="job-meta">2023 – 2024 · Orcades, Royaume-Uni</p>
+            <p class="job-meta">2023 – 2024 · Orcades, <span class="mention" data-skill="anglais">Royaume-Uni</span></p>
             <ul>
               <li>Mémoire : comparaison de technologies de dessalement solaire, modélisation de l’usine sous <span class="mention" data-skill="matlab">MATLAB/Simulink</span> et estimation de sa production d’eau sur une année.</li>
             </ul>
@@ -196,7 +196,7 @@
             <ul class="stack-tiles">
               <li data-skill="python"><img src="./logos/skills/python.svg" alt="" width="40" height="40" loading="lazy" /><span>Python</span></li>
               <li data-skill="javascript"><img src="./logos/skills/javascript.svg" alt="" width="40" height="40" loading="lazy" /><span>JavaScript</span></li>
-              <li><img src="./logos/skills/c.svg" alt="" width="40" height="40" loading="lazy" /><span>C</span></li>
+              <li data-skill="c"><img src="./logos/skills/c.svg" alt="" width="40" height="40" loading="lazy" /><span>C</span></li>
             </ul>
           </div>
           <div class="stack-card stack-data">
@@ -209,7 +209,7 @@
             <h3>Analyse et reporting</h3>
             <ul class="stack-tiles">
               <li data-skill="powerbi"><img src="./logos/skills/powerbi.svg" alt="" width="40" height="40" loading="lazy" /><span>Power BI<small>Tableaux de bord</small></span></li>
-              <li><img src="./logos/skills/excel.svg" alt="" width="40" height="40" loading="lazy" /><span>Excel<small>Macros VBA</small></span></li>
+              <li data-skill="excel"><img src="./logos/skills/excel.svg" alt="" width="40" height="40" loading="lazy" /><span>Excel<small>Macros VBA</small></span></li>
             </ul>
           </div>
           <div class="stack-card stack-other">
@@ -219,12 +219,11 @@
               <li data-skill="bazefield">Bazefield</li>
               <li data-skill="matlab"><img src="./logos/skills/matlab.svg" alt="" width="22" height="22" loading="lazy" />MATLAB / Simulink</li>
               <li data-skill="autocad"><img src="./logos/skills/autocad.svg" alt="" width="22" height="22" loading="lazy" />AutoCAD</li>
-              <li><img src="./logos/skills/fusion.svg" alt="" width="22" height="22" loading="lazy" />Fusion 360</li>
-              <li><img src="./logos/skills/catia.svg" alt="" width="22" height="22" loading="lazy" />CATIA V5</li>
-              <li><img src="./logos/skills/threejs.svg" alt="" width="22" height="22" loading="lazy" />Three.js</li>
-              <li><img src="./logos/skills/blender.svg" alt="" width="22" height="22" loading="lazy" />Blender</li>
+              <li data-skill="fusion"><img src="./logos/skills/fusion.svg" alt="" width="22" height="22" loading="lazy" />Fusion 360</li>
+              <li data-skill="catia"><img src="./logos/skills/catia.svg" alt="" width="22" height="22" loading="lazy" />CATIA V5</li>
+              <li data-skill="blender"><img src="./logos/skills/blender.svg" alt="" width="22" height="22" loading="lazy" />Blender</li>
             </ul>
-            <p class="stack-langs"><strong>Langues</strong> français (natif) · anglais (C1) · espagnol (professionnel)</p>
+            <p class="stack-langs"><strong>Langues</strong> français (natif) · <span data-skill="anglais">anglais (C1)</span> · <span data-skill="espagnol">espagnol (professionnel)</span></p>
           </div>
         </div>
         <p class="stack-hint">Cliquez sur une compétence pour découvrir son application.</p>
