@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { setupLook } from '../intro/look.js';
 import { TIMELINE, TL } from '../config.js';
 import { buildStars } from '../intro/intro.js';
 import { easeInOutCubic, easeOutCubic, lerp, progress, smoothstep } from '../intro/math.js';
@@ -71,6 +72,7 @@ export function createTimeline({ canvas, overlay, onEnd, onStep }) {
   const sun = new THREE.DirectionalLight('#fff1d6', 2.2);
   sun.position.set(14, 30, 10);
   scene.add(sun);
+  setupLook(renderer, scene, sun);
 
   // Lumière qui suit la caméra : la carte reste lisible quel que soit l'angle de la trotteuse.
   const headlight = new THREE.DirectionalLight('#ffffff', 0.9);

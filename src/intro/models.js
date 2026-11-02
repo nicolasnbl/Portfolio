@@ -7,22 +7,8 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 const loader = new GLTFLoader();
 const url = (name) => `${import.meta.env.BASE_URL}models/${name}.glb`;
 
-// Les pages n'ont pas d'image d'environnement pour les reflets : un métal pur y paraîtrait noir. On garde un peu de
-// brillant sans les reflets.
-function tame(root) {
-  root.traverse((o) => {
-    if (!o.isMesh) return;
-    const mats = Array.isArray(o.material) ? o.material : [o.material];
-    for (const m of mats) {
-      m.metalness = Math.min(m.metalness, 0.25);
-      m.roughness = Math.max(m.roughness, 0.3);
-    }
-  });
-  return root;
-}
-
 const [rocketScene, satelliteScene, plantScene] = await Promise.all(
-  ['fusee', 'satellite', 'centrale-flottante'].map((name) => loader.loadAsync(url(name)).then((gltf) => tame(gltf.scene))),
+  ['fusee', 'satellite', 'centrale-flottante'].map((name) => loader.loadAsync(url(name)).then((gltf) => gltf.scene)),
 );
 
 // Copie d'une pièce nommée du modèle (avec ses enfants), matériaux et géométries partagés.

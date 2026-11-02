@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { buildStars } from '../intro/intro.js';
 import { CLOCK_DIR } from '../intro/leave.js';
+import { setupLook } from '../intro/look.js';
 import { buildPlanet, updateSmoke } from '../intro/planet.js';
 import { buildRocket } from '../intro/rocket.js';
 import { PROJECT_SUN, RIGHT, STOPS, stopQuat, stopTarget, stopView, zonesFor } from './view.js';
@@ -30,6 +31,7 @@ scene.add(new THREE.HemisphereLight('#ffffff', '#5a6b8c', 1.4));
 const sun = new THREE.DirectionalLight('#fff1d6', 2.4);
 sun.position.copy(PROJECT_SUN);
 scene.add(sun);
+setupLook(renderer, scene, sun);
 const headlight = new THREE.DirectionalLight('#ffffff', 0.9);
 scene.add(headlight, headlight.target);
 const stars = buildStars();

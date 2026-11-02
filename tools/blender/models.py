@@ -84,6 +84,14 @@ def box(name, size, mat, loc=(0, 0, 0), bevel=0.0, rot=(0, 0, 0), parent=None, s
         v.co.x *= size[0]
         v.co.y *= size[1]
         v.co.z *= size[2]
+    # Chaque face reçoit toute la texture (0 à 1 dans ses deux directions) : une image de cellules couvre le panneau.
+    uv = bm.loops.layers.uv.active
+    for f in bm.faces:
+        ax = max(range(3), key=lambda i: abs(f.normal[i]))
+        a, b = [i for i in range(3) if i != ax]
+        for loop in f.loops:
+            co = loop.vert.co
+            loop[uv].uv = (co[a] / size[a] + 0.5, co[b] / size[b] + 0.5)
     if bevel > 0:
         bmesh.ops.bevel(bm, geom=bm.edges[:], offset=bevel, segments=segs, affect='EDGES', profile=0.5)
     obj = new_obj(name, bm, mat, smooth=bevel > 0, parent=parent)
@@ -153,24 +161,27 @@ def image(name, w, h, fill):
     return img
 
 
-def cells_image(name, cols, rows, w=256, h=256, frame='#c9d1d8'):
+def cells_image(name, cols, rows, w=256, h=256, frame='#c9d1d8', border=6):
+    """Module photovoltaïque : cadre alu, cellules bleu nuit séparées par un fin liseré clair, fins conducteurs."""
     def fill(px):
         H, W = px.shape[:2]
         px[..., :3] = srgb(frame)
-        cw, ch = W / cols, H / rows
-        yy, xx = np.mgrid[0:H, 0:W]
+        inner = px[border:H - border, border:W - border]
+        IH, IW = inner.shape[:2]
+        inner[..., :3] = srgb('#33477a')
+        cw, ch = IW / cols, IH / rows
+        yy, xx = np.mgrid[0:IH, 0:IW]
+        base = np.array(srgb('#1d3a86'))
+        top = np.array(srgb('#0e1f52'))
         for i in range(cols):
             for j in range(rows):
-                m = (xx >= i * cw + 2) & (xx < (i + 1) * cw - 2) & (yy >= j * ch + 2) & (yy < (j + 1) * ch - 2)
-                t = ((xx - i * cw) / cw + (yy - j * ch) / ch) / 2
-                base = np.array(srgb('#2350b8'))
-                top = np.array(srgb('#12317e'))
+                m = (xx >= i * cw + 1) & (xx < (i + 1) * cw - 1) & (yy >= j * ch + 1) & (yy < (j + 1) * ch - 1)
+                t = ((xx - i * cw) / cw * 0.4 + (yy - j * ch) / ch * 0.6)
                 col = base[None, None, :] * (1 - t[..., None]) + top[None, None, :] * t[..., None]
-                px[m, :3] = col[m]
-                # fins conducteurs
-                for k in (1, 2, 3):
-                    line = m & (np.abs(xx - (i * cw + k * cw / 4)) < 0.6)
-                    px[line, :3] = srgb('#3a5aa8')
+                inner[m, :3] = col[m]
+                for k in (1, 2):
+                    line = m & (np.abs(xx - (i * cw + k * cw / 3)) < 0.5)
+                    inner[line, :3] = srgb('#4a63a8')
     return image(name, w, h, fill)
 
 
@@ -286,7 +297,7 @@ def satellite():
     white = material('radiateur', '#ecece6', rough=0.4)
     steel = material('acier', '#a3abb3', rough=0.3, metal=0.85)
     dark = material('sombre', '#2a2e35', rough=0.45, metal=0.5)
-    cells = material('cellules', '#ffffff', rough=0.3, metal=0.0, image=cells_image('cellules', 6, 8, 256, 384))
+    cells = material('cellules', '#ffffff', rough=0.3, metal=0.0, image=cells_image('cellules', 6, 8, 240, 320, border=4))
     back = material('dos', '#dcdcd4', rough=0.6)
 
     W, H, D = 0.22, 0.28, 0.22
@@ -351,7 +362,7 @@ def floating_plant():
     blue = material('allee', '#2f6fa8', rough=0.6)
     steel = material('acier', '#a3abb3', rough=0.32, metal=0.8)
     dark = material('sombre', '#2a2e35', rough=0.5, metal=0.3)
-    cells = material('cellules', '#ffffff', rough=0.16, metal=0.25, image=cells_image('cellules', 6, 10, 192, 320))
+    cells = material('cellules', '#ffffff', rough=0.22, metal=0.0, image=cells_image('cellules', 10, 6, 400, 240, frame='#b9c2ca'))
     back = material('dos', '#d8d8d2', rough=0.6)
     buoy = material('bouee', '#ff7a45', rough=0.4)
 
@@ -365,19 +376,19 @@ def floating_plant():
             parts.append(box('f', (0.44, 0.34, 0.07), hdpe, loc=(x, y, 0.035), bevel=0.018, segs=3))
             for k in (-1, 1):
                 parts.append(box('r', (0.4, 0.03, 0.015), hdpe, loc=(x, y + k * 0.09, 0.075), bevel=0.006))
-            parts.append(box('a', (0.46, 0.15, 0.05), blue, loc=(x, y + 0.255, 0.025), bevel=0.012, segs=2))
-            # Panneau incliné vers le sud (côté -y Blender = +z Three.js, face à la caméra de l'intro).
-            tilt = math.radians(14)
-            parts.append(box('p', (0.42, 0.3, 0.008), cells, loc=(x, y - 0.01, 0.13), rot=(tilt, 0, 0)))
-            parts.append(box('pd', (0.42, 0.3, 0.004), back, loc=(x, y - 0.01 + 0.003, 0.124), rot=(tilt, 0, 0)))
-            parts.append(box('c', (0.43, 0.012, 0.012), steel, loc=(x, y - 0.155, 0.095)))
-            parts.append(box('c', (0.43, 0.012, 0.012), steel, loc=(x, y + 0.135, 0.165)))
-            for sx in (-0.19, 0.19):
-                parts.append(box('m', (0.012, 0.012, 0.09), steel, loc=(x + sx, y + 0.135, 0.12)))
+            parts.append(box('a', (0.46, 0.1, 0.04), blue, loc=(x, y + 0.235, 0.02), bevel=0.01, segs=2))
+            # Module incliné vers le sud (côté -y Blender = +z Three.js, face à la caméra de l'intro), cadre alu fin,
+            # posé sur deux rails et deux montants cachés dessous.
+            tilt = math.radians(12)
+            parts.append(box('p', (0.44, 0.31, 0.01), cells, loc=(x, y - 0.005, 0.135), rot=(tilt, 0, 0)))
+            parts.append(box('pd', (0.44, 0.31, 0.004), back, loc=(x, y - 0.005, 0.128), rot=(tilt, 0, 0)))
+            for k in (-1, 1):
+                parts.append(box('rail', (0.012, 0.3, 0.012), steel, loc=(x + k * 0.15, y - 0.005, 0.105), rot=(tilt, 0, 0)))
+                parts.append(box('m', (0.012, 0.012, 0.06), steel, loc=(x + k * 0.15, y + 0.12, 0.1)))
     # Chemin de câbles le long d'une allée, boîtes de jonction.
-    parts.append(box('cable', (cols * dx, 0.03, 0.02), dark, loc=(0, 0.255 + 0.04, 0.06), bevel=0.005))
+    parts.append(box('cable', (cols * dx, 0.025, 0.018), dark, loc=(0, 0.235, 0.05), bevel=0.005))
     for i in range(cols):
-        parts.append(box('jb', (0.05, 0.04, 0.03), dark, loc=((i - (cols - 1) / 2) * dx, 0.255 + 0.04, 0.08), bevel=0.006))
+        parts.append(box('jb', (0.05, 0.035, 0.025), dark, loc=((i - (cols - 1) / 2) * dx, 0.235, 0.065), bevel=0.006))
     # Bouées d'amarrage et lignes.
     ex, ey = cols * dx / 2, rows * dz / 2
     for sx, sy in ((1, 1), (-1, 1), (1, -1), (-1, -1)):

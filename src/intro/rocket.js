@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { enableShadows } from './look.js';
 import { part } from './models.js';
 
 // Repères du modèle de fusée (tools/blender/models.py). Le modèle a son origine à la base du corps central, la tuyère
@@ -38,6 +39,7 @@ export function buildSatellite() {
     model.add(pivot);
     return pivot;
   });
+  enableShadows(satellite);
   return { satellite, wings };
 }
 
@@ -55,14 +57,21 @@ export function setWingsOpen(wings, open) {
   }
 }
 
-// Flamme : un cône orienté vers le bas, sommet sous la tuyère.
+// Flamme : un cône orange et un cœur plus clair, pointe en bas. Leur base est accrochée à la sortie de la tuyère
+// (y) : quand la flamme vacille, elle ne s'allonge que vers le bas et ne remonte jamais dans la tuyère.
+const FLAME_OUTER = new THREE.MeshBasicMaterial({ color: '#ff9d3a', transparent: true, opacity: 0.85, depthWrite: false });
+const FLAME_CORE = new THREE.MeshBasicMaterial({ color: '#fff1c4', transparent: true, opacity: 0.95, depthWrite: false });
+function flameCone(radius, length, material) {
+  const geometry = new THREE.ConeGeometry(radius, length, 20, 1, true).rotateX(Math.PI).translate(0, -length / 2, 0);
+  return new THREE.Mesh(geometry, material);
+}
 function buildFlame(radius, length, y) {
-  const flame = new THREE.Mesh(
-    new THREE.ConeGeometry(radius, length, 16, 1, true),
-    new THREE.MeshBasicMaterial({ color: '#ffb347', transparent: true, opacity: 0.9 }),
-  );
-  flame.rotation.x = Math.PI;
-  flame.position.y = y - length / 2;
+  const flame = new THREE.Group();
+  flame.position.y = y;
+  flame.add(flameCone(radius * 0.92, length, FLAME_OUTER));
+  const core = flameCone(radius * 0.55, length * 0.45, FLAME_CORE);
+  core.renderOrder = 1;
+  flame.add(core);
   flame.visible = false;
   return flame;
 }
@@ -118,6 +127,7 @@ export function buildRocket() {
   glow.position.y = NOZZLE_EXIT - 0.1;
   rocket.add(glow);
 
+  enableShadows(rocket);
   return { rocket, fairing, halves, payload, wings, flame, glow, boosters };
 }
 

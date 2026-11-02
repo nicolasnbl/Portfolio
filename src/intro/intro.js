@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { EXPLORE, EXPLORE_T, INTRO, LEAVE, T } from '../config.js';
+import { setupLook } from './look.js';
 import { PATH, PLANET_RADIUS, buildPlanet, updateSmoke } from './planet.js';
 import { CLOCK_DIR, createLeave } from './leave.js';
 import { COMPANION_FOV, COMPANION_QUAT, companionLocal, saveHandoff } from '../explore/companion.js';
@@ -102,6 +103,7 @@ export function createIntro({ canvas, overlay, onStart, onEnd }) {
   const sun = new THREE.DirectionalLight('#fff1d6', 2.4);
   sun.position.set(20, 30, 18);
   scene.add(sun);
+  setupLook(renderer, scene, sun);
 
   const stars = buildStars();
   scene.add(stars);
