@@ -289,7 +289,7 @@ function findSun(scene) {
 const CLOUD_SPEED = 0.025; // rad/s : un tour en un peu plus de 4 minutes
 const MAX_AVOID = 2;
 
-export function buildClouds(R, avoid = [], count = 22) {
+export function buildClouds(R, avoid = [], count = 20) {
   const rand = seededRandom(11);
   const parts = [];
   const up = new THREE.Vector3(0, 1, 0);
@@ -308,14 +308,18 @@ export function buildClouds(R, avoid = [], count = 22) {
     const center = d.clone().multiplyScalar(alt);
     q.setFromUnitVectors(up, d);
     m.compose(center, q, new THREE.Vector3(1, 1, 1));
-    const size = 0.8 + rand() * 0.6;
-    const puffs = 6 + Math.floor(rand() * 4);
+    // Tailles très variées : petits flocons, cumulus moyens et quelques grands bancs étalés en surface.
+    const size = 0.45 + rand() ** 1.5 * 2.6;
+    // Les grands nuages s'étalent en surface au lieu de monter : bouffées de taille moyenne, sur une large zone.
+    const puff = Math.min(size, 1.1);
+    const width = size * (size > 1.4 ? 1.3 : 1);
+    const puffs = Math.round(4 + 3 * (width / puff) ** 2);
     for (let i = 0; i < puffs; i++) {
       // Bouffées réparties en grappe, les plus grosses au centre et en haut.
       const a = rand() * Math.PI * 2;
-      const r = Math.sqrt(rand()) * 0.75 * k * size;
-      const radius = (0.42 - (r / (k * size)) * 0.22 + rand() * 0.12) * k * size;
-      const ico = new THREE.IcosahedronGeometry(radius, 3);
+      const r = Math.sqrt(rand()) * 0.75 * k * width;
+      const radius = (0.42 - (r / (k * width)) * 0.22 + rand() * 0.12) * k * puff;
+      const ico = new THREE.IcosahedronGeometry(radius, radius > 0.45 * k ? 3 : 2);
       ico.deleteAttribute('normal');
       ico.deleteAttribute('uv');
       // Sommets partagés : les normales seront lissées sur toute la bouffée, sans facettes.
@@ -330,7 +334,7 @@ export function buildClouds(R, avoid = [], count = 22) {
         v.x += Math.cos(a) * r;
         v.z += Math.sin(a) * r * 0.7;
         v.y = Math.max(v.y * 0.75 + lift, 0);
-        c.copy(bottom).lerp(top, THREE.MathUtils.clamp(v.y / (0.5 * k * size), 0, 1));
+        c.copy(bottom).lerp(top, THREE.MathUtils.clamp(v.y / (0.5 * k * puff), 0, 1));
         colors.set([c.r, c.g, c.b], j * 3);
         v.applyMatrix4(m);
         pos.setXYZ(j, v.x, v.y, v.z);
@@ -372,11 +376,29 @@ transformed = aCloud + (transformed - aCloud) * keep;`);
   clouds.userData.clearPath = true;
   // Les directions à éviter sont fixes sur la planète : on les ramène dans le repère des nuages qui tournent.
   const local = avoid.slice(0, MAX_AVOID).map(({ dir, angle }) => ({ dir: dir.clone().normalize(), angle }));
-  const start = performance.now();
+  // spin : sens de rotation des nuages par rapport à la planète. Par défaut autour de l'axe Y de la planète ; une page
+  // peut donner un axe du monde (axis) pour qu'ils filent à contre-sens de la rotation qu'elle donne au globe.
+  clouds.userData.spin = { axis: null, rate: CLOUD_SPEED };
+  const axis = new THREE.Vector3();
+  const parentQuat = new THREE.Quaternion();
+  const turn = new THREE.Quaternion();
+  const inverse = new THREE.Quaternion();
+  let last = performance.now();
   clouds.onBeforeRender = () => {
-    clouds.rotation.y = ((performance.now() - start) / 1000) * CLOUD_SPEED;
+    const now = performance.now();
+    const dt = Math.min(0.1, (now - last) / 1000);
+    if (dt <= 0) return; // déjà mis à jour pour cette image
+    last = now;
+    const { axis: worldAxis, rate } = clouds.userData.spin;
+    if (worldAxis && clouds.parent) {
+      clouds.parent.getWorldQuaternion(parentQuat);
+      axis.copy(worldAxis).applyQuaternion(parentQuat.invert()).normalize();
+    } else axis.copy(up);
+    clouds.quaternion.premultiply(turn.setFromAxisAngle(axis, rate * dt));
+    // Les zones à éviter sont fixes sur la planète : on les ramène dans le repère des nuages.
+    inverse.copy(clouds.quaternion).invert();
     local.forEach(({ dir, angle }, i) => {
-      const t = d.copy(dir).applyAxisAngle(up, -clouds.rotation.y);
+      const t = d.copy(dir).applyQuaternion(inverse);
       avoidUniform.value[i].set(t.x, t.y, t.z, clouds.userData.clearPath ? angle : -1);
     });
   };
