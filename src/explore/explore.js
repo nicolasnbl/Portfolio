@@ -75,7 +75,6 @@ export function createExplore({ planet, globe, radius, elements, camera, canvas,
 
   // Approche d'un élément : rotation de la planète de `from` à `to`, et focus de 0 (vue d'ensemble) à 1.
   let focused = null;
-  let projectTimer = 0;
   let focus = 0;
   let focusTarget = 0;
   const focusFrom = new THREE.Quaternion();
@@ -204,17 +203,10 @@ export function createExplore({ planet, globe, radius, elements, camera, canvas,
     }
     focusTurn = 0;
 
-    // Un side project : on s'en approche, puis sa page s'ouvre, sans fiche.
-    clearTimeout(projectTimer);
-    if (el.content.project) {
-      cardEl.classList.remove('is-open');
-      labelEl.classList.remove('is-visible');
-      const href = el.content.project;
-      projectTimer = setTimeout(() => focused === el && (window.location.href = href), EXPLORE_T.focus * 1000);
-      return;
-    }
-
-    const { title, text, page, link } = el.content;
+    // Un side project : petite fiche, puis un bouton vers sa page détaillée.
+    const { title, text, project } = el.content;
+    const page = project ?? el.content.page;
+    const link = project ? EXPLORE.projectLink : el.content.link;
     cardEl.querySelector('h2').textContent = title;
     cardEl.querySelector('.explore-text').textContent = text;
     pageEl.hidden = !page;
@@ -239,7 +231,6 @@ export function createExplore({ planet, globe, radius, elements, camera, canvas,
   }
 
   function unfocus() {
-    clearTimeout(projectTimer);
     if (!focused) return;
     focused = null;
     focusTarget = 0;

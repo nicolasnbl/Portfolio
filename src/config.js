@@ -41,6 +41,7 @@ export const EXPLORE = {
   back: 'Retour',
   pageLink: 'Voir la page',
   pageSoon: 'Page à venir',
+  projectLink: 'Plus de détails →',
   elements: {
     solar: {
       title: 'La centrale solaire flottante',
