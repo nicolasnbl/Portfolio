@@ -3,7 +3,7 @@ import { buildStars } from '../intro/intro.js';
 import { CLOCK_DIR } from '../intro/leave.js';
 import { buildPlanet, updateSmoke } from '../intro/planet.js';
 import { buildRocket } from '../intro/rocket.js';
-import { PROJECT_SUN, STOPS, stopQuat, stopTarget, stopView, zonesFor } from './view.js';
+import { PROJECT_SUN, RIGHT, STOPS, stopQuat, stopTarget, stopView, zonesFor } from './view.js';
 
 // Fond des pages side projects : la planète de l'accueil, dont on ne construit que les terres des projets de la page.
 // Les blocs marqués data-stop sont les projets que la planète peut montrer. Sur une page projet, la caméra est au
@@ -71,7 +71,7 @@ for (const link of document.querySelectorAll('[data-stop] a[data-project-link]')
     leaving = {
       u: 0,
       href: `${link.getAttribute('href')}?from=projects`,
-      fromQuat: planet.quaternion.clone(),
+      fromQuat: turn.clone(),
       toQuat: quats[name],
       from: { ...view, pos: view.pos.clone(), look: view.look.clone(), up: view.up.clone(), shift: [...view.shift] },
       to: stopView(STOPS[name], camera.aspect, makeView(), PROJECT_ZOOM, true),
@@ -99,8 +99,11 @@ resize();
 // Depuis la page des side projects, le plan exact de la fin de son départ.
 const from = params.get('from');
 if (from) window.history.replaceState(null, '', window.location.pathname + window.location.hash);
-if (from === 'projects') document.body.classList.add('is-arriving');
-planet.quaternion.copy(quats[current]);
+// Orientation de la planète hors défilement ; le défilement y ajoute un léger roulis (voir frame).
+const turn = quats[current].clone();
+const SCROLL_TURN = 0.12; // radians, du haut au bas de la page
+const scrollRot = new THREE.Quaternion();
+let scrollAngle = 0;
 // Arrivée directe sur une page projet : on part du cadrage de la page des side projects, puis on s'approche.
 const startZoom = reducedMotion || from === 'projects' ? closeZoom : from === 'intro' ? 1 : closeZoom * 1.3;
 stopView(STOPS[current], camera.aspect, view, startZoom, projectPage);
@@ -124,7 +127,7 @@ function frame(now) {
     // Vers une page projet : trajet minuté, pour arriver pile sur le premier plan de la page.
     leaving.u += dt;
     const k = easeInOutCubic(Math.min(1, leaving.u / LEAVE_TIME));
-    planet.quaternion.slerpQuaternions(leaving.fromQuat, leaving.toQuat, k);
+    turn.slerpQuaternions(leaving.fromQuat, leaving.toQuat, k);
     blendView(leaving.from, leaving.to, k, view);
     if (leaving.u >= LEAVE_TIME && !leaving.gone) {
       leaving.gone = true;
@@ -134,9 +137,15 @@ function frame(now) {
     stopView(STOPS[current], camera.aspect, target, closeZoom, projectPage);
     // Amorti : la caméra glisse vers son cadrage (descente à l'arrivée, ou approche sur une page projet).
     const k = reducedMotion ? 1 : 1 - Math.exp(-dt * 2.2);
-    planet.quaternion.slerp(quats[current], k);
+    turn.slerp(quats[current], k);
     blendView(view, target, k, view);
   }
+  // Léger mouvement au défilement : le sol glisse doucement vers la caméra. Il s'annule pendant le départ vers une
+  // page projet, qui s'ouvre en haut de page.
+  const room = document.documentElement.scrollHeight - window.innerHeight;
+  const scrolled = leaving || room <= 0 ? 0 : Math.min(1, window.scrollY / room);
+  scrollAngle += (scrolled * SCROLL_TURN - scrollAngle) * (reducedMotion ? 1 : 1 - Math.exp(-dt * 4));
+  planet.quaternion.copy(scrollRot.setFromAxisAngle(RIGHT, -scrollAngle)).multiply(turn);
   animate(time);
 
   camera.position.copy(view.pos);

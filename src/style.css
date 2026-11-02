@@ -1819,7 +1819,7 @@ body.explore-body {
 }
 
 .planet-hero {
-  height: 52vh;
+  height: 6vh;
 }
 
 .planet-page #side-projects {
@@ -1861,18 +1861,20 @@ body.is-leaving .project-page {
   pointer-events: none;
 }
 
-body.is-arriving .project-page {
-  animation: planet-page-in 0.7s ease both;
+/* À l'ouverture, le texte glisse doucement vers le haut par-dessus la planète. */
+.planet-page .project-page {
+  animation: planet-page-in 0.9s 0.15s cubic-bezier(0.2, 0.7, 0.2, 1) backwards;
 }
 
 @keyframes planet-page-in {
   from {
     opacity: 0;
-    transform: translateY(16px);
+    transform: translateY(48px);
   }
 }
 
-/* Pages projet : le texte monte jusqu'au quart de l'écran. */
-.planet-page[data-zoom] .planet-hero {
-  height: 26vh;
+@media (prefers-reduced-motion: reduce) {
+  .planet-page .project-page {
+    animation: none;
+  }
 }

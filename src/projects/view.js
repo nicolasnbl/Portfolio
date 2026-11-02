@@ -10,7 +10,7 @@ const SPOT_ANGLE = -0.8;
 // Point de la surface visé par la caméra, et direction dans laquelle elle regarde (le sens de la marche du satellite).
 export const SPOT = new THREE.Vector3(0, Math.cos(SPOT_ANGLE), Math.sin(SPOT_ANGLE));
 const FWD = new THREE.Vector3(0, Math.sin(SPOT_ANGLE), -Math.cos(SPOT_ANGLE));
-const RIGHT = new THREE.Vector3().crossVectors(FWD, SPOT);
+export const RIGHT = new THREE.Vector3().crossVectors(FWD, SPOT);
 
 // Orientation de la planète à la fin de l'intro.
 export const INTRO_QUAT = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), PATH.pad / R);
