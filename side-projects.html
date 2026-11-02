@@ -12,12 +12,17 @@
     />
     <link rel="stylesheet" href="/src/style.css" />
   </head>
-  <body>
+  <body class="planet-page">
+    <!-- La planète en fond (src/projects/main.js) : chaque bloc data-stop amène son projet sous la caméra. -->
+    <canvas id="scene"></canvas>
     <!-- Les side projects en détail : l'accueil n'en montre qu'un aperçu avec un lien vers cette page. -->
     <main class="project-page">
+      <div class="planet-hero" data-stop="passions"></div>
       <section id="side-projects">
-        <h2>Side projects</h2>
-        <p>Ma mentalité : ingénieur de formation, je me passionne pour la technique et ma proactivité m'a toujours poussé à entreprendre des projets personnels. C'est ce goût de l'action qui m'a naturellement mené vers les énergies renouvelables, un secteur stimulant par ses enjeux d'envergure et ses défis du quotidien.</p>
+        <div class="planet-intro">
+          <h2>Side projects</h2>
+          <p>Ma mentalité : ingénieur de formation, je me passionne pour la technique et ma proactivité m'a toujours poussé à entreprendre des projets personnels. C'est ce goût de l'action qui m'a naturellement mené vers les énergies renouvelables, un secteur stimulant par ses enjeux d'envergure et ses défis du quotidien.</p>
+        </div>
         <h3 class="career-title">Startups</h3>
         <div class="projects">
           <article class="project" id="anjaza">
@@ -60,7 +65,7 @@
         </div>
         <h3 class="career-title">Projets</h3>
         <div class="projects">
-          <article class="project" id="guitare">
+          <article class="project" id="guitare" data-stop="guitare">
             <div class="project-head">
               <h3>La guitare électrique</h3>
               <span class="project-year">2021</span>
@@ -70,9 +75,9 @@
               <li>Lutherie</li>
               <li>Électronique</li>
             </ul>
-            <a class="section-link" href="./projet-guitare.html">En savoir plus →</a>
+            <a class="section-link" href="./projet-guitare.html" data-project-link>En savoir plus →</a>
           </article>
-          <article class="project" id="fusees">
+          <article class="project" id="fusees" data-stop="fusees">
             <div class="project-head">
               <h3>Mes fusées</h3>
               <span class="project-year">2015 – 2018</span>
@@ -83,11 +88,12 @@
               <li>Fusion 360</li>
               <li>CATIA V5</li>
             </ul>
-            <a class="section-link" href="./projet-fusees.html">En savoir plus →</a>
+            <a class="section-link" href="./projet-fusees.html" data-project-link>En savoir plus →</a>
           </article>
         </div>
         <p class="back-link"><a class="section-link" href="./index.html#produit">← Retour au portfolio</a></p>
       </section>
     </main>
+    <script type="module" src="/src/projects/main.js"></script>
   </body>
 </html>

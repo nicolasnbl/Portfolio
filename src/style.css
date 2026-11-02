@@ -1850,6 +1850,76 @@ body.explore-body {
   }
 }
 
+/* Pages side projects : la planète en fond (src/projects/main.js), le contenu défile par-dessus. Le haut de page
+   laisse voir le projet ; sur la page des side projects, seules les cartes ont un fond, pour que la planète tourne
+   entre elles d'un projet à l'autre. */
+.planet-page .project-page {
+  position: relative;
+  z-index: 1;
+  padding-top: 0;
+}
+
+.planet-hero {
+  height: 6vh;
+}
+
+.planet-page #side-projects {
+  background: none;
+  border: none;
+  backdrop-filter: none;
+  padding-top: 0;
+}
+
+.planet-intro,
+.planet-page #side-projects .project {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  backdrop-filter: blur(12px);
+}
+
+.planet-intro {
+  padding: 2rem clamp(1rem, 4vw, 2rem);
+  border-radius: 8px;
+}
+
+.planet-page .career-title {
+  margin-top: 2.5rem;
+  text-shadow: 0 2px 16px rgba(0, 0, 0, 0.8);
+}
+
+.planet-page .back-link {
+  text-shadow: 0 2px 16px rgba(0, 0, 0, 0.8);
+}
+
+/* Clic sur « En savoir plus » : le texte s'efface pendant que la planète va au projet, puis la page projet apparaît
+   sur le même plan. */
+.planet-page .project-page {
+  transition: opacity 0.6s ease;
+}
+
+body.is-leaving .project-page {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* À l'ouverture, le texte glisse doucement vers le haut par-dessus la planète. */
+.planet-page .project-page {
+  animation: planet-page-in 0.9s 0.15s cubic-bezier(0.2, 0.7, 0.2, 1) backwards;
+}
+
+@keyframes planet-page-in {
+  from {
+    opacity: 0;
+    transform: translateY(48px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .planet-page .project-page {
+    animation: none;
+  }
+}
+
 /* Side projects : le halo déborde largement pour entourer les pastilles (qui se soulèvent au survol) et leurs années. */
 .side-preview > .halo-sweep {
   inset: -1.1rem -1.4rem;

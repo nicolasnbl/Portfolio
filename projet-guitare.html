@@ -12,9 +12,12 @@
     />
     <link rel="stylesheet" href="/src/style.css" />
   </head>
-  <body>
+  <body class="planet-page" data-zoom="0.9">
+    <!-- La planète en fond (src/projects/main.js), au plus près du projet. -->
+    <canvas id="scene"></canvas>
     <!-- Page projet guitare : récit de Nicolas (son style, à peine retouché). avec les photos de chaque étape. -->
     <main class="project-page">
+      <div class="planet-hero" data-stop="guitare"></div>
       <section class="project-story">
         <p class="eyebrow">Side project · 2021</p>
         <h2>La guitare électrique</h2>
@@ -96,8 +99,9 @@
           <li>Lutherie</li>
           <li>Électronique</li>
         </ul>
-        <p><a class="section-link" href="./side-projects.html">← Retour aux projets</a></p>
+        <p><a class="section-link" href="./side-projects.html#guitare">← Retour aux projets</a></p>
       </section>
     </main>
+    <script type="module" src="/src/projects/main.js"></script>
   </body>
 </html>

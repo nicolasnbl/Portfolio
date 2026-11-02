@@ -75,6 +75,7 @@ export function createExplore({ planet, globe, radius, elements, camera, canvas,
 
   // Approche d'un élément : rotation de la planète de `from` à `to`, et focus de 0 (vue d'ensemble) à 1.
   let focused = null;
+  let projectTimer = 0;
   let focus = 0;
   let focusTarget = 0;
   const focusFrom = new THREE.Quaternion();
@@ -203,6 +204,16 @@ export function createExplore({ planet, globe, radius, elements, camera, canvas,
     }
     focusTurn = 0;
 
+    // Un side project : on s'en approche, puis sa page s'ouvre, sans fiche.
+    clearTimeout(projectTimer);
+    if (el.content.project) {
+      cardEl.classList.remove('is-open');
+      labelEl.classList.remove('is-visible');
+      const href = el.content.project;
+      projectTimer = setTimeout(() => focused === el && (window.location.href = href), EXPLORE_T.focus * 1000);
+      return;
+    }
+
     const { title, text, page, link } = el.content;
     cardEl.querySelector('h2').textContent = title;
     cardEl.querySelector('.explore-text').textContent = text;
@@ -228,6 +239,7 @@ export function createExplore({ planet, globe, radius, elements, camera, canvas,
   }
 
   function unfocus() {
+    clearTimeout(projectTimer);
     if (!focused) return;
     focused = null;
     focusTarget = 0;
@@ -338,6 +350,8 @@ export function createExplore({ planet, globe, radius, elements, camera, canvas,
     if (el) focusOn(el);
     else unfocus();
   });
+  // Retour depuis la page d'un side project par le bouton Précédent : on reprend la vue d'ensemble.
+  window.addEventListener('pageshow', (e) => e.persisted && unfocus());
   window.addEventListener('keydown', (e) => {
     if (!active || e.key !== 'Escape') return;
     if (focused) unfocus();

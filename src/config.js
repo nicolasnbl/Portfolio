@@ -11,7 +11,7 @@ export const INTRO = {
   // Menu relié au satellite. soon : entrée visible mais pas encore active ; action : animation avant de changer de page.
   nav: [
     { label: 'Portfolio', href: '#vision' },
-    { label: 'Side projects', href: '#produit' },
+    { label: 'Side projects', action: 'projects' },
     { label: 'Timeline', action: 'timeline' },
     { label: 'Explorer le monde', action: 'explore' },
   ],
@@ -33,6 +33,7 @@ export const T = {
 
 // Mode « Explorer le monde » : la planète au centre, que l'on fait tourner, et ses éléments à cliquer.
 // page : true pour une page pas encore faite, ou l'adresse de la page. Sans page, l'élément n'a que sa fiche.
+// project : page du side project ; un clic sur l'élément s'en approche puis ouvre directement cette page.
 export const EXPLORE = {
   hint: 'Glisse pour faire tourner la planète, zoome, clique sur ce qui t’intrigue',
   // Affichée sur les étoiles, entre l'accueil et la page Explorer.
@@ -52,8 +53,8 @@ export const EXPLORE = {
     },
     pad: {
       title: 'Le pas de tir',
-      text: 'Tout a commencé ici. Plus jeune, je fabriquais mes propres fusées, et c’est pour elles que j’ai appris à coder et à modéliser en 3D. Une page dédiée racontera ces projets.',
-      page: true,
+      text: 'Tout a commencé ici. Plus jeune, je fabriquais mes propres fusées, et c’est pour elles que j’ai appris à coder et à modéliser en 3D.',
+      project: './projet-fusees.html',
     },
     clock: {
       title: 'Le chronomètre',
@@ -77,10 +78,12 @@ export const EXPLORE = {
     guitar: {
       title: 'La guitare électrique',
       text: 'Je ne joue pas de guitare, mais j’ai toujours aimé fabriquer des choses. Alors je me suis lancé le défi d’en construire une : l’électronique commandée en ligne, le bois acheté en magasin de bricolage, et les tutos trouvés sur internet. Quelques erreurs en chemin, corrigées une à une, et aujourd’hui elle sonne parfaitement.',
+      project: './projet-guitare.html',
     },
     speaker: {
       title: 'L’enceinte',
       text: 'Au lycée, avec un ami qui fabriquait des enceintes, on a créé Cibel : un site pour commander des enceintes sur mesure en bois de qualité. On y concevait son enceinte directement en ligne, avec une visualisation 3D du résultat dans un environnement interactif en Three.js, et une page d’animation 3D au scroll réalisée sous Blender. Six mois de développement, à une époque où l’IA ne codait pas encore à notre place. Le site était presque terminé, mais l’organisation et la logistique nous ont rattrapés : une leçon aussi précieuse que le code.',
+      project: './side-projects.html#cibel',
     },
     eigsi: {
       title: 'L’EIGSI',
@@ -109,8 +112,7 @@ export const EXPLORE = {
     crane: {
       title: 'Le chantier d’Anjaza',
       text: 'Avec un ami qui vit aux Émirats, j’ai lancé Anjaza, une plateforme qui met en relation particuliers et professionnels de confiance pour les interventions du quotidien. J’en ai créé le site et l’application mobile, avec plus de 25 collaborateurs. Le chantier continue : le projet est toujours en développement.',
-      page: 'https://anjaza.com',
-      link: 'Voir Anjaza',
+      project: './side-projects.html#anjaza',
     },
     forum: {
       title: 'Le forum des énergies',
