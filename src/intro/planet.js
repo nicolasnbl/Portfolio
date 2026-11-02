@@ -226,13 +226,20 @@ function cropGlobe(geometry, dir, minDot) {
 
 // Retire de `group` les objets posés à plus de `maxAngle` de `dir`. Les groupes posés au centre de la planète (forêt,
 // piste du vélo, aérodrome) sont triés objet par objet.
-function keepNear(group, dir, maxAngle, keep = []) {
+// zones : [{ dir, radius }], radius en unités le long de la surface d'une planète de rayon R.
+function keepNear(group, zones, R, keep = []) {
+  const near = (pos) => zones.some(({ dir, radius }) => pos.angleTo(dir) <= radius / R);
   for (const child of [...group.children]) {
     if (keep.includes(child)) continue;
-    if (child.position.lengthSq() < 1e-6 && child.children.length) {
-      keepNear(child, dir, maxAngle);
+    const atCenter = child.position.lengthSq() < 1e-6;
+    // Un maillage posé au centre (la piste du vélo) se repère par le centre de sa géométrie.
+    if (atCenter && child.geometry) {
+      if (!child.geometry.boundingSphere) child.geometry.computeBoundingSphere();
+      if (!near(child.geometry.boundingSphere.center)) group.remove(child);
+    } else if (atCenter && child.children.length) {
+      keepNear(child, zones, R);
       if (!child.children.length) group.remove(child);
-    } else if (child.position.angleTo(dir) > maxAngle) {
+    } else if (!near(child.position)) {
       group.remove(child);
     }
   }
@@ -496,13 +503,15 @@ function buildAirstrip() {
 // Renvoie aussi `elements` : les éléments que l'on peut viser en explorant la planète, avec leur point d'ancrage,
 // et `animate(time)`, qui fait tourner l'éolienne, vibrer l'enceinte, rouler le vélo et voler l'ULM.
 // focus : { dir, radius } pour ne garder que le décor autour de `dir` (repère de la planète), à moins de `radius`
-// le long de la surface : la page timeline n'a besoin que du continent de l'horloge. Tout est construit dans le même
-// ordre que sur l'accueil (même tirage aléatoire), pour que les arbres soient aux mêmes places.
+// le long de la surface : la page timeline n'a besoin que du continent de l'horloge, et le globe lui-même est rogné.
+// Un tableau de zones garde le globe entier mais seulement le décor de ces zones (pages des side projects). Tout est
+// construit dans le même ordre que sur l'accueil (même tirage aléatoire), pour que les arbres soient aux mêmes places.
 export function buildPlanet({ radius = PLANET_RADIUS, treeCount = 46, clockDir = null, focus = null } = {}) {
   const R = radius;
   const rand = seededRandom(42);
   const planet = new THREE.Group();
-  const globe = buildGlobe(R, buildLands(R, clockDir), focus);
+  const zones = !focus ? null : Array.isArray(focus) ? focus : [focus];
+  const globe = buildGlobe(R, buildLands(R, clockDir), Array.isArray(focus) ? null : focus);
   planet.add(globe);
 
   // Halo d'atmosphère, surtout visible une fois dans l'espace.
@@ -656,9 +665,18 @@ export function buildPlanet({ radius = PLANET_RADIUS, treeCount = 46, clockDir =
     if (chipGlow) chipGlow.opacity = 0.35 + 0.35 * (0.5 + 0.5 * Math.sin(time * 3));
   }
 
-  if (focus) {
-    keepNear(planet, focus.dir, focus.radius / R, [globe, atmosphere]);
+  // La timeline : seulement le continent de l'horloge.
+  if (focus && !Array.isArray(focus)) {
+    keepNear(planet, zones, R, [globe, atmosphere]);
     return { planet, globe, clockSite, elements: [], animate: animateClockLand };
+  }
+
+  // Le désert n'est construit que si une zone le touche : c'est le dernier à tirer des nombres aléatoires.
+  let crane = null;
+  const desertDir = LANDS.desert.clone().normalize();
+  if (zones && !zones.some(({ dir, radius: r }) => dir.angleTo(desertDir) * R < r + DESERT_RADIUS)) {
+    keepNear(planet, zones, R, [globe, atmosphere]);
+    return { planet, globe, pad, smoke, clockSite, elements: keptElements(), animate };
   }
 
   // Continent désert : la tour, le chantier d'Anjaza, le forum, l'usine de désalinisation sur la côte, ses deux
@@ -676,7 +694,7 @@ export function buildPlanet({ radius = PLANET_RADIUS, treeCount = 46, clockDir =
   placeFacing(planet, desertField, dspot(DESERT_SPOTS.field), dspot([4.6, -2]), R);
   const troughs = buildTroughField(R);
   placeFacing(planet, troughs, dspot(DESERT_SPOTS.troughs), dspot([4.4, -10]), R);
-  const crane = buildCrane();
+  crane = buildCrane();
   placeFacing(planet, crane.site, dspot(DESERT_SPOTS.crane), desert.center, R);
 
   const desertSpots = Object.entries(DESERT_SPOTS);
@@ -696,6 +714,14 @@ export function buildPlanet({ radius = PLANET_RADIUS, treeCount = 46, clockDir =
   addElement('troughs', troughs);
   addElement('crane', crane.site);
 
+  if (zones) keepNear(planet, zones, R, [globe, atmosphere]);
+  return { planet, globe, pad, padTop: 0.3, smoke, clockSite, elements: keptElements(), animate };
+
+  // Éléments encore présents après le tri des zones.
+  function keptElements() {
+    return elements.filter((el) => el.root.parent);
+  }
+
   function animate(time) {
     rotor.rotation.z = -time * 1.4;
     // Deux battements par seconde ; le tweeter vibre plus vite et moins fort.
@@ -708,12 +734,11 @@ export function buildPlanet({ radius = PLANET_RADIUS, treeCount = 46, clockDir =
     for (const wheel of wheels) wheel.rotation.z = -bikeDistance / 0.3;
     animateClockLand(time);
     // La grue pivote d'un côté à l'autre et le crochet descend quand la flèche passe au-dessus de l'immeuble.
+    if (!crane) return;
     const swing = Math.sin(time * 0.35);
     crane.jib.rotation.y = 0.7 * swing;
     crane.setDrop(0.65 + 0.45 * (1 - Math.abs(swing)));
   }
-
-  return { planet, globe, pad, padTop: 0.3, smoke, clockSite, elements, animate };
 }
 
 export function updateSmoke(smoke, p) {

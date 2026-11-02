@@ -4,6 +4,7 @@ import { PATH, PLANET_RADIUS, buildPlanet, updateSmoke } from './planet.js';
 import { CLOCK_DIR, createLeave } from './leave.js';
 import { COMPANION_FOV, COMPANION_QUAT, companionLocal, saveHandoff } from '../explore/companion.js';
 import { createNav } from './nav.js';
+import { PROJECT_SUN, STOPS, stopQuat, stopTarget, stopView } from '../projects/view.js';
 import { FAIRING_CENTER, buildRocket, setFairingOpen, setThrust } from './rocket.js';
 import { clamp01, easeInOutCubic, easeOutCubic, lerp, progress, seededRandom, smoothstep } from './math.js';
 
@@ -106,7 +107,9 @@ export function createIntro({ canvas, overlay, onStart, onEnd }) {
   scene.add(stars);
 
   const isSmall = window.innerWidth < 768;
-  const { planet, pad, padTop, smoke, clockSite } = buildPlanet({ treeCount: isSmall ? 26 : 46, clockDir: CLOCK_DIR });
+  const { planet, pad, padTop, smoke, clockSite, elements } = buildPlanet({ treeCount: isSmall ? 26 : 46, clockDir: CLOCK_DIR });
+  // Vers la page des side projects : orientation de la planète et cadrage du haut de cette page.
+  const projectsQuat = stopQuat(stopTarget('passions', elements));
   const leave = createLeave({ clockSite });
   scene.add(planet);
 
@@ -136,25 +139,30 @@ export function createIntro({ canvas, overlay, onStart, onEnd }) {
   quoteEl.textContent = EXPLORE.quote;
   const navEl = overlay.querySelector('.intro-nav');
   const nav = createNav(navEl, INTRO.nav, {
-    onAction: (action, index) => (action === 'explore' ? startDepart() : startLeave(index)),
+    onAction: (action, index) => (action === 'explore' ? startDepart() : startLeave(index, action)),
   });
 
-  // Départ vers la timeline. leaveU : secondes écoulées depuis le clic (négatif hors transition).
+  // Départ vers la timeline ou les side projects. leaveU : secondes écoulées depuis le clic (négatif hors transition).
+  // leaveTo : 'timeline' (plongée sur le cadran) ou 'projects' (plongée sur l'île des passions). Même chemin du
+  // satellite dans les deux cas : la planète tourne sous lui jusqu'au lieu d'arrivée.
   let leaveU = -1;
   let leaveIndex = -1;
+  let leaveTo = 'timeline';
+  const LEAVE_PAGES = { timeline: './timeline.html', projects: './side-projects.html' };
   let navigated = false;
   const SUN_START = sun.position.clone();
   const sunTarget = new THREE.Vector3();
   // Lumière qui suit la caméra pendant la plongée, comme sur la page timeline.
   const headlight = new THREE.DirectionalLight('#ffffff', 0);
   scene.add(headlight, headlight.target);
-  function startLeave(index) {
+  function startLeave(index, to = 'timeline') {
     if (leaveU >= 0 || departU >= 0) return;
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-      window.location.href = './timeline.html';
+      window.location.href = LEAVE_PAGES[to];
       return;
     }
-    leave.buildClock();
+    leaveTo = to;
+    if (to === 'timeline') leave.buildClock();
     leaveU = 0;
     leaveIndex = index;
     navigated = false;
@@ -355,7 +363,8 @@ export function createIntro({ canvas, overlay, onStart, onEnd }) {
       const chase = smoothstep(progress(leaveU, LEAVE.orbitStart, LEAVE.orbitEnd - 0.5));
       const dive = smoothstep(progress(leaveU, LEAVE.orbitEnd - 0.3, LEAVE.diveEnd));
       leave.chaseView(viewFrom);
-      leave.clockView(viewTo, portrait);
+      if (leaveTo === 'projects') stopView(STOPS.passions, camera.aspect, viewTo);
+      else leave.clockView(viewTo, portrait);
       viewFrom.pos.lerp(viewTo.pos, dive);
       viewFrom.look.lerp(viewTo.look, dive);
       viewFrom.up.lerp(viewTo.up, dive);
@@ -365,6 +374,11 @@ export function createIntro({ canvas, overlay, onStart, onEnd }) {
       fov = lerp(fov, lerp(viewFrom.fov, viewTo.fov, dive), chase);
       shiftX *= 1 - chase;
       shiftY *= 1 - chase;
+      // Le haut de la page des side projects remonte l'île au-dessus du texte.
+      if (leaveTo === 'projects') {
+        shiftX += viewTo.shift[0] * dive;
+        shiftY += viewTo.shift[1] * dive;
+      }
     }
 
     // Vers Explorer : la caméra rejoint le satellite et le garde à la même place de l'écran, en pivotant autour de lui
@@ -404,7 +418,9 @@ export function createIntro({ canvas, overlay, onStart, onEnd }) {
     // set() et pas seulement z : le tour supplémentaire ci-dessous modifie aussi x et y.
     planet.rotation.set(0, 0, (roll * PATH.pad) / PLANET_RADIUS);
     if (leaveU >= 0) {
-      planet.quaternion.premultiply(leave.planetTurn(easeInOutCubic(progress(leaveU, LEAVE.orbitStart, LEAVE.diveEnd - 0.4))));
+      const turn = easeInOutCubic(progress(leaveU, LEAVE.orbitStart, LEAVE.diveEnd - 0.4));
+      if (leaveTo === 'projects') planet.quaternion.slerp(projectsQuat, turn);
+      else planet.quaternion.premultiply(leave.planetTurn(turn));
     }
 
     // 2. Décollage : départ à la verticale, puis la fusée s'incline et ralentit en arrivant dans l'espace.
@@ -478,7 +494,8 @@ export function createIntro({ canvas, overlay, onStart, onEnd }) {
       if (!rocket.visible) trail.visible = false;
       leave.tick(LEAVE.end - leaveU);
       // Le soleil se place comme sur la page timeline, pour que le cadran y ait le même éclairage.
-      leave.sunPosition(sunTarget);
+      if (leaveTo === 'projects') sunTarget.copy(PROJECT_SUN);
+      else leave.sunPosition(sunTarget);
       sun.position.lerpVectors(SUN_START, sunTarget, smoothstep(progress(leaveU, LEAVE.orbitEnd, LEAVE.diveEnd)));
     }
 
@@ -617,9 +634,11 @@ export function createIntro({ canvas, overlay, onStart, onEnd }) {
   let t = params.has('t') ? Number(params.get('t')) : alreadySeen || reducedMotion ? T.end + 0.5 : 0;
   const paused = params.has('pause');
   // Outil de mise au point : ?leave=2 montre la transition vers la timeline à 2 s du clic.
+  // ?leave=2&to=projects : la même chose vers les side projects.
   if (params.has('leave')) {
     t = T.end + 0.5;
-    startLeave(INTRO.nav.findIndex((item) => item.action === 'timeline'));
+    const to = params.get('to') ?? 'timeline';
+    startLeave(INTRO.nav.findIndex((item) => item.action === to), to);
     leaveU = Number(params.get('leave'));
   }
   // ?depart=1 montre le départ vers la page Explorer à 1 s du clic.
@@ -667,7 +686,7 @@ export function createIntro({ canvas, overlay, onStart, onEnd }) {
 
     if (leaveU >= LEAVE.end && !navigated) {
       navigated = true;
-      window.location.href = './timeline.html?t=0';
+      window.location.href = leaveTo === 'projects' ? './side-projects.html?from=intro' : './timeline.html?t=0';
     }
 
     if (!ended && t >= T.end) {

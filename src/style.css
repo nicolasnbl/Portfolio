@@ -1808,3 +1808,44 @@ body.explore-body {
     transform: none;
   }
 }
+
+/* Pages side projects : la planète en fond (src/projects/main.js), le contenu défile par-dessus. Le haut de page
+   laisse voir le projet ; sur la page des side projects, seules les cartes ont un fond, pour que la planète tourne
+   entre elles d'un projet à l'autre. */
+.planet-page .project-page {
+  position: relative;
+  z-index: 1;
+  padding-top: 0;
+}
+
+.planet-hero {
+  height: 52vh;
+}
+
+.planet-page #side-projects {
+  background: none;
+  border: none;
+  backdrop-filter: none;
+  padding-top: 0;
+}
+
+.planet-intro,
+.planet-page #side-projects .project {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  backdrop-filter: blur(12px);
+}
+
+.planet-intro {
+  padding: 2rem clamp(1rem, 4vw, 2rem);
+  border-radius: 8px;
+}
+
+.planet-page .career-title {
+  margin-top: 2.5rem;
+  text-shadow: 0 2px 16px rgba(0, 0, 0, 0.8);
+}
+
+.planet-page .back-link {
+  text-shadow: 0 2px 16px rgba(0, 0, 0, 0.8);
+}

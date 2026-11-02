@@ -12,9 +12,12 @@
     />
     <link rel="stylesheet" href="/src/style.css" />
   </head>
-  <body>
+  <body class="planet-page" data-zoom="0.6">
+    <!-- La planète en fond (src/projects/main.js), au plus près du projet. -->
+    <canvas id="scene"></canvas>
     <!-- Page projet fusées : récit de Nicolas (son style, à peine retouché) avec les photos de chaque fusée. -->
     <main class="project-page">
+      <div class="planet-hero" data-stop="fusees"></div>
       <section class="project-story">
         <p class="eyebrow">Side project · 2015 – 2018</p>
         <h2>Mes fusées</h2>
@@ -72,8 +75,9 @@
           <li>Fusion 360</li>
           <li>CATIA V5</li>
         </ul>
-        <p><a class="section-link" href="./side-projects.html">← Retour aux projets</a></p>
+        <p><a class="section-link" href="./side-projects.html#fusees">← Retour aux projets</a></p>
       </section>
     </main>
+    <script type="module" src="/src/projects/main.js"></script>
   </body>
 </html>
