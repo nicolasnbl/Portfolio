@@ -1,8 +1,10 @@
-// Compétences cliquables : un clic fait défiler jusqu'à l'endroit où la compétence est citée
-// (Parcours, Formations), puis un halo façon Gemini balaie la carte une fois, de droite à gauche.
-// Un nouveau clic sur la même compétence passe à la mention suivante.
+// Compétences cliquables : un clic fait défiler jusqu'aux endroits où la compétence est citée
+// (Parcours, Formations, Side projects). Toutes les cartes concernées reçoivent en même temps
+// un halo façon Gemini qui les balaie une fois de droite à gauche, et le mot cité un reflet
+// de la même couleur. Une carte peut aussi être visée sans mot cité, via data-halo="compétence".
 
 const CARD = '.job, .trainings > li, .publication';
+const reduceMotion = () => window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 function waitScrollEnd(done) {
   let last = window.scrollY;
@@ -18,28 +20,47 @@ function waitScrollEnd(done) {
   requestAnimationFrame(tick);
 }
 
-function playHalo(card, skill) {
-  card.querySelector('.halo-sweep')?.remove();
+function targetsOf(skill) {
+  const mentions = [...document.querySelectorAll(`.mention[data-skill="${skill}"]`)];
+  const cards = new Set(mentions.map((m) => m.closest(CARD)).filter(Boolean));
+  document.querySelectorAll(`[data-halo~="${skill}"]`).forEach((el) => cards.add(el));
+  // Ordre du document, pour défiler vers la première carte.
+  const sorted = [...cards].sort((a, b) => (a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1));
+  return { mentions, cards: sorted };
+}
+
+// Centre l'ensemble des cartes s'il tient à l'écran, sinon place la première en haut.
+function scrollToCards(cards) {
+  const rects = cards.map((c) => c.getBoundingClientRect());
+  const top = Math.min(...rects.map((r) => r.top));
+  const bottom = Math.max(...rects.map((r) => r.bottom));
+  const vh = window.innerHeight;
+  const offset = bottom - top < vh * 0.85 ? (top + bottom) / 2 - vh / 2 : top - vh * 0.12;
+  window.scrollTo({ top: window.scrollY + offset, behavior: reduceMotion() ? 'auto' : 'smooth' });
+}
+
+function playHalo(cards, mentions) {
+  document.querySelectorAll('.halo-sweep').forEach((h) => h.remove());
   document.querySelectorAll('.mention.is-lit').forEach((m) => m.classList.remove('is-lit'));
-  card.querySelectorAll(`.mention[data-skill="${skill}"]`).forEach((m) => m.classList.add('is-lit'));
-  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-  const halo = document.createElement('span');
-  halo.className = 'halo-sweep';
-  halo.setAttribute('aria-hidden', 'true');
-  card.classList.add('has-halo');
-  card.appendChild(halo);
-  halo.addEventListener('animationend', (e) => {
-    if (e.animationName === 'halo-glow') halo.remove();
+  void document.body.offsetWidth;
+  mentions.forEach((m) => m.classList.add('is-lit'));
+  if (reduceMotion()) return;
+  cards.forEach((card) => {
+    const halo = document.createElement('span');
+    halo.className = 'halo-sweep';
+    halo.setAttribute('aria-hidden', 'true');
+    card.classList.add('has-halo');
+    card.appendChild(halo);
+    halo.addEventListener('animationend', (e) => {
+      if (e.animationName === 'halo-glow') halo.remove();
+    });
   });
 }
 
 export function setupSkillLinks() {
-  const step = new Map();
   document.querySelectorAll('.stack [data-skill]').forEach((tile) => {
     const skill = tile.dataset.skill;
-    const cards = [
-      ...new Set([...document.querySelectorAll(`.mention[data-skill="${skill}"]`)].map((m) => m.closest(CARD))),
-    ].filter(Boolean);
+    const { mentions, cards } = targetsOf(skill);
     if (!cards.length) return;
 
     tile.classList.add('skill-link');
@@ -48,11 +69,13 @@ export function setupSkillLinks() {
     tile.title = 'Voir où je l’ai utilisé';
 
     const go = () => {
-      const i = step.get(skill) ?? 0;
-      step.set(skill, (i + 1) % cards.length);
-      const card = cards[i];
-      card.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      waitScrollEnd(() => playHalo(card, skill));
+      // Les stages sont repliés par défaut : on les ouvre si une carte visée s'y trouve.
+      cards.forEach((c) => {
+        const details = c.closest('details');
+        if (details) details.open = true;
+      });
+      scrollToCards(cards);
+      waitScrollEnd(() => playHalo(cards, mentions));
     };
     tile.addEventListener('click', go);
     tile.addEventListener('keydown', (e) => {
