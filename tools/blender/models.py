@@ -162,26 +162,26 @@ def image(name, w, h, fill):
 
 
 def cells_image(name, cols, rows, w=256, h=256, frame='#c9d1d8', border=6):
-    """Module photovoltaïque : cadre alu, cellules bleu nuit séparées par un fin liseré clair, fins conducteurs."""
+    """Module photovoltaïque : cadre alu, cellules bleues séparées par un liseré blanc bien visible, fins conducteurs."""
     def fill(px):
         H, W = px.shape[:2]
         px[..., :3] = srgb(frame)
         inner = px[border:H - border, border:W - border]
         IH, IW = inner.shape[:2]
-        inner[..., :3] = srgb('#33477a')
+        inner[..., :3] = srgb('#d6dde6')
         cw, ch = IW / cols, IH / rows
         yy, xx = np.mgrid[0:IH, 0:IW]
-        base = np.array(srgb('#1d3a86'))
-        top = np.array(srgb('#0e1f52'))
+        base = np.array(srgb('#4f86e6'))
+        top = np.array(srgb('#2f5fc2'))
         for i in range(cols):
             for j in range(rows):
-                m = (xx >= i * cw + 1) & (xx < (i + 1) * cw - 1) & (yy >= j * ch + 1) & (yy < (j + 1) * ch - 1)
+                m = (xx >= i * cw + 1.5) & (xx < (i + 1) * cw - 1.5) & (yy >= j * ch + 1.5) & (yy < (j + 1) * ch - 1.5)
                 t = ((xx - i * cw) / cw * 0.4 + (yy - j * ch) / ch * 0.6)
                 col = base[None, None, :] * (1 - t[..., None]) + top[None, None, :] * t[..., None]
                 inner[m, :3] = col[m]
                 for k in (1, 2):
                     line = m & (np.abs(xx - (i * cw + k * cw / 3)) < 0.5)
-                    inner[line, :3] = srgb('#4a63a8')
+                    inner[line, :3] = srgb('#7f9bd6')
     return image(name, w, h, fill)
 
 
@@ -238,6 +238,7 @@ def rocket():
     dark = material('sombre', '#2a2e35', rough=0.45, metal=0.6)
     steel = material('acier', '#a3abb3', rough=0.3, metal=0.85)
     nozzle_m = material('tuyere', '#3b3530', rough=0.35, metal=0.8)
+    steel_light = material('plateau', '#c9ccd0', rough=0.55, metal=0.2)
 
     parts = []
     # Corps central : léger congé à la base, jupe arrière.
@@ -251,6 +252,11 @@ def rocket():
     # Moteur Vulcain : col et tuyère.
     parts.append(lathe('tuyere', [(0.07, 0.0), (0.09, -0.08), (0.15, -0.28), (0.2, -0.48), (0.205, -0.5)], nozzle_m, segs=48))
     parts.append(lathe('tuyere_int', [(0.195, -0.5), (0.14, -0.3), (0.06, -0.02)], dark, segs=48))
+    # Haut du corps bouché par un plateau, avec l'adaptateur conique qui porte le satellite : sans lui, on voyait
+    # l'intérieur creux du corps (et ses ombres en stries) une fois la coiffe ouverte.
+    plate = FAIRING_R - 0.004
+    parts.append(lathe('plateau', [(0, FAIRING_BASE - 0.03), (plate, FAIRING_BASE - 0.03), (plate, FAIRING_BASE - 0.01), (0, FAIRING_BASE - 0.01)], steel_light))
+    parts.append(lathe('adaptateur', [(0, FAIRING_BASE - 0.01), (0.22, FAIRING_BASE - 0.01), (0.2, FAIRING_BASE + 0.02), (0.085, FAIRING_BASE + 0.13), (0, FAIRING_BASE + 0.13)], steel, segs=48))
     core = merge(parts, 'corps')
 
     # Coiffe en deux moitiés (origine sur l'axe, au pied de la coiffe), jointure dans le plan YZ de Three.js.

@@ -44,6 +44,9 @@ const { planet, globe, clockSite, elements, animate } = buildPlanet({
 });
 createLeave({ clockSite }).buildClock();
 scene.add(planet);
+// Ici, les nuages passent partout, y compris au-dessus du trajet de la fusée (dégagé seulement pour l'intro).
+const clouds = planet.getObjectByName('nuages');
+if (clouds) clouds.userData.clearPath = false;
 
 const { satellite } = buildSatellite();
 scene.add(satellite);

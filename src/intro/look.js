@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
+import { mergeGeometries, mergeVertices } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { seededRandom } from './math.js';
 
 // Rendu « Lumière » et monde réaliste, partagés par toutes les pages 3D :
@@ -7,7 +7,7 @@ import { seededRandom } from './math.js';
 //   cadrées chaque image autour de ce que regarde la caméra ;
 // - globeMaterial : eau sombre au large et turquoise près des côtes, vagues et écume, terres avec relief et nuances ;
 // - atmosphereMaterial : halo plus fort sur le bord et du côté du soleil ;
-// - buildClouds : quelques nuages bas poly qui dérivent lentement.
+// - buildClouds : des cumulus lisses qui tournent autour de la planète et se dissipent au-dessus du trajet de la fusée.
 
 const isSmall = () => Math.min(window.innerWidth, window.innerHeight) < 700;
 
@@ -283,42 +283,102 @@ function findSun(scene) {
 }
 
 // ---------- Nuages ----------
-// Quelques nuages bas poly, fusionnés en un seul maillage, posés à l'écart des directions `avoid` (le trajet de la
-// fusée, le continent de l'horloge) pour ne pas gêner les plans de l'intro.
-export function buildClouds(R, avoid = [], count = 14) {
+// Des cumulus faits de bouffées lisses (base plate, dessous grisé), fusionnés en un seul maillage. Ils tournent
+// autour de l'axe de la planète ; en passant au-dessus des directions `avoid` (le trajet de la fusée, le continent de
+// l'horloge), ils se dissipent dans le shader pour ne pas gêner les plans de l'intro, puis se reforment plus loin.
+const CLOUD_SPEED = 0.025; // rad/s : un tour en un peu plus de 4 minutes
+const MAX_AVOID = 2;
+
+export function buildClouds(R, avoid = [], count = 22) {
   const rand = seededRandom(11);
   const parts = [];
   const up = new THREE.Vector3(0, 1, 0);
   const d = new THREE.Vector3();
   const m = new THREE.Matrix4();
   const q = new THREE.Quaternion();
-  const s = new THREE.Vector3();
   const p = new THREE.Vector3();
+  const v = new THREE.Vector3();
   const k = R / 18;
-  for (let placed = 0, tries = 0; placed < count && tries < 400; tries++) {
+  const top = new THREE.Color('#ffffff');
+  const bottom = new THREE.Color('#aeb8cc');
+  const c = new THREE.Color();
+  for (let placed = 0; placed < count; placed++) {
     d.set(rand() - 0.5, rand() - 0.5, rand() - 0.5).normalize();
-    if (avoid.some(({ dir, angle }) => d.angleTo(dir) < angle)) continue;
-    const alt = R + (1.6 + rand() * 0.6) * k;
+    const alt = R + (1.2 + rand() * 0.4) * k;
+    const center = d.clone().multiplyScalar(alt);
     q.setFromUnitVectors(up, d);
-    const puffs = 3 + Math.floor(rand() * 3);
+    m.compose(center, q, new THREE.Vector3(1, 1, 1));
+    const size = 0.8 + rand() * 0.6;
+    const puffs = 6 + Math.floor(rand() * 4);
     for (let i = 0; i < puffs; i++) {
-      const g = new THREE.IcosahedronGeometry((0.35 + rand() * 0.3) * k, 1);
-      p.set((i - puffs / 2) * 0.45 * k, rand() * 0.3 * k, (rand() - 0.5) * 0.6 * k).applyQuaternion(q).addScaledVector(d, alt);
-      m.compose(p, q, s.set(1, 0.6, 1));
-      g.applyMatrix4(m);
+      // Bouffées réparties en grappe, les plus grosses au centre et en haut.
+      const a = rand() * Math.PI * 2;
+      const r = Math.sqrt(rand()) * 0.75 * k * size;
+      const radius = (0.42 - (r / (k * size)) * 0.22 + rand() * 0.12) * k * size;
+      const ico = new THREE.IcosahedronGeometry(radius, 3);
+      ico.deleteAttribute('normal');
+      ico.deleteAttribute('uv');
+      // Sommets partagés : les normales seront lissées sur toute la bouffée, sans facettes.
+      const g = mergeVertices(ico);
+      const pos = g.attributes.position;
+      const colors = new Float32Array(pos.count * 3);
+      const lift = Math.cos(a) * r * 0.1 + radius * 0.35;
+      for (let j = 0; j < pos.count; j++) {
+        v.fromBufferAttribute(pos, j);
+        // Petites bosses, puis base aplatie : le dessous d'un cumulus est plat.
+        v.multiplyScalar(1 + 0.08 * Math.sin(v.x * 9 / k + i) * Math.sin(v.z * 8 / k + i * 2));
+        v.x += Math.cos(a) * r;
+        v.z += Math.sin(a) * r * 0.7;
+        v.y = Math.max(v.y * 0.75 + lift, 0);
+        c.copy(bottom).lerp(top, THREE.MathUtils.clamp(v.y / (0.5 * k * size), 0, 1));
+        colors.set([c.r, c.g, c.b], j * 3);
+        v.applyMatrix4(m);
+        pos.setXYZ(j, v.x, v.y, v.z);
+      }
+      g.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+      const centers = new Float32Array(pos.count * 3);
+      for (let j = 0; j < pos.count; j++) centers.set([center.x, center.y, center.z], j * 3);
+      g.setAttribute('aCloud', new THREE.BufferAttribute(centers, 3));
       parts.push(g);
     }
-    placed++;
   }
-  const clouds = new THREE.Mesh(
-    mergeGeometries(parts),
-    new THREE.MeshStandardMaterial({ color: '#ffffff', emissive: '#e8eefc', emissiveIntensity: 0.12, flatShading: true, roughness: 1 }),
-  );
+  const geometry = mergeGeometries(parts);
+  geometry.computeVertexNormals();
+
+  const material = new THREE.MeshStandardMaterial({ vertexColors: true, emissive: '#dfe7f7', emissiveIntensity: 0.1, roughness: 1 });
+  const avoidUniform = { value: Array.from({ length: MAX_AVOID }, () => new THREE.Vector4(0, 1, 0, -1)) };
+  material.onBeforeCompile = (shader) => {
+    shader.uniforms.uAvoid = avoidUniform;
+    shader.vertexShader = shader.vertexShader
+      .replace('#include <common>', `#include <common>
+attribute vec3 aCloud;
+uniform vec4 uAvoid[${MAX_AVOID}];`)
+      .replace('#include <begin_vertex>', `#include <begin_vertex>
+// Dissipation : le nuage rétrécit vers son centre à l'approche d'une zone à garder dégagée.
+float keep = 1.0;
+vec3 cloudDir = normalize(aCloud);
+for (int i = 0; i < ${MAX_AVOID}; i++) {
+  if (uAvoid[i].w < 0.0) continue;
+  float angle = acos(clamp(dot(cloudDir, uAvoid[i].xyz), -1.0, 1.0));
+  keep *= smoothstep(uAvoid[i].w, uAvoid[i].w + 0.25, angle);
+}
+transformed = aCloud + (transformed - aCloud) * keep;`);
+  };
+
+  const clouds = new THREE.Mesh(geometry, material);
   clouds.name = 'nuages';
-  // Ils dérivent très lentement autour de l'axe de la planète.
+  // clearPath : dissiper les nuages au-dessus des zones à éviter. Utile dans l'intro ; la page Explorer le coupe pour
+  // que des nuages passent aussi sur la face qu'on regarde.
+  clouds.userData.clearPath = true;
+  // Les directions à éviter sont fixes sur la planète : on les ramène dans le repère des nuages qui tournent.
+  const local = avoid.slice(0, MAX_AVOID).map(({ dir, angle }) => ({ dir: dir.clone().normalize(), angle }));
   const start = performance.now();
   clouds.onBeforeRender = () => {
-    clouds.rotation.y = ((performance.now() - start) / 1000) * 0.004;
+    clouds.rotation.y = ((performance.now() - start) / 1000) * CLOUD_SPEED;
+    local.forEach(({ dir, angle }, i) => {
+      const t = d.copy(dir).applyAxisAngle(up, -clouds.rotation.y);
+      avoidUniform.value[i].set(t.x, t.y, t.z, clouds.userData.clearPath ? angle : -1);
+    });
   };
   return clouds;
 }
