@@ -1307,6 +1307,7 @@ body.explore-body {
 }
 
 .story-media {
+  max-width: 560px;
   margin: 2rem 0 !important;
 }
 
