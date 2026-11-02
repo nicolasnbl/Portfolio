@@ -1569,17 +1569,38 @@ body.explore-body {
   transition: color 0.2s, border-color 0.2s;
 }
 
-.stack-tiles .skill-link:hover,
-.stack-tiles .skill-link:focus-visible {
-  color: var(--accent);
+/* Reflet Gemini sur le texte : même balayage de droite à gauche que le halo, le texte finit en orange.
+   Joué au survol d'une compétence et sur les mots cités quand on clique dessus. */
+.stack-tiles .skill-link:is(:hover, :focus-visible) > span,
+.stack-chips .skill-link:is(:hover, :focus-visible),
+.stack-langs .skill-link:is(:hover, :focus-visible),
+.mention.is-lit {
+  background-image: linear-gradient(
+    100deg,
+    var(--text) 0 38%,
+    #4285f4 44%,
+    #9b72cb 50%,
+    #d96570 55%,
+    var(--accent) 60% 100%
+  );
+  background-size: 300% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: reflet 0.9s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+.skill-link:focus-visible {
   outline: none;
 }
 
-.stack-chips .skill-link:hover,
-.stack-chips .skill-link:focus-visible {
+.stack-chips .skill-link:is(:hover, :focus-visible) {
   border-color: var(--accent);
-  color: var(--accent);
-  outline: none;
+}
+
+@keyframes reflet {
+  from { background-position: 0% 0; }
+  to { background-position: 100% 0; }
 }
 
 .has-halo {
@@ -1619,14 +1640,17 @@ body.explore-body {
   100% { box-shadow: 0 0 0 1px transparent, 0 0 28px transparent; }
 }
 
-.mention {
-  transition: color 1.2s ease;
+.mention.is-lit {
+  font-weight: 600;
 }
 
-.mention.is-lit {
-  color: var(--accent);
-  font-weight: 600;
-  transition: color 0.3s ease 0.4s;
+@media (prefers-reduced-motion: reduce) {
+  .skill-link,
+  .skill-link > span,
+  .mention.is-lit {
+    animation: none !important;
+    background-position: 100% 0 !important;
+  }
 }
 
 /* ---------- Icônes side projects : anneau en orbite + mouvement propre à chaque projet ---------- */
@@ -1824,4 +1848,10 @@ body.explore-body {
     opacity: 0.75;
     transform: none;
   }
+}
+
+/* Side projects : le halo déborde largement pour entourer les pastilles (qui se soulèvent au survol) et leurs années. */
+.side-preview > .halo-sweep {
+  inset: -1.1rem -1.4rem;
+  border-radius: 12px;
 }
