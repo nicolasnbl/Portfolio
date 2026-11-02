@@ -1,3 +1,13 @@
+/* Police hébergée avec le site (sous-ensemble latin de Space Grotesk, police variable 300 à 700) : pas de serveur
+   externe à contacter avant d'afficher le texte. */
+@font-face {
+  font-family: 'Space Grotesk';
+  font-style: normal;
+  font-weight: 300 700;
+  font-display: swap;
+  src: url('./assets/fonts/space-grotesk-latin.woff2') format('woff2');
+}
+
 :root {
   --text: #f4f6fb;
   --muted: #a9b3c7;
@@ -32,6 +42,11 @@ body.intro-playing {
   width: 100%;
   height: 100%;
   display: block;
+}
+
+/* Couleur moyenne de la mer sur la première image de l'intro, visible le temps que la 3D se charge. */
+.intro-cold #scene {
+  background: #2872a3;
 }
 
 .intro-overlay {

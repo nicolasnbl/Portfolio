@@ -90,6 +90,17 @@ function buildTrail() {
   return trail;
 }
 
+// Pages ouvertes depuis le menu : téléchargées pendant que le navigateur est libre, elles s'affichent sans attente
+// à la fin de la transition (le JavaScript et les modèles sont communs et déjà en cache).
+function prefetchPages() {
+  for (const page of ['./timeline.html', './side-projects.html', './explore.html']) {
+    const link = document.createElement('link');
+    link.rel = 'prefetch';
+    link.href = page;
+    document.head.appendChild(link);
+  }
+}
+
 export function createIntro({ canvas, overlay, onStart, onEnd }) {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -702,11 +713,22 @@ export function createIntro({ canvas, overlay, onStart, onEnd }) {
       navEl.inert = false;
       onEnd();
       // L'horloge de la timeline se prépare quand le navigateur est libre, pour ne pas ralentir l'intro.
-      (window.requestIdleCallback ?? setTimeout)(() => leave.buildClock());
+      (window.requestIdleCallback ?? setTimeout)(() => {
+        leave.buildClock();
+        prefetchPages();
+      });
     }
     requestAnimationFrame(frame);
   }
-  requestAnimationFrame(frame);
+  // Les shaders se compilent avant la première image, en parallèle quand le navigateur le permet
+  // (KHR_parallel_shader_compile) : la page ne se fige pas pendant la compilation.
+  renderer
+    .compileAsync(scene, camera)
+    .catch(() => {})
+    .then(() => {
+      last = performance.now();
+      requestAnimationFrame(frame);
+    });
 
   nameEl.querySelector('.intro-name-main').textContent = INTRO.name;
   lastNameEl.textContent = INTRO.surname;

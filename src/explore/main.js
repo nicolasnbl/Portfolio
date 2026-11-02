@@ -9,6 +9,7 @@ import { buildPlanet } from '../intro/planet.js';
 import { buildSatellite } from '../intro/rocket.js';
 import { COMPANION_FOV, COMPANION_QUAT, companionLocal, loadHandoff } from './companion.js';
 import { createExplore } from './explore.js';
+import { modelsReady } from '../intro/models.js';
 
 // Page « Explorer le monde ». Elle s'ouvre sur le dernier plan du départ de la page d'accueil : le satellite à droite,
 // les étoiles derrière. La caméra pivote autour du satellite en prenant de l'altitude, et la planète revient dans le
@@ -19,6 +20,9 @@ const ui = document.querySelector('.explore-ui');
 const quoteEl = document.querySelector('.explore-quote');
 quoteEl.textContent = EXPLORE.quote;
 // Elle est déjà visible pendant le chargement (style dans explore.html), comme à la fin de l'accueil.
+// Les modèles 3D (préchargés par la page) doivent être prêts avant de construire la scène.
+await modelsReady;
+
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -265,7 +269,14 @@ function frame(now) {
   }
   if (phase !== 'gone') requestAnimationFrame(frame);
 }
-requestAnimationFrame(frame);
+// Shaders compilés avant la première image, en parallèle quand le navigateur le permet : pas de gel au démarrage.
+renderer
+  .compileAsync(scene, camera)
+  .catch(() => {})
+  .then(() => {
+    last = performance.now();
+    requestAnimationFrame(frame);
+  });
 
 // Retour sur la page par le bouton Précédent : on rejoue l'arrivée.
 window.addEventListener('pageshow', (e) => {

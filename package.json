@@ -7,7 +7,8 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "models": "for f in tools/blender/out/*.glb; do npx -y @gltf-transform/cli@4 meshopt \"$f\" \"src/assets/models/$(basename \"$f\")\"; done"
   },
   "dependencies": {
     "three": "^0.186.1"

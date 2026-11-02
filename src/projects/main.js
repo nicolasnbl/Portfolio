@@ -5,6 +5,7 @@ import { setupLook } from '../intro/look.js';
 import { buildPlanet, updateSmoke } from '../intro/planet.js';
 import { buildRocket } from '../intro/rocket.js';
 import { PROJECT_SUN, RIGHT, STOPS, stopQuat, stopTarget, stopView, zonesFor } from './view.js';
+import { modelsReady } from '../intro/models.js';
 
 // Fond des pages side projects : la planète de l'accueil, dont on ne construit que les terres des projets de la page.
 // Les blocs marqués data-stop sont les projets que la planète peut montrer. Sur une page projet, la caméra est au
@@ -18,6 +19,9 @@ const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matc
 // Page projet : plus près de l'élément que sur la page des side projects.
 const projectPage = document.body.dataset.zoom !== undefined;
 const closeZoom = Number(document.body.dataset.zoom ?? 1);
+
+// Les modèles 3D (préchargés par la page) doivent être prêts avant de construire la scène.
+await modelsReady;
 
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
@@ -167,4 +171,11 @@ function frame(now) {
   renderer.render(scene, camera);
   requestAnimationFrame(frame);
 }
-requestAnimationFrame(frame);
+// Shaders compilés avant la première image, en parallèle quand le navigateur le permet : pas de gel au démarrage.
+renderer
+  .compileAsync(scene, camera)
+  .catch(() => {})
+  .then(() => {
+    last = performance.now();
+    requestAnimationFrame(frame);
+  });

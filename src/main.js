@@ -1,8 +1,15 @@
 import './style.css';
 import { createIntro } from './intro/intro.js';
+import { modelsReady } from './intro/models.js';
 import { setupMailCopy } from './contact.js';
 import { setupSkillLinks, setupSideIcons } from './skills.js';
 
+// Les sections deviennent interactives tout de suite, sans attendre les modèles 3D de l'intro.
+setupMailCopy();
+setupSkillLinks();
+setupSideIcons();
+
+await modelsReady;
 const intro = createIntro({
   canvas: document.querySelector('#scene'),
   overlay: document.querySelector('.intro-overlay'),
@@ -37,7 +44,3 @@ window.addEventListener(
   },
   { passive: true },
 );
-
-setupMailCopy();
-setupSkillLinks();
-setupSideIcons();

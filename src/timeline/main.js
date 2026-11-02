@@ -1,12 +1,16 @@
 import '../style.css';
 import './timeline.css';
 import { createTimeline } from './timeline.js';
+import { modelsReady } from '../intro/models.js';
 
 const overlay = document.querySelector('.tl-overlay');
 const dots = document.querySelector('.tl-dots');
 const prev = document.querySelector('.tl-prev');
 const next = document.querySelector('.tl-next');
 const hint = document.querySelector('.tl-hint');
+
+// Les modèles 3D (préchargés par la page) doivent être prêts avant de construire la scène.
+await modelsReady;
 
 const timeline = createTimeline({
   canvas: document.querySelector('#scene'),

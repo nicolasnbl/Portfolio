@@ -1,5 +1,6 @@
 # Modèles 3D du portfolio : fusée à deux boosters, satellite à deux antennes, centrale solaire flottante.
-# Lancé avec le module Python de Blender (pip install bpy) : python tools/blender/models.py public/models
+# Lancé avec le module Python de Blender (pip install bpy) : python tools/blender/models.py, puis npm run models
+# pour compresser les .glb (meshopt) dans src/assets/models, d'où le site les charge.
 # Chaque modèle est exporté en .glb (repère Y vers le haut côté Three.js). Les pièces qui bougent dans le site
 # (moitiés de coiffe, boosters, panneaux du satellite) sont des objets nommés ; le reste est fusionné par matériau
 # pour limiter les appels de dessin.
@@ -11,7 +12,7 @@ import bpy  # noqa: I001 (bpy doit être importé avant bmesh)
 import bmesh
 import numpy as np
 
-OUT = sys.argv[-1] if len(sys.argv) > 1 and not sys.argv[-1].endswith('.py') else 'public/models'
+OUT = sys.argv[-1] if len(sys.argv) > 1 and not sys.argv[-1].endswith('.py') else 'tools/blender/out'
 os.makedirs(OUT, exist_ok=True)
 
 

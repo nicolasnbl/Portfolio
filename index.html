@@ -4,12 +4,14 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Nicolas · Portfolio</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&display=swap"
-      rel="stylesheet"
-    />
+    <script>
+      // Intro jouée depuis le début : en attendant la 3D, le fond prend la couleur de la mer de la première image.
+      try {
+        if (!location.search && sessionStorage.getItem('intro-seen') !== '1' && !matchMedia('(prefers-reduced-motion: reduce)').matches) {
+          document.documentElement.classList.add('intro-cold');
+        }
+      } catch {}
+    </script>
   </head>
   <body>
     <canvas id="scene"></canvas>
