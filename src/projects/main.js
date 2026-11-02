@@ -6,6 +6,8 @@ import { buildPlanet, updateSmoke } from '../intro/planet.js';
 import { buildRocket } from '../intro/rocket.js';
 import { PROJECT_SUN, RIGHT, STOPS, stopQuat, stopTarget, stopView, zonesFor } from './view.js';
 import { modelsReady } from '../intro/models.js';
+import { loadGlobeMask } from '../intro/globe-masks.js';
+import { PLANET_RADIUS } from '../intro/planet.js';
 
 // Fond des pages side projects : la planète de l'accueil, dont on ne construit que les terres des projets de la page.
 // Les blocs marqués data-stop sont les projets que la planète peut montrer. Sur une page projet, la caméra est au
@@ -21,7 +23,7 @@ const projectPage = document.body.dataset.zoom !== undefined;
 const closeZoom = Number(document.body.dataset.zoom ?? 1);
 
 // Les modèles 3D (préchargés par la page) doivent être prêts avant de construire la scène.
-await modelsReady;
+await Promise.all([modelsReady, loadGlobeMask(PLANET_RADIUS)]);
 
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));

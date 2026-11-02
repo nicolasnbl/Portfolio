@@ -107,9 +107,14 @@ function skyEnvironment(renderer) {
 // ---------- Globe ----------
 // Masque terre / eau en projection équirectangulaire, tiré des couleurs des facettes : R = terre avec un léger flou
 // (trait de côte), G = terre très floutée (profondeur de l'eau), B = sable.
-function landMask(geometry) {
-  const W = 1024;
-  const H = 512;
+export const MASK_WIDTH = 1024;
+export const MASK_HEIGHT = 512;
+
+// Données RGBA du masque (Uint8Array). Calculées au build pour le site en ligne (plugin bakeGlobeMasks de
+// vite.config.js), sinon ici au chargement de la page.
+export function landMaskData(geometry) {
+  const W = MASK_WIDTH;
+  const H = MASK_HEIGHT;
   const pos = geometry.attributes.position;
   const col = geometry.attributes.color;
   const land = new Float32Array(W * H);
@@ -146,7 +151,11 @@ function landMask(geometry) {
     data[i * 4 + 2] = sandy[i] * 255;
     data[i * 4 + 3] = 255;
   }
-  const texture = new THREE.DataTexture(data, W, H);
+  return data;
+}
+
+function maskTexture(data) {
+  const texture = new THREE.DataTexture(data, MASK_WIDTH, MASK_HEIGHT);
   texture.wrapS = THREE.RepeatWrapping;
   texture.minFilter = THREE.LinearFilter;
   texture.magFilter = THREE.LinearFilter;
@@ -190,9 +199,9 @@ float vnoise(vec3 x){ vec3 i = floor(x); vec3 f = fract(x); f = f * f * (3. - 2.
 float fbm(vec3 p){ float a = .5, s = 0.; for (int i = 0; i < 4; i++) { s += a * vnoise(p); p *= 2.03; a *= .5; } return s; }
 `;
 
-// geometry : le globe, avec les couleurs de ses facettes (eau, herbe, sable), avant tout rognage.
-export function globeMaterial(geometry) {
-  const mask = landMask(geometry);
+// maskData : le masque des terres (landMaskData), calculé à l'avance ou à partir des couleurs des facettes du globe.
+export function globeMaterial(maskData) {
+  const mask = maskTexture(maskData);
   const material = new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: 0.9 });
   const time = { value: 0 };
   material.onBeforeCompile = (shader) => {

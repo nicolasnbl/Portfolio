@@ -10,6 +10,7 @@ import { buildSatellite } from '../intro/rocket.js';
 import { COMPANION_FOV, COMPANION_QUAT, companionLocal, loadHandoff } from './companion.js';
 import { createExplore } from './explore.js';
 import { modelsReady } from '../intro/models.js';
+import { loadGlobeMask } from '../intro/globe-masks.js';
 
 // Page « Explorer le monde ». Elle s'ouvre sur le dernier plan du départ de la page d'accueil : le satellite à droite,
 // les étoiles derrière. La caméra pivote autour du satellite en prenant de l'altitude, et la planète revient dans le
@@ -20,8 +21,12 @@ const ui = document.querySelector('.explore-ui');
 const quoteEl = document.querySelector('.explore-quote');
 quoteEl.textContent = EXPLORE.quote;
 // Elle est déjà visible pendant le chargement (style dans explore.html), comme à la fin de l'accueil.
+
+// Une planète plus petite que sur l'accueil : les objets y paraissent plus grands et tout tient dans l'écran.
+const RADIUS = 18;
+
 // Les modèles 3D (préchargés par la page) doivent être prêts avant de construire la scène.
-await modelsReady;
+await Promise.all([modelsReady, loadGlobeMask(RADIUS)]);
 
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -39,8 +44,6 @@ setupLook(renderer, scene, sun);
 const stars = buildStars();
 scene.add(stars);
 
-// Une planète plus petite que sur l'accueil : les objets y paraissent plus grands et tout tient dans l'écran.
-const RADIUS = 18;
 const { planet, globe, clockSite, elements, animate } = buildPlanet({
   radius: RADIUS,
   treeCount: window.innerWidth < 768 ? 26 : 46,

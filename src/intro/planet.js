@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { seededRandom } from './math.js';
-import { atmosphereMaterial, bindAtmosphere, buildClouds, enableShadows, globeMaterial } from './look.js';
+import { atmosphereMaterial, bindAtmosphere, buildClouds, enableShadows, globeMaterial, landMaskData } from './look.js';
+import { bakedGlobeMask } from './globe-masks.js';
 import { part } from './models.js';
 import { buildBurj, buildCrane, buildDesalination, buildDune, buildForum, buildPalm, buildTroughField } from './desert.js';
 import {
@@ -199,11 +200,11 @@ function groundAt(dir, lands, R) {
   return s > start && s < end && Math.abs(w) < halfWidth ? 'grass' : null;
 }
 
-// focus : { dir, radius } pour ne garder que les facettes à moins de `radius` (en unités, le long de la surface) de
-// la direction `dir`.
-function buildGlobe(R, lands, focus = null) {
-  // Assez fin pour que le contour de la Corse se reconnaisse.
-  const geometry = new THREE.IcosahedronGeometry(R, 72);
+// Globe à facettes, assez fin pour que le contour de la Corse se reconnaisse.
+const globeGeometry = (R) => new THREE.IcosahedronGeometry(R, 72);
+
+// Nature du sol de chaque facette (eau, herbe, sable), en couleurs ; le masque des terres du matériau en est tiré.
+function colorGlobe(geometry, lands, R) {
   const pos = geometry.attributes.position;
   const colors = new Float32Array(pos.count * 3);
   const rand = seededRandom(7);
@@ -223,10 +224,27 @@ function buildGlobe(R, lands, focus = null) {
     const color = palette[Math.floor(rand() * palette.length)];
     for (let k = 0; k < 3; k++) color.toArray(colors, (i + k) * 3);
   }
-
   geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-  // Eau et terres réalistes : le matériau lit la carte des terres dans les couleurs, avant le rognage.
-  const material = globeMaterial(geometry);
+}
+
+// Masque des terres d'une planète de rayon R : utilisé au build pour le précalculer (vite.config.js).
+export function globeMaskData(R, clockDir) {
+  const geometry = globeGeometry(R);
+  colorGlobe(geometry, buildLands(R, clockDir), R);
+  return landMaskData(geometry);
+}
+
+// focus : { dir, radius } pour ne garder que les facettes à moins de `radius` (en unités, le long de la surface) de
+// la direction `dir`.
+function buildGlobe(R, lands, focus = null, clockDir = null) {
+  const geometry = globeGeometry(R);
+  // Masque précalculé au build (toutes les pages placent l'horloge en CLOCK_DIR), sinon calculé ici.
+  let mask = clockDir ? bakedGlobeMask(R) : null;
+  if (!mask) {
+    colorGlobe(geometry, lands, R);
+    mask = landMaskData(geometry);
+  }
+  const material = globeMaterial(mask);
   if (focus) cropGlobe(geometry, focus.dir, Math.cos(focus.radius / R));
   const globe = new THREE.Mesh(geometry, material);
   globe.name = 'globe';
@@ -248,11 +266,11 @@ function cropGlobe(geometry, dir, minDot) {
     if (center.normalize().dot(dir) < minDot) continue;
     for (let k = 0; k < 3; k++) {
       keptPos.push(pos.getX(i + k), pos.getY(i + k), pos.getZ(i + k));
-      keptCol.push(col.getX(i + k), col.getY(i + k), col.getZ(i + k));
+      if (col) keptCol.push(col.getX(i + k), col.getY(i + k), col.getZ(i + k));
     }
   }
   geometry.setAttribute('position', new THREE.Float32BufferAttribute(keptPos, 3));
-  geometry.setAttribute('color', new THREE.Float32BufferAttribute(keptCol, 3));
+  if (col) geometry.setAttribute('color', new THREE.Float32BufferAttribute(keptCol, 3));
   geometry.deleteAttribute('normal');
   geometry.deleteAttribute('uv');
   geometry.computeVertexNormals();
@@ -589,7 +607,7 @@ export function buildPlanet({ radius = PLANET_RADIUS, treeCount = 46, clockDir =
   const rand = seededRandom(42);
   const planet = new THREE.Group();
   const zones = !focus ? null : Array.isArray(focus) ? focus : [focus];
-  const globe = buildGlobe(R, buildLands(R, clockDir), Array.isArray(focus) ? null : focus);
+  const globe = buildGlobe(R, buildLands(R, clockDir), Array.isArray(focus) ? null : focus, clockDir);
   planet.add(globe);
 
   // Halo d'atmosphère, surtout visible une fois dans l'espace.

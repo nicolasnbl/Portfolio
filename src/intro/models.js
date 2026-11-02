@@ -18,7 +18,10 @@ let plantScene;
 
 // Chaque page attend cette promesse avant de construire sa scène (et seulement à ce moment-là : le reste de la page,
 // comme les compétences cliquables, n'attend pas les modèles).
-export const modelsReady = Promise.all([fusee, satellite, centrale].map(loadModel)).then((scenes) => {
+// Hors navigateur (calcul du masque du globe au build), rien à charger.
+export const modelsReady = (
+  typeof window === 'undefined' ? Promise.resolve([]) : Promise.all([fusee, satellite, centrale].map(loadModel))
+).then((scenes) => {
   [rocketScene, satelliteScene, plantScene] = scenes;
 });
 

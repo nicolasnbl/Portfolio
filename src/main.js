@@ -1,6 +1,8 @@
 import './style.css';
 import { createIntro } from './intro/intro.js';
 import { modelsReady } from './intro/models.js';
+import { loadGlobeMask } from './intro/globe-masks.js';
+import { PLANET_RADIUS } from './intro/planet.js';
 import { setupMailCopy } from './contact.js';
 import { setupSkillLinks, setupSideIcons } from './skills.js';
 
@@ -9,7 +11,7 @@ setupMailCopy();
 setupSkillLinks();
 setupSideIcons();
 
-await modelsReady;
+await Promise.all([modelsReady, loadGlobeMask(PLANET_RADIUS)]);
 const intro = createIntro({
   canvas: document.querySelector('#scene'),
   overlay: document.querySelector('.intro-overlay'),
