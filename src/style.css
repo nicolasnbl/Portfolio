@@ -1832,3 +1832,9 @@ body.explore-body {
     transform: none;
   }
 }
+
+/* Side projects : le halo déborde largement pour entourer les pastilles (qui se soulèvent au survol) et leurs années. */
+.side-preview > .halo-sweep {
+  inset: -1.1rem -1.4rem;
+  border-radius: 12px;
+}
