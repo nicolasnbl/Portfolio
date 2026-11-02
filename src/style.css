@@ -1331,6 +1331,19 @@ body.explore-body {
   object-fit: cover;
 }
 
+/* Guitare : galeries de photos verticales (3:4) et paires de photos horizontales. */
+.story-gallery.is-portrait img {
+  aspect-ratio: 3 / 4;
+}
+
+.story-gallery.is-pair {
+  grid-template-columns: repeat(2, 1fr);
+}
+
+.story-gallery.is-pair img {
+  aspect-ratio: 4 / 3;
+}
+
 @media (max-width: 640px) {
   .story-gallery {
     grid-template-columns: 1fr 1fr;
@@ -1338,6 +1351,10 @@ body.explore-body {
 
   .story-video,
   .story-gallery figure:last-child {
+    grid-column: 1 / -1;
+  }
+
+  .story-gallery.is-pair figure {
     grid-column: 1 / -1;
   }
 
