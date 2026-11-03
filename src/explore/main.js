@@ -20,13 +20,15 @@ const canvas = document.querySelector('#scene');
 const ui = document.querySelector('.explore-ui');
 const quoteEl = document.querySelector('.explore-quote');
 quoteEl.textContent = EXPLORE.quote;
-// Elle est déjà visible pendant le chargement (style dans explore.html), comme à la fin de l'accueil.
+// Elle est déjà visible pendant le chargement (texte et style dans explore.html), comme à la fin de l'accueil.
 
 // Une planète plus petite que sur l'accueil : les objets y paraissent plus grands et tout tient dans l'écran.
 const RADIUS = 18;
 
-// Les modèles 3D (préchargés par la page) doivent être prêts avant de construire la scène.
-await Promise.all([modelsReady, loadGlobeMask(RADIUS)]);
+// Le satellite (modèle 3D préchargé par la page) doit être prêt avant la première image. La planète, elle, n'est dans
+// le champ qu'après la citation : elle est construite juste après la première image (voir buildWorld).
+const maskReady = loadGlobeMask(RADIUS);
+await modelsReady;
 
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -43,17 +45,6 @@ scene.add(sun);
 setupLook(renderer, scene, sun);
 const stars = buildStars();
 scene.add(stars);
-
-const { planet, globe, clockSite, elements, animate } = buildPlanet({
-  radius: RADIUS,
-  treeCount: window.innerWidth < 768 ? 26 : 46,
-  clockDir: CLOCK_DIR,
-});
-createLeave({ clockSite }).buildClock();
-scene.add(planet);
-// Ici, les nuages passent partout, y compris au-dessus du trajet de la fusée (dégagé seulement pour l'intro).
-const clouds = planet.getObjectByName('nuages');
-if (clouds) clouds.userData.clearPath = false;
 
 const { satellite } = buildSatellite();
 scene.add(satellite);
@@ -93,19 +84,6 @@ const start = loadHandoff() ?? {
 };
 const startView = new THREE.Vector3(0, 0, -1).applyQuaternion(start.quat);
 
-// Axe de la vue d'ensemble : en reculant un peu par rapport au regard de départ, la caméra se retourne vers la
-// planète d'un quart de tour environ.
-const frameDir = start.pos.clone().normalize().addScaledVector(startView, -0.35).normalize();
-const explore = createExplore({ planet, globe, radius: RADIUS, elements, camera, canvas, ui, frameDir });
-
-// La planète se présente pas de tir en haut, la centrale et la forêt à côté.
-const pad = elements.find((el) => el.key === 'pad');
-const up = new THREE.Vector3(0, 1, 0).addScaledVector(frameDir, -frameDir.y).normalize();
-const baseQuat = new THREE.Quaternion().setFromUnitVectors(
-  pad.anchor.clone().normalize(),
-  frameDir.clone().multiplyScalar(Math.cos(0.6)).addScaledVector(up, Math.sin(0.6)),
-);
-
 function resize() {
   renderer.setSize(window.innerWidth, window.innerHeight, false);
   camera.aspect = window.innerWidth / window.innerHeight;
@@ -143,6 +121,41 @@ const paused = params.has('pause');
 // Pose de départ du retour : là où étaient la caméra et le satellite au moment du clic.
 const backFrom = { sat: new THREE.Vector3(), quat: new THREE.Quaternion() };
 const satStart = start.pos.clone().add(companionLocal(camera.aspect, local).applyQuaternion(start.quat));
+
+// Planète et exploration : construites après la première image, pendant qu'on lit la citation. Tant qu'elles ne sont
+// pas prêtes, l'arrivée attend sur son premier plan (le dernier de la page d'accueil).
+let planet = null;
+let animate = null;
+let explore = null;
+let baseQuat = null;
+function buildWorld() {
+  const built = buildPlanet({
+    radius: RADIUS,
+    treeCount: window.innerWidth < 768 ? 26 : 46,
+    clockDir: CLOCK_DIR,
+  });
+  createLeave({ clockSite: built.clockSite }).buildClock();
+  // Ici, les nuages passent partout, y compris au-dessus du trajet de la fusée (dégagé seulement pour l'intro).
+  const clouds = built.planet.getObjectByName('nuages');
+  if (clouds) clouds.userData.clearPath = false;
+
+  // Axe de la vue d'ensemble : en reculant un peu par rapport au regard de départ, la caméra se retourne vers la
+  // planète d'un quart de tour environ.
+  const frameDir = start.pos.clone().normalize().addScaledVector(startView, -0.35).normalize();
+  const { globe, elements } = built;
+  const world = createExplore({ planet: built.planet, globe, radius: RADIUS, elements, camera, canvas, ui, frameDir });
+
+  // La planète se présente pas de tir en haut, la centrale et la forêt à côté.
+  const pad = elements.find((el) => el.key === 'pad');
+  const up = new THREE.Vector3(0, 1, 0).addScaledVector(frameDir, -frameDir.y).normalize();
+  const quat = new THREE.Quaternion().setFromUnitVectors(
+    pad.anchor.clone().normalize(),
+    frameDir.clone().multiplyScalar(Math.cos(0.6)).addScaledVector(up, Math.sin(0.6)),
+  );
+  // Outils de mise au point, seulement avec le serveur de développement.
+  if (import.meta.env.DEV) window.__explore = { explore: world, elements, baseQuat: quat, frameDir, THREE };
+  return { planet: built.planet, animate: built.animate, explore: world, baseQuat: quat };
+}
 
 function goBack() {
   if (phase !== 'explore') return;
@@ -221,23 +234,32 @@ function frame(now) {
   const dt = Math.min(0.05, (now - last) / 1000);
   last = now;
   const time = now / 1000;
-  if (!paused) u += dt;
+  if (!paused && explore) u += dt;
 
-  planet.quaternion.multiplyQuaternions(explore.user, baseQuat);
-  planet.updateWorldMatrix(true, false);
-  if (phase === 'explore') explore.update(dt, time);
-  animate(time);
+  if (!explore) {
+    // Planète pas encore prête : premier plan de l'arrivée.
+    companionLocal(camera.aspect, local);
+    satNow.copy(satStart);
+    camQuat.copy(start.quat);
+  } else {
+    planet.quaternion.multiplyQuaternions(explore.user, baseQuat);
+    planet.updateWorldMatrix(true, false);
+    if (phase === 'explore') explore.update(dt, time);
+    animate(time);
 
-  // Plan visé : la vue d'ensemble pendant l'arrivée, sinon le cadrage de l'exploration.
-  explore.view(view);
-  camera.position.copy(view.pos);
-  camera.up.copy(view.up);
-  camera.lookAt(view.look);
-  companionLocal(camera.aspect, local);
-  satTo.copy(local).applyQuaternion(camera.quaternion).add(view.pos);
-  quatFrom.copy(camera.quaternion);
+    // Plan visé : la vue d'ensemble pendant l'arrivée, sinon le cadrage de l'exploration.
+    explore.view(view);
+    camera.position.copy(view.pos);
+    camera.up.copy(view.up);
+    camera.lookAt(view.look);
+    companionLocal(camera.aspect, local);
+    satTo.copy(local).applyQuaternion(camera.quaternion).add(view.pos);
+    quatFrom.copy(camera.quaternion);
+  }
 
-  if (phase === 'arrive') {
+  if (!explore) {
+    // Rien à faire : on attend la planète.
+  } else if (phase === 'arrive') {
     travel(satStart, start.quat, satTo, quatFrom, easeInOutCubic(progress(u, EXPLORE_T.hold, EXPLORE_T.arrive)));
     if (u >= EXPLORE_T.arrive) {
       phase = 'explore';
@@ -273,12 +295,27 @@ function frame(now) {
   if (phase !== 'gone') requestAnimationFrame(frame);
 }
 // Shaders compilés avant la première image, en parallèle quand le navigateur le permet : pas de gel au démarrage.
+// Première image : les étoiles et le satellite, comme à la fin de la page d'accueil. Puis, quand le navigateur est
+// libre, la planète est construite et ses shaders compilés hors de la scène avant qu'elle y entre.
 renderer
   .compileAsync(scene, camera)
   .catch(() => {})
   .then(() => {
     last = performance.now();
     requestAnimationFrame(frame);
+    return new Promise((resolve) => (window.requestIdleCallback ?? setTimeout)(resolve, { timeout: 300 }));
+  })
+  .then(() => maskReady)
+  .then(() => {
+    const world = buildWorld();
+    return renderer
+      .compileAsync(world.planet, camera, scene)
+      .catch(() => {})
+      .then(() => world);
+  })
+  .then((world) => {
+    ({ planet, animate, explore, baseQuat } = world);
+    scene.add(planet);
   });
 
 // Retour sur la page par le bouton Précédent : on rejoue l'arrivée.
@@ -289,6 +326,3 @@ window.addEventListener('pageshow', (e) => {
   last = performance.now();
   requestAnimationFrame(frame);
 });
-
-// Outils de mise au point, seulement avec le serveur de développement.
-if (import.meta.env.DEV) window.__explore = { explore, elements, baseQuat, frameDir, THREE };

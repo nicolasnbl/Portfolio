@@ -93,14 +93,23 @@ function buildTrail() {
   return trail;
 }
 
-// Pages ouvertes depuis le menu : téléchargées pendant que le navigateur est libre, elles s'affichent sans attente
-// à la fin de la transition (le JavaScript et les modèles sont communs et déjà en cache).
+// Pages ouvertes depuis le menu : téléchargées pendant que le navigateur est libre, avec leurs propres fichiers (leur
+// script, la carte du globe de la page Explorer…), pour qu'elles s'affichent sans attente à la fin de la transition.
 function prefetchPages() {
-  for (const page of ['./timeline.html', './side-projects.html', './explore.html']) {
+  const prefetch = (href) => {
     const link = document.createElement('link');
     link.rel = 'prefetch';
-    link.href = page;
+    link.href = href;
     document.head.appendChild(link);
+  };
+  for (const page of ['./timeline.html', './side-projects.html', './explore.html']) {
+    fetch(page)
+      .then((res) => (res.ok ? res.text() : ''))
+      .then((html) => {
+        const assets = new Set([...html.matchAll(/(?:src|href)="(\.\/assets\/[^"]+)"/g)].map((m) => m[1]));
+        assets.forEach(prefetch);
+      })
+      .catch(() => {});
   }
 }
 
