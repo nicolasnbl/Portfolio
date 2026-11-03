@@ -87,6 +87,21 @@ export function setupSkillLinks() {
   });
 }
 
+// Mots-clés cités dans le texte : curseur main au survol, et un clic rejoue le reflet Gemini
+// sur ce mot seulement (pas de halo sur les cartes, pas de défilement).
+function replayReflet(el) {
+  el.classList.remove('is-lit');
+  void el.offsetWidth;
+  el.classList.add('is-lit');
+}
+
+export function setupMentions() {
+  document.querySelectorAll('.mention').forEach((m) => {
+    m.classList.add('mention-link');
+    m.addEventListener('click', () => replayReflet(m));
+  });
+}
+
 // Sur écran tactile (pas de survol), les icônes des side projects jouent leur animation
 // une fois quand elles arrivent à l'écran.
 export function setupSideIcons() {

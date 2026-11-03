@@ -1659,6 +1659,11 @@ body.explore-body {
   font-weight: 600;
 }
 
+/* Mot-clé cité dans le texte : cliquable, le clic rejoue seulement le reflet. */
+.mention-link {
+  cursor: pointer;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .skill-link,
   .skill-link > span,

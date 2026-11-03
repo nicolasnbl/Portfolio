@@ -4,11 +4,12 @@ import { modelsReady } from './intro/models.js';
 import { loadGlobeMask } from './intro/globe-masks.js';
 import { PLANET_RADIUS } from './intro/planet.js';
 import { setupMailCopy } from './contact.js';
-import { setupSkillLinks, setupSideIcons } from './skills.js';
+import { setupSkillLinks, setupMentions, setupSideIcons } from './skills.js';
 
 // Les sections deviennent interactives tout de suite, sans attendre les modèles 3D de l'intro.
 setupMailCopy();
 setupSkillLinks();
+setupMentions();
 setupSideIcons();
 
 await Promise.all([modelsReady, loadGlobeMask(PLANET_RADIUS)]);
