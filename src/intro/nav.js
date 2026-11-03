@@ -1,4 +1,5 @@
 import { easeOutCubic, lerp, progress } from './math.js';
+import { pick } from '../i18n/lang.js';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
@@ -45,7 +46,7 @@ export function createNav(nav, items, { onAction } = {}) {
     }
     if (item.soon) {
       link.setAttribute('aria-disabled', 'true');
-      link.dataset.soon = 'Bientôt';
+      link.dataset.soon = pick('Bientôt', 'Soon');
       link.addEventListener('click', (e) => e.preventDefault());
     }
     const enter = () => {

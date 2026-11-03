@@ -3,8 +3,18 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Nicolas · Mes fusées</title>
+    <title data-i18n="rockets.pageTitle">Nicolas · Mes fusées</title>
     <link rel="stylesheet" href="/src/style.css" />
+    <script>
+      // Version anglaise choisie : textes masqués jusqu'à leur traduction (src/i18n/page.js).
+      try {
+        const lang = new URLSearchParams(location.search).get('lang') || localStorage.getItem('lang');
+        if (lang === 'en') document.documentElement.classList.add('i18n-wait');
+      } catch {}
+    </script>
+    <style>
+      .i18n-wait [data-i18n] { visibility: hidden; }
+    </style>
   </head>
   <body class="planet-page" data-zoom="0.9">
     <!-- La planète en fond (src/projects/main.js), au plus près du projet. -->
@@ -14,62 +24,62 @@
       <div class="planet-hero" data-stop="fusees"></div>
       <section class="project-story">
         <p class="eyebrow">Side project · 2015 – 2018</p>
-        <h2>Mes fusées</h2>
+        <h2 data-i18n="rockets.title">Mes fusées</h2>
 
-        <p>Ces fusées, je les ai construites tout au long de l'année, pour les lancer l'été à Tarbes avec Planète Sciences. Les propulseurs étaient fournis par le CNES, et notre but était de réussir un vol nominal tout en apportant une touche de créativité. Elles montaient à 400 m de hauteur et encaissaient une accélération de 90 m/s² au décollage.</p>
+        <p data-i18n="rockets.p1">Ces fusées, je les ai construites tout au long de l'année, pour les lancer l'été à Tarbes avec Planète Sciences. Les propulseurs étaient fournis par le CNES, et notre but était de réussir un vol nominal tout en apportant une touche de créativité. Elles montaient à 400 m de hauteur et encaissaient une accélération de 90 m/s² au décollage.</p>
 
-        <p>J'en ai construit trois, la première en 5e. Elle avait l'objectif classique : sortir le parachute par une trappe sur le côté, commandée par une minuterie. Mon professeur nous avait fait créer nous-mêmes les cartes, avec les composants, pour réaliser la minuterie de façon analogique. Les Arduino n'étaient pas encore très répandus.</p>
+        <p data-i18n="rockets.p2">J'en ai construit trois, la première en 5e. Elle avait l'objectif classique : sortir le parachute par une trappe sur le côté, commandée par une minuterie. Mon professeur nous avait fait créer nous-mêmes les cartes, avec les composants, pour réaliser la minuterie de façon analogique. Les Arduino n'étaient pas encore très répandus.</p>
 
-        <p>L'année suivante, l'idée était un peu similaire. Mais avec le développement de l'impression 3D et des Arduino, j'ai appris la modélisation et le code pour réaliser ma fusée.</p>
+        <p data-i18n="rockets.p3">L'année suivante, l'idée était un peu similaire. Mais avec le développement de l'impression 3D et des Arduino, j'ai appris la modélisation et le code pour réaliser ma fusée.</p>
 
         <figure class="story-media">
-          <img src="/fusees/fusees-1-et-2.webp" width="1400" height="700" loading="lazy" alt="Mes deux premières fusées posées sur un bureau, l'une rouge et blanche, l'autre grise, avec un parachute orange." />
-          <figcaption>Mes deux premières fusées.</figcaption>
+          <img src="/fusees/fusees-1-et-2.webp" width="1400" height="700" loading="lazy" data-i18n-alt="rockets.img1" alt="Mes deux premières fusées posées sur un bureau, l'une rouge et blanche, l'autre grise, avec un parachute orange." />
+          <figcaption data-i18n="rockets.cap1">Mes deux premières fusées.</figcaption>
         </figure>
 
-        <p>Pour la dernière, en seconde, je me suis associé à mon ami Gautier. On a eu l'idée de faire comme SpaceX : une fusée qui atterrit sur ses pieds. On a donc réalisé des pieds, et je me suis occupé de développer la sortie du parachute par l'ogive, avec un système que j'ai conçu moi-même.</p>
+        <p data-i18n="rockets.p4">Pour la dernière, en seconde, je me suis associé à mon ami Gautier. On a eu l'idée de faire comme SpaceX : une fusée qui atterrit sur ses pieds. On a donc réalisé des pieds, et je me suis occupé de développer la sortie du parachute par l'ogive, avec un système que j'ai conçu moi-même.</p>
 
         <div class="story-gallery">
           <figure class="story-video">
             <video controls playsinline preload="metadata" poster="/fusees/fusee-3-presentation-poster.webp" width="478" height="850">
               <source src="/fusees/fusee-3-presentation.mp4" type="video/mp4" />
             </video>
-            <figcaption>La présentation de la fusée : les pieds se déploient, puis le parachute sort par l'ogive.</figcaption>
+            <figcaption data-i18n="rockets.cap2">La présentation de la fusée : les pieds se déploient, puis le parachute sort par l'ogive.</figcaption>
           </figure>
           <figure>
-            <img src="/fusees/fusee-3-debout.webp" width="700" height="1400" loading="lazy" alt="La fusée grise et son ogive blanche, debout, pieds repliés." />
-            <figcaption>Prête pour le premier jour de lancement.</figcaption>
+            <img src="/fusees/fusee-3-debout.webp" width="700" height="1400" loading="lazy" data-i18n-alt="rockets.img3" alt="La fusée grise et son ogive blanche, debout, pieds repliés." />
+            <figcaption data-i18n="rockets.cap3">Prête pour le premier jour de lancement.</figcaption>
           </figure>
           <figure>
-            <img src="/fusees/fusee-3-parachute.webp" width="788" height="1400" loading="lazy" alt="La fusée debout sur ses pieds, le parachute sorti par l'ogive." />
-            <figcaption>Debout sur ses pieds, parachute sorti.</figcaption>
+            <img src="/fusees/fusee-3-parachute.webp" width="788" height="1400" loading="lazy" data-i18n-alt="rockets.img4" alt="La fusée debout sur ses pieds, le parachute sorti par l'ogive." />
+            <figcaption data-i18n="rockets.cap4">Debout sur ses pieds, parachute sorti.</figcaption>
           </figure>
           <figure>
-            <img src="/fusees/fusee-3-construction.webp" width="1400" height="700" loading="lazy" alt="La fusée grise en construction sur mon bureau, un pied posé le long du corps." />
-            <figcaption>En construction, à la maison.</figcaption>
+            <img src="/fusees/fusee-3-construction.webp" width="1400" height="700" loading="lazy" data-i18n-alt="rockets.img5" alt="La fusée grise en construction sur mon bureau, un pied posé le long du corps." />
+            <figcaption data-i18n="rockets.cap5">En construction, à la maison.</figcaption>
           </figure>
           <figure>
-            <img src="/fusees/fusee-3-table.webp" width="1400" height="788" loading="lazy" alt="La fusée ouverte sur une table, avec l'électronique visible et les pieds repliés le long du corps." />
-            <figcaption>L'électronique et les pieds repliés.</figcaption>
+            <img src="/fusees/fusee-3-table.webp" width="1400" height="788" loading="lazy" data-i18n-alt="rockets.img6" alt="La fusée ouverte sur une table, avec l'électronique visible et les pieds repliés le long du corps." />
+            <figcaption data-i18n="rockets.cap6">L'électronique et les pieds repliés.</figcaption>
           </figure>
           <figure>
-            <img src="/fusees/fusee-3-pieds.webp" width="1400" height="700" loading="lazy" alt="Les quatre pieds de la fusée déployés au sol." />
-            <figcaption>Les pieds déployés.</figcaption>
+            <img src="/fusees/fusee-3-pieds.webp" width="1400" height="700" loading="lazy" data-i18n-alt="rockets.img7" alt="Les quatre pieds de la fusée déployés au sol." />
+            <figcaption data-i18n="rockets.cap7">Les pieds déployés.</figcaption>
           </figure>
         </div>
 
-        <p>Les deux premiers vols furent un succès. Malheureusement, la dernière fusée a fait un vol balistique, dû à une erreur de calcul du volume du parachute dans la fusée. Sa sortie s'est compliquée, il s'est mis en torche, puis la fusée s'est crashée.</p>
+        <p data-i18n="rockets.p5">Les deux premiers vols furent un succès. Malheureusement, la dernière fusée a fait un vol balistique, dû à une erreur de calcul du volume du parachute dans la fusée. Sa sortie s'est compliquée, il s'est mis en torche, puis la fusée s'est crashée.</p>
 
-        <p>J'ai eu une chance immense d'être dans le seul collège de France qui proposait ce club fusée, car c'étaient principalement des écoles d'ingénieurs qui participaient. Ça a développé mon goût pour l'ingénierie, et définitivement mes capacités d'autodidacte. C'est notamment via ce club que j'ai commencé à avoir le goût des projets perso, qui ne m'a jamais quitté.</p>
+        <p data-i18n="rockets.p6">J'ai eu une chance immense d'être dans le seul collège de France qui proposait ce club fusée, car c'étaient principalement des écoles d'ingénieurs qui participaient. Ça a développé mon goût pour l'ingénierie, et définitivement mes capacités d'autodidacte. C'est notamment via ce club que j'ai commencé à avoir le goût des projets perso, qui ne m'a jamais quitté.</p>
 
         <ul class="project-keys">
           <li>C</li>
           <li>Arduino</li>
-          <li>Impression 3D</li>
+          <li data-i18n="rockets.k3">Impression 3D</li>
           <li>Fusion 360</li>
           <li>CATIA V5</li>
         </ul>
-        <p><a class="section-link" href="./side-projects.html#fusees">← Retour aux projets</a></p>
+        <p><a data-i18n="common.backToProjects" class="section-link" href="./side-projects.html#fusees">← Retour aux projets</a></p>
       </section>
     </main>
     <script type="module" src="/src/projects/main.js"></script>

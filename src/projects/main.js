@@ -1,3 +1,4 @@
+import '../i18n/page.js';
 import * as THREE from 'three';
 import { buildStars } from '../intro/intro.js';
 import { CLOCK_DIR } from '../intro/leave.js';

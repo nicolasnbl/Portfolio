@@ -1,4 +1,5 @@
 import './style.css';
+import './i18n/page.js';
 import { createIntro } from './intro/intro.js';
 import { modelsReady } from './intro/models.js';
 import { loadGlobeMask } from './intro/globe-masks.js';

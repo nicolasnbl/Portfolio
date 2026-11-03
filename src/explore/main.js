@@ -1,4 +1,5 @@
 import '../style.css';
+import '../i18n/page.js';
 import * as THREE from 'three';
 import { EXPLORE, EXPLORE_T } from '../config.js';
 import { buildStars } from '../intro/intro.js';
