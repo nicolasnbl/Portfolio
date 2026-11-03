@@ -1,8 +1,17 @@
 import './style.css';
 import { createIntro } from './intro/intro.js';
+import { modelsReady } from './intro/models.js';
+import { loadGlobeMask } from './intro/globe-masks.js';
+import { PLANET_RADIUS } from './intro/planet.js';
 import { setupMailCopy } from './contact.js';
 import { setupSkillLinks, setupSideIcons } from './skills.js';
 
+// Les sections deviennent interactives tout de suite, sans attendre les modèles 3D de l'intro.
+setupMailCopy();
+setupSkillLinks();
+setupSideIcons();
+
+await Promise.all([modelsReady, loadGlobeMask(PLANET_RADIUS)]);
 const intro = createIntro({
   canvas: document.querySelector('#scene'),
   overlay: document.querySelector('.intro-overlay'),
@@ -37,7 +46,3 @@ window.addEventListener(
   },
   { passive: true },
 );
-
-setupMailCopy();
-setupSkillLinks();
-setupSideIcons();

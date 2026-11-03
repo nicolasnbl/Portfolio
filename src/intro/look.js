@@ -107,9 +107,14 @@ function skyEnvironment(renderer) {
 // ---------- Globe ----------
 // Masque terre / eau en projection équirectangulaire, tiré des couleurs des facettes : R = terre avec un léger flou
 // (trait de côte), G = terre très floutée (profondeur de l'eau), B = sable.
-function landMask(geometry) {
-  const W = 1024;
-  const H = 512;
+export const MASK_WIDTH = 1024;
+export const MASK_HEIGHT = 512;
+
+// Données RGBA du masque (Uint8Array). Calculées au build pour le site en ligne (plugin bakeGlobeMasks de
+// vite.config.js), sinon ici au chargement de la page.
+export function landMaskData(geometry) {
+  const W = MASK_WIDTH;
+  const H = MASK_HEIGHT;
   const pos = geometry.attributes.position;
   const col = geometry.attributes.color;
   const land = new Float32Array(W * H);
@@ -146,7 +151,11 @@ function landMask(geometry) {
     data[i * 4 + 2] = sandy[i] * 255;
     data[i * 4 + 3] = 255;
   }
-  const texture = new THREE.DataTexture(data, W, H);
+  return data;
+}
+
+function maskTexture(data) {
+  const texture = new THREE.DataTexture(data, MASK_WIDTH, MASK_HEIGHT);
   texture.wrapS = THREE.RepeatWrapping;
   texture.minFilter = THREE.LinearFilter;
   texture.magFilter = THREE.LinearFilter;
@@ -159,6 +168,7 @@ function blur(src, W, H, radius, passes) {
   let a = Float32Array.from(src);
   let b = new Float32Array(W * H);
   const n = 2 * radius + 1;
+  const row = (y) => Math.min(H - 1, Math.max(0, y)) * W;
   for (let p = 0; p < passes; p++) {
     for (let y = 0; y < H; y++) {
       let sum = 0;
@@ -168,11 +178,13 @@ function blur(src, W, H, radius, passes) {
         sum += a[y * W + ((x + radius + 1) % W)] - a[y * W + ((x - radius + W) % W)];
       }
     }
+    // Passe verticale en fenêtre glissante, comme l'horizontale (bords répétés) : même résultat, bien plus rapide.
     for (let x = 0; x < W; x++) {
+      let sum = 0;
+      for (let k = -radius; k <= radius; k++) sum += b[row(k) + x];
       for (let y = 0; y < H; y++) {
-        let sum = 0;
-        for (let k = -radius; k <= radius; k++) sum += b[Math.min(H - 1, Math.max(0, y + k)) * W + x];
         a[y * W + x] = sum / n;
+        sum += b[row(y + radius + 1) + x] - b[row(y - radius) + x];
       }
     }
   }
@@ -187,9 +199,9 @@ float vnoise(vec3 x){ vec3 i = floor(x); vec3 f = fract(x); f = f * f * (3. - 2.
 float fbm(vec3 p){ float a = .5, s = 0.; for (int i = 0; i < 4; i++) { s += a * vnoise(p); p *= 2.03; a *= .5; } return s; }
 `;
 
-// geometry : le globe, avec les couleurs de ses facettes (eau, herbe, sable), avant tout rognage.
-export function globeMaterial(geometry) {
-  const mask = landMask(geometry);
+// maskData : le masque des terres (landMaskData), calculé à l'avance ou à partir des couleurs des facettes du globe.
+export function globeMaterial(maskData) {
+  const mask = maskTexture(maskData);
   const material = new THREE.MeshStandardMaterial({ color: '#ffffff', roughness: 0.9 });
   const time = { value: 0 };
   material.onBeforeCompile = (shader) => {
@@ -289,6 +301,32 @@ function findSun(scene) {
 const CLOUD_SPEED = 0.025; // rad/s : un tour en un peu plus de 4 minutes
 const MAX_AVOID = 2;
 
+// Bouffée : icosphère à sommets partagés (les normales seront lissées sur toute la bouffée, sans facettes). La fusion
+// des sommets (mergeVertices, lente) ne dépend pas du rayon : calculée une fois par niveau de détail, elle donne les
+// triangles et, pour chaque sommet gardé, le sommet de l'icosphère d'origine qu'il reprend.
+const puffTopology = [];
+function puffGeometry(radius, detail) {
+  const ico = new THREE.IcosahedronGeometry(radius, detail);
+  if (!puffTopology[detail]) {
+    ico.deleteAttribute('normal');
+    ico.deleteAttribute('uv');
+    const merged = mergeVertices(ico);
+    const source = new Uint32Array(merged.attributes.position.count).fill(0xffffffff);
+    merged.index.array.forEach((n, i) => {
+      if (source[n] === 0xffffffff) source[n] = i;
+    });
+    puffTopology[detail] = { index: merged.index, source };
+  }
+  const { index, source } = puffTopology[detail];
+  const from = ico.attributes.position.array;
+  const position = new Float32Array(source.length * 3);
+  source.forEach((i, n) => position.set(from.subarray(i * 3, i * 3 + 3), n * 3));
+  const g = new THREE.BufferGeometry();
+  g.setIndex(index);
+  g.setAttribute('position', new THREE.BufferAttribute(position, 3));
+  return g;
+}
+
 export function buildClouds(R, avoid = [], count = 20) {
   const rand = seededRandom(11);
   const parts = [];
@@ -319,15 +357,13 @@ export function buildClouds(R, avoid = [], count = 20) {
       const a = rand() * Math.PI * 2;
       const r = Math.sqrt(rand()) * 0.75 * k * width;
       const radius = (0.42 - (r / (k * width)) * 0.22 + rand() * 0.12) * k * puff;
-      const ico = new THREE.IcosahedronGeometry(radius, radius > 0.45 * k ? 3 : 2);
-      ico.deleteAttribute('normal');
-      ico.deleteAttribute('uv');
-      // Sommets partagés : les normales seront lissées sur toute la bouffée, sans facettes.
-      const g = mergeVertices(ico);
+      const g = puffGeometry(radius, radius > 0.45 * k ? 3 : 2);
       const pos = g.attributes.position;
-      const colors = new Float32Array(pos.count * 3);
+      const count = pos.count;
+      const colors = new Float32Array(count * 3);
+      const centers = new Float32Array(count * 3);
       const lift = Math.cos(a) * r * 0.1 + radius * 0.35;
-      for (let j = 0; j < pos.count; j++) {
+      for (let j = 0; j < count; j++) {
         v.fromBufferAttribute(pos, j);
         // Petites bosses, puis base aplatie : le dessous d'un cumulus est plat.
         v.multiplyScalar(1 + 0.08 * Math.sin(v.x * 9 / k + i) * Math.sin(v.z * 8 / k + i * 2));
@@ -335,13 +371,16 @@ export function buildClouds(R, avoid = [], count = 20) {
         v.z += Math.sin(a) * r * 0.7;
         v.y = Math.max(v.y * 0.75 + lift, 0);
         c.copy(bottom).lerp(top, THREE.MathUtils.clamp(v.y / (0.5 * k * puff), 0, 1));
-        colors.set([c.r, c.g, c.b], j * 3);
+        colors[j * 3] = c.r;
+        colors[j * 3 + 1] = c.g;
+        colors[j * 3 + 2] = c.b;
         v.applyMatrix4(m);
         pos.setXYZ(j, v.x, v.y, v.z);
+        centers[j * 3] = center.x;
+        centers[j * 3 + 1] = center.y;
+        centers[j * 3 + 2] = center.z;
       }
       g.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-      const centers = new Float32Array(pos.count * 3);
-      for (let j = 0; j < pos.count; j++) centers.set([center.x, center.y, center.z], j * 3);
       g.setAttribute('aCloud', new THREE.BufferAttribute(centers, 3));
       parts.push(g);
     }
