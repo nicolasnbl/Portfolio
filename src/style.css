@@ -1940,3 +1940,81 @@ body.is-leaving .project-page {
   inset: -1.1rem -1.4rem;
   border-radius: 12px;
 }
+
+/* Sélecteur de langue (src/i18n/page.js) : le drapeau de la langue affichée, en haut à droite de toutes les pages.
+   Un clic ouvre la liste des langues. */
+.lang-switch {
+  position: fixed;
+  top: max(16px, env(safe-area-inset-top, 0px));
+  right: max(16px, env(safe-area-inset-right, 0px));
+  z-index: 60;
+  font-family: var(--font);
+}
+
+.lang-flag {
+  display: block;
+  width: 24px;
+  height: 16px;
+  border-radius: 3px;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.18);
+}
+
+.lang-current {
+  display: block;
+  padding: 7px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+  backdrop-filter: blur(8px);
+  transition: border-color 0.2s;
+}
+
+.lang-current:hover,
+.lang-current:focus-visible,
+.lang-current[aria-expanded='true'] {
+  border-color: rgba(255, 216, 154, 0.5);
+}
+
+.lang-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  backdrop-filter: blur(12px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+
+.lang-menu[hidden] {
+  display: none;
+}
+
+.lang-menu button {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  width: 100%;
+  padding: 0.45rem 0.7rem;
+  font: inherit;
+  font-size: 0.9rem;
+  color: var(--text);
+  white-space: nowrap;
+  background: none;
+  border: 0;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+.lang-menu button:hover,
+.lang-menu button:focus-visible {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.lang-menu button[aria-current] {
+  color: var(--accent);
+}

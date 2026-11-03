@@ -1,3 +1,5 @@
+import { pick } from './i18n/lang.js';
+
 // Compétences cliquables : un clic fait défiler jusqu'aux endroits où la compétence est citée
 // (Parcours, Formations, Side projects). Toutes les cartes concernées reçoivent en même temps
 // un halo façon Gemini qui les balaie une fois de droite à gauche, et le mot cité un reflet
@@ -66,7 +68,7 @@ export function setupSkillLinks() {
     tile.classList.add('skill-link');
     tile.tabIndex = 0;
     tile.setAttribute('role', 'button');
-    tile.title = 'Voir où je l’ai utilisé';
+    tile.title = pick('Voir où je l’ai utilisé', 'See where I’ve used it');
 
     const go = () => {
       // Les stages sont repliés par défaut : on les ouvre si une carte visée s'y trouve.

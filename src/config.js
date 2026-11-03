@@ -1,3 +1,6 @@
+import { LANG, overlay } from './i18n/lang.js';
+import { CONFIG_EN } from './i18n/en.js';
+
 // Contenu et rythme de l'intro.
 export const INTRO = {
   name: 'Nicolas',
@@ -239,3 +242,10 @@ export const TL = {
   followAt: 4.6,
   end: 6.8,
 };
+
+// Version anglaise (src/i18n/en.js) : remplace les textes ci-dessus quand le visiteur a choisi l'anglais.
+if (LANG === 'en') {
+  overlay(INTRO, CONFIG_EN.INTRO);
+  overlay(EXPLORE, CONFIG_EN.EXPLORE);
+  overlay(TIMELINE, CONFIG_EN.TIMELINE);
+}

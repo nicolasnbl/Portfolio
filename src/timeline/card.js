@@ -1,11 +1,12 @@
 import * as THREE from 'three';
 import { CARD } from './clock.js';
+import { pick } from '../i18n/lang.js';
 
 // Carte d'une étape : logo, intitulé, rôle, lieu et dates, puis 2-3 réalisations avec un mot-clé
 // en évidence. Elle est dessinée dans une texture posée sur la face de la trotteuse.
 const KIND = {
-  experience: { label: 'Expérience', color: '#ffd89a' },
-  formation: { label: 'Formation', color: '#9fd3ff' },
+  experience: { label: pick('Expérience', 'Experience'), color: '#ffd89a' },
+  formation: { label: pick('Formation', 'Education'), color: '#9fd3ff' },
 };
 
 const PX = 2048; // résolution le long de la trotteuse

@@ -1,9 +1,11 @@
 import '../style.css';
 import './timeline.css';
+import '../i18n/page.js';
 import { createTimeline } from './timeline.js';
 import { modelsReady } from '../intro/models.js';
 import { loadGlobeMask } from '../intro/globe-masks.js';
 import { PLANET_RADIUS } from '../intro/planet.js';
+import { pick } from '../i18n/lang.js';
 
 const overlay = document.querySelector('.tl-overlay');
 const dots = document.querySelector('.tl-dots');
@@ -24,7 +26,7 @@ const timeline = createTimeline({
         const li = document.createElement('li');
         const button = document.createElement('button');
         button.type = 'button';
-        button.setAttribute('aria-label', `Étape ${i + 1}`);
+        button.setAttribute('aria-label', pick(`Étape ${i + 1}`, `Step ${i + 1}`));
         button.addEventListener('click', () => timeline.goTo(i));
         li.appendChild(button);
         dots.appendChild(li);

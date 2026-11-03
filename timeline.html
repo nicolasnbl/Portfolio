@@ -3,27 +3,37 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Nicolas · Parcours</title>
+    <title data-i18n="timeline.pageTitle">Nicolas · Parcours</title>
+    <script>
+      // Version anglaise choisie : textes masqués jusqu'à leur traduction (src/i18n/page.js).
+      try {
+        const lang = new URLSearchParams(location.search).get('lang') || localStorage.getItem('lang');
+        if (lang === 'en') document.documentElement.classList.add('i18n-wait');
+      } catch {}
+    </script>
+    <style>
+      .i18n-wait [data-i18n] { visibility: hidden; }
+    </style>
   </head>
   <body class="timeline-page">
     <canvas id="scene"></canvas>
 
     <div class="tl-overlay">
       <header class="tl-header">
-        <a class="tl-back" href="./index.html">← Accueil</a>
-        <h1>Parcours</h1>
+        <a data-i18n="timeline.home" class="tl-back" href="./index.html">← Accueil</a>
+        <h1 data-i18n="timeline.title">Parcours</h1>
       </header>
 
-      <nav class="tl-nav" aria-label="Étapes du parcours">
-        <button class="tl-prev" type="button" aria-label="Étape précédente">‹</button>
+      <nav class="tl-nav" data-i18n-aria-label="timeline.navLabel" aria-label="Étapes du parcours">
+        <button class="tl-prev" type="button" data-i18n-aria-label="timeline.prev" aria-label="Étape précédente">‹</button>
         <ol class="tl-dots"></ol>
-        <button class="tl-next" type="button" aria-label="Étape suivante">›</button>
+        <button class="tl-next" type="button" data-i18n-aria-label="timeline.next" aria-label="Étape suivante">›</button>
       </nav>
-      <p class="tl-hint">Scroll pour avancer dans le temps</p>
+      <p data-i18n="timeline.hint" class="tl-hint">Scroll pour avancer dans le temps</p>
     </div>
 
     <!-- Outil de développement : affiché avec `npm run dev` ou un build lancé avec VITE_DEV_TOOLS=1. -->
-    <button class="dev-replay" type="button" hidden>Relancer l'animation</button>
+    <button data-i18n="common.devReplay" class="dev-replay" type="button" hidden>Relancer l'animation</button>
 
     <script type="module" src="/src/timeline/main.js"></script>
   </body>

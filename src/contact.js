@@ -1,3 +1,5 @@
+import { pick } from './i18n/lang.js';
+
 // Clic sur l'icône e-mail : l'adresse est copiée dans le presse-papiers, la pastille passe au vert
 // avec une coche et une bulle « Adresse copiée » s'affiche. Si la copie échoue, le lien mailto s'ouvre.
 const CHECK =
@@ -11,7 +13,7 @@ export function setupMailCopy() {
   const bubble = document.createElement('span');
   bubble.className = 'copy-bubble';
   bubble.setAttribute('role', 'status');
-  bubble.innerHTML = `Adresse copiée ✓<small>${email}</small>`;
+  bubble.innerHTML = `${pick('Adresse copiée', 'Address copied')} ✓<small>${email}</small>`;
   link.parentElement.append(bubble);
   let timer;
 

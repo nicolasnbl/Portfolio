@@ -3,12 +3,22 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Nicolas · Explorer le monde</title>
+    <title data-i18n="explore.pageTitle">Nicolas · Explorer le monde</title>
+    <script>
+      // Version anglaise choisie : textes masqués jusqu'à leur traduction (src/i18n/page.js).
+      try {
+        const lang = new URLSearchParams(location.search).get('lang') || localStorage.getItem('lang');
+        if (lang === 'en') document.documentElement.classList.add('i18n-wait');
+      } catch {}
+    </script>
+    <style>
+      .i18n-wait [data-i18n] { visibility: hidden; }
+    </style>
   </head>
   <body class="explore-body">
     <canvas id="scene"></canvas>
     <!-- Même texte que EXPLORE.quote (src/config.js) : affiché dès le chargement, avant le script. -->
-    <p class="explore-quote" style="opacity: 1">C’est en osant rêver l’impossible que l’esprit créatif repousse les frontières du possible.</p>
+    <p data-i18n="explore.quote" class="explore-quote" style="opacity: 1">C’est en osant rêver l’impossible que l’esprit créatif repousse les frontières du possible.</p>
     <div class="explore-ui"></div>
     <script type="module" src="/src/explore/main.js"></script>
   </body>
