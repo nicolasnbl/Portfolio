@@ -19,7 +19,7 @@ const DEPART_EJECT = 8;
 const DEPART_AWAY = THREE.MathUtils.degToRad(108);
 
 // Instant de l'intro (en secondes) où les premiers nuages entrent dans le cadre.
-const CLOUDS_NEEDED = 2.2;
+const FAR_NEEDED = 2.2;
 
 const SKY = new THREE.Color('#bfe6ff');
 const SPACE = new THREE.Color('#05060f');
@@ -123,14 +123,22 @@ export function createIntro({ canvas, overlay, onStart, onEnd }) {
   scene.add(stars);
 
   const isSmall = window.innerWidth < 768;
-  // Les nuages ne se voient qu'au bout de 3 s d'intro : construits juste après la première image (voir plus bas).
-  const { planet, pad, padTop, smoke, clockSite, elements, addClouds } = buildPlanet({
+  // Les terres lointaines et les nuages ne se voient qu'au bout de 3 s d'intro : construits juste après la première
+  // image (voir plus bas).
+  const { planet, pad, padTop, smoke, clockSite, elements, lateGroup, lateSteps } = buildPlanet({
     treeCount: isSmall ? 26 : 46,
     clockDir: CLOCK_DIR,
-    lateClouds: true,
+    late: true,
   });
-  // Vers la page des side projects : orientation de la planète et cadrage du haut de cette page.
-  const projectsQuat = stopQuat(stopTarget('passions', elements));
+  let lateAttached = false;
+  const attachLate = () => {
+    if (lateAttached) return;
+    while (lateSteps.length) lateSteps.shift()();
+    planet.add(lateGroup);
+    lateAttached = true;
+  };
+  // Vers la page des side projects : orientation de la planète (calculée au départ, les terres sont alors construites).
+  let projectsQuat = null;
   const leave = createLeave({ clockSite });
   scene.add(planet);
 
@@ -440,7 +448,10 @@ export function createIntro({ canvas, overlay, onStart, onEnd }) {
     planet.rotation.set(0, 0, (roll * PATH.pad) / PLANET_RADIUS);
     if (leaveU >= 0) {
       const turn = easeInOutCubic(progress(leaveU, LEAVE.orbitStart, LEAVE.diveEnd - 0.4));
-      if (leaveTo === 'projects') planet.quaternion.slerp(projectsQuat, turn);
+      if (leaveTo === 'projects') {
+        projectsQuat ??= stopQuat(stopTarget('passions', elements));
+        planet.quaternion.slerp(projectsQuat, turn);
+      }
       else planet.quaternion.premultiply(leave.planetTurn(turn));
     }
 
@@ -699,8 +710,8 @@ export function createIntro({ canvas, overlay, onStart, onEnd }) {
       if (departDir < 0 && departU <= 0) endReturn(now / 1000);
     }
     boost = Math.max(0, boost - dt * 10);
-    // Intro accélérée avant que les nuages soient prêts : on les construit tout de suite.
-    if (t > CLOUDS_NEEDED) addClouds();
+    // Intro accélérée avant que les terres lointaines soient prêtes : on les construit tout de suite.
+    if (t > FAR_NEEDED || leaveU >= 0 || departU >= 0) attachLate();
     render(t, now / 1000);
     if (departDir > 0 && departU >= EXPLORE_T.depart && !navigated) {
       navigated = true;
@@ -732,29 +743,30 @@ export function createIntro({ canvas, overlay, onStart, onEnd }) {
   }
   // Les shaders se compilent avant la première image, en parallèle quand le navigateur le permet
   // (KHR_parallel_shader_compile) : la page ne se fige pas pendant la compilation.
-  // Intro sautée ou reprise plus loin : les nuages sont à l'image dès le début.
-  if (t > CLOUDS_NEEDED) addClouds();
+  // Intro sautée ou reprise plus loin : les terres lointaines sont à l'image dès le début.
+  if (t > FAR_NEEDED) attachLate();
   renderer
     .compileAsync(scene, camera)
     .catch(() => {})
     .then(() => {
       last = performance.now();
       requestAnimationFrame(frame);
-      // Après la première image, quand le navigateur est libre : nuages construits et compilés hors de l'image.
-      (window.requestIdleCallback ?? setTimeout)(
-        () => {
-          const clouds = addClouds();
-          if (!clouds) return;
-          clouds.visible = false;
-          renderer
-            .compileAsync(clouds, camera, scene)
-            .catch(() => {})
-            .then(() => {
-              clouds.visible = true;
-            });
-        },
-        { timeout: 600 },
-      );
+      // Après la première image, quand le navigateur est libre : terres lointaines puis nuages construits, puis leurs
+      // shaders compilés hors de la scène, avant de les poser sur la planète.
+      const idle = window.requestIdleCallback ?? setTimeout;
+      const buildNext = () => {
+        if (lateAttached) return;
+        if (lateSteps.length) {
+          lateSteps.shift()();
+          idle(buildNext, { timeout: 300 });
+          return;
+        }
+        renderer
+          .compileAsync(lateGroup, camera, scene)
+          .catch(() => {})
+          .then(attachLate);
+      };
+      idle(buildNext, { timeout: 600 });
     });
 
   nameEl.querySelector('.intro-name-main').textContent = INTRO.name;

@@ -600,9 +600,10 @@ function buildAirstrip() {
 // le long de la surface : la page timeline n'a besoin que du continent de l'horloge, et le globe lui-même est rogné.
 // Un tableau de zones garde le globe entier mais seulement le décor de ces zones (pages des side projects). Tout est
 // construit dans le même ordre que sur l'accueil (même tirage aléatoire), pour que les arbres soient aux mêmes places.
-// lateClouds : les nuages ne sont pas construits tout de suite ; la page appelle addClouds() quand elle veut (l'accueil,
-// après sa première image : ils n'apparaissent qu'au bout de 3 s d'intro).
-export function buildPlanet({ radius = PLANET_RADIUS, treeCount = 46, clockDir = null, focus = null, lateClouds = false } = {}) {
+// late (accueil) : seuls le globe et le trajet de l'intro (centrale, forêt, pas de tir) sont construits tout de suite.
+// Les terres lointaines et les nuages, qu'on ne voit qu'au bout de 3 s d'intro, sont construits par lateSteps dans un
+// groupe à part (lateGroup), que la page compile puis ajoute à la planète après sa première image.
+export function buildPlanet({ radius = PLANET_RADIUS, treeCount = 46, clockDir = null, focus = null, late = false } = {}) {
   const R = radius;
   const rand = seededRandom(42);
   const planet = new THREE.Group();
@@ -616,20 +617,14 @@ export function buildPlanet({ radius = PLANET_RADIUS, treeCount = 46, clockDir =
   planet.add(atmosphere);
 
   // Fin de construction : nuages (sauf sur la page timeline, qui ne montre qu'un continent), puis ombres.
-  let addClouds = () => null;
-  const finish = (withClouds = true) => {
-    enableShadows(planet);
-    if (!withClouds) return;
+  const makeClouds = () => {
     const avoid = [{ dir: surfaceDir((PATH.solar + PATH.landEnd) / 2, 0, R), angle: (PATH.landEnd - PATH.solar + 14) / (2 * R) }];
     if (clockDir) avoid.push({ dir: clockDir.clone().normalize(), angle: 16 / R });
-    addClouds = () => {
-      addClouds = () => null;
-      const clouds = buildClouds(R, avoid);
-      enableShadows(clouds);
-      planet.add(clouds);
-      return clouds;
-    };
-    if (!lateClouds) addClouds();
+    return buildClouds(R, avoid);
+  };
+  const finish = (withClouds = true) => {
+    if (withClouds) planet.add(makeClouds());
+    enableShadows(planet);
   };
 
   const solar = buildSolarPlant();
@@ -660,110 +655,227 @@ export function buildPlanet({ radius = PLANET_RADIUS, treeCount = 46, clockDir =
   const addElement = (key, root, anchor = root) =>
     elements.push({ key, root, anchor: anchor.position.clone(), front: frontOf(anchor) });
 
-  // Corse : la maison solaire au cœur de l'île, le maquis autour.
-  const corsica = tangentFrame(LANDS.corsica);
-  const house = buildSolarHouse();
-  const houseDir = frameToDir(corsica, HOUSE_SPOT[0], HOUSE_SPOT[1], R);
-  placeFacing(planet, house, houseDir, frameToDir(corsica, HOUSE_SPOT[0] + 1, HOUSE_SPOT[1] - 3, R), R);
-  addElement('house', house);
-  for (let placed = 0, tries = 0; placed < 14 && tries < 600; tries++) {
-    const x = (rand() - 0.5) * CORSICA_LENGTH * 0.45;
-    const y = (rand() - 0.5) * CORSICA_LENGTH;
-    if (!insidePolygon(x, y, CORSICA_SHAPE) || Math.hypot(x - HOUSE_SPOT[0], y - HOUSE_SPOT[1]) < 2) continue;
-    const edge = CORSICA_SHAPE.some(([px, py]) => Math.hypot(px - x, py - y) < 0.9);
-    if (edge) continue;
-    placeAtDir(planet, buildTree(rand), frameToDir(corsica, x, y, R), R);
-    placed++;
-  }
-
-  // L'île des passions : l'ordinateur, la guitare, l'enceinte et l'échiquier tournés vers le milieu de l'île, et le
-  // vélo de voyage qui fait le tour de sa piste.
-  const music = tangentFrame(LANDS.music);
-  const musicCenter = music.center;
-  const place = (obj, [x, y]) => placeFacing(planet, obj, frameToDir(music, x, y, R), musicCenter, R);
-  const computer = buildComputer();
-  place(computer, MUSIC_SPOTS.computer);
-  const guitar = buildGuitar();
-  place(guitar, MUSIC_SPOTS.guitar);
-  const { speaker, membranes } = buildSpeaker();
-  place(speaker, MUSIC_SPOTS.speaker);
-  addElement('computer', computer);
-  addElement('guitar', guitar);
-  addElement('speaker', speaker);
-  const chess = buildChess();
-  place(chess, MUSIC_SPOTS.chess);
-  addElement('chess', chess);
-  const bikeTour = new THREE.Group();
-  planet.add(bikeTour);
-  bikeTour.add(buildLoopRoad(music, BIKE_LOOP, R));
-  const { bike, wheels } = buildBike();
-  bikeTour.add(bike);
-  placeOnLoop(bike, music, BIKE_LOOP, 0, R);
-  const bikeAnchor = new THREE.Object3D();
-  placeAtDir(bikeTour, bikeAnchor, frameToDir(music, ...BIKE_LOOP.center, R), R);
-  addElement('bike', bikeTour, bikeAnchor);
-  for (let i = 0; i < 9; i++) {
-    const angle = (i / 9) * Math.PI * 2 + rand() * 0.4;
-    const r = 5.6 + rand() * 1.4;
-    const [x, y] = [Math.cos(angle) * r, Math.sin(angle) * r];
-    if (loopGap(BIKE_LOOP, x, y) < 0.9) continue;
-    placeAtDir(planet, buildTree(rand), frameToDir(music, x, y, R), R);
-  }
-
-  // Orkney : le campus d'Heriot-Watt et son éolienne sur la plus grande île de l'archipel.
-  const orkney = tangentFrame(LANDS.orkney);
-  const { campus, rotor } = buildHeriotWatt();
-  placeFacing(planet, campus, frameToDir(orkney, -0.5, 0.4, R), frameToDir(orkney, -0.5, -4, R), R);
-  addElement('heriot', campus);
-
-  // Continent de l'horloge : l'emplacement de l'horloge au centre (elle est construite à la demande), l'EIGSI, le
-  // champ et la piste de l'ULM à côté, des arbres en couronne autour.
-  let clockSite = null;
+  // Terres lointaines animées par animate().
+  let music;
+  let membranes;
+  let bike;
+  let wheels;
+  let rotor;
+  let crane = null;
   let chipGlow = null;
   let flight = null;
+  const onlyClockLand = Boolean(focus && !Array.isArray(focus));
+  const desertDir = LANDS.desert.clone().normalize();
+  const withDesert = !zones || zones.some(({ dir, radius: r }) => dir.angleTo(desertDir) * R < r + DESERT_RADIUS);
+  // Emplacement de l'horloge : créé dès maintenant (la transition vers la timeline l'oriente), posé avec le continent.
+  let clockSite = null;
   if (clockDir) {
     clockSite = new THREE.Group();
-    placeAtDir(planet, clockSite, clockDir, R);
+    clockSite.position.copy(clockDir).multiplyScalar(R);
+    clockSite.quaternion.setFromUnitVectors(UP, clockDir);
+  }
 
-    const land = tangentFrame(clockDir);
-    const spot = ([x, y]) => frameToDir(land, x, y, R);
-    const eigsi = buildEigsi();
-    placeFacing(planet, eigsi, spot(CLOCK_SPOTS.eigsi), clockDir, R);
-    const field = buildSolarField(R);
-    placeAtDir(planet, field, spot(CLOCK_SPOTS.field), R);
-    field.rotateY(-0.4);
-    const { chip, glow } = buildBrainChip();
-    placeFacing(planet, chip, spot(CLOCK_SPOTS.chip), clockDir, R);
-    chipGlow = glow;
-
-    const airfield = new THREE.Group();
-    planet.add(airfield);
-    const stripFrame = tangentFrame(spot(CLOCK_SPOTS.strip));
-    const strip = buildAirstrip();
-    placeFacing(airfield, strip, stripFrame.center, frameToDir(stripFrame, 0, -3, R), R);
-    const { ulm, propeller } = buildMicrolight();
-    airfield.add(ulm);
-    if (ULM_FLIES) placeOnLoop(ulm, stripFrame, ULM_LOOP, 0, R, 2.4, 0.3);
-    else placeFacing(airfield, ulm, frameToDir(stripFrame, -0.8, 0, R), frameToDir(stripFrame, -0.8, -3, R), R);
-    flight = { ulm, propeller, stripFrame };
-
-    for (let placed = 0, tries = 0; placed < 20 && tries < 400; tries++) {
-      const angle = rand() * Math.PI * 2;
-      const r = 3.8 + rand() * 7;
-      const x = Math.cos(angle) * r;
-      const y = Math.sin(angle) * r;
-      const clear = (p, d) => Math.hypot(x - p[0], y - p[1]) > d;
-      if (!insideBlob(x, y, CLOCK_LAND_RADIUS * 0.85, JAGGED) || !clear(CLOCK_SPOTS.field, 4.6) || !clear(CLOCK_SPOTS.eigsi, 3.4)) continue;
-      if (!clear(CLOCK_SPOTS.chip, 1.8) || !clear(CLOCK_SPOTS.strip, 2.8)) continue;
-      placeAtDir(planet, buildTree(rand), spot([x, y]), R);
+  // Terres lointaines : la Corse, l'île des passions, les Orcades, le continent de l'horloge, le désert. Posées dans
+  // `host` (la planète, ou un groupe à part pour l'accueil), toujours dans le même ordre : même tirage aléatoire.
+  function buildFar(host) {
+    // Corse : la maison solaire au cœur de l'île, le maquis autour.
+    const corsica = tangentFrame(LANDS.corsica);
+    const house = buildSolarHouse();
+    const houseDir = frameToDir(corsica, HOUSE_SPOT[0], HOUSE_SPOT[1], R);
+    placeFacing(host, house, houseDir, frameToDir(corsica, HOUSE_SPOT[0] + 1, HOUSE_SPOT[1] - 3, R), R);
+    addElement('house', house);
+    for (let placed = 0, tries = 0; placed < 14 && tries < 600; tries++) {
+      const x = (rand() - 0.5) * CORSICA_LENGTH * 0.45;
+      const y = (rand() - 0.5) * CORSICA_LENGTH;
+      if (!insidePolygon(x, y, CORSICA_SHAPE) || Math.hypot(x - HOUSE_SPOT[0], y - HOUSE_SPOT[1]) < 2) continue;
+      const edge = CORSICA_SHAPE.some(([px, py]) => Math.hypot(px - x, py - y) < 0.9);
+      if (edge) continue;
+      placeAtDir(host, buildTree(rand), frameToDir(corsica, x, y, R), R);
       placed++;
     }
 
-    elements.push({ key: 'clock', root: clockSite, anchor: clockSite.position.clone() });
-    addElement('eigsi', eigsi);
-    addElement('field', field);
-    addElement('chip', chip);
-    addElement('ulm', airfield, strip);
+    // L'île des passions : l'ordinateur, la guitare, l'enceinte et l'échiquier tournés vers le milieu de l'île, et le
+    // vélo de voyage qui fait le tour de sa piste.
+    music = tangentFrame(LANDS.music);
+    const musicCenter = music.center;
+    const place = (obj, [x, y]) => placeFacing(host, obj, frameToDir(music, x, y, R), musicCenter, R);
+    const computer = buildComputer();
+    place(computer, MUSIC_SPOTS.computer);
+    const guitar = buildGuitar();
+    place(guitar, MUSIC_SPOTS.guitar);
+    let speaker;
+    ({ speaker, membranes } = buildSpeaker());
+    place(speaker, MUSIC_SPOTS.speaker);
+    addElement('computer', computer);
+    addElement('guitar', guitar);
+    addElement('speaker', speaker);
+    const chess = buildChess();
+    place(chess, MUSIC_SPOTS.chess);
+    addElement('chess', chess);
+    const bikeTour = new THREE.Group();
+    host.add(bikeTour);
+    bikeTour.add(buildLoopRoad(music, BIKE_LOOP, R));
+    ({ bike, wheels } = buildBike());
+    bikeTour.add(bike);
+    placeOnLoop(bike, music, BIKE_LOOP, 0, R);
+    const bikeAnchor = new THREE.Object3D();
+    placeAtDir(bikeTour, bikeAnchor, frameToDir(music, ...BIKE_LOOP.center, R), R);
+    addElement('bike', bikeTour, bikeAnchor);
+    for (let i = 0; i < 9; i++) {
+      const angle = (i / 9) * Math.PI * 2 + rand() * 0.4;
+      const r = 5.6 + rand() * 1.4;
+      const [x, y] = [Math.cos(angle) * r, Math.sin(angle) * r];
+      if (loopGap(BIKE_LOOP, x, y) < 0.9) continue;
+      placeAtDir(host, buildTree(rand), frameToDir(music, x, y, R), R);
+    }
+
+    // Orkney : le campus d'Heriot-Watt et son éolienne sur la plus grande île de l'archipel.
+    const orkney = tangentFrame(LANDS.orkney);
+    let campus;
+    ({ campus, rotor } = buildHeriotWatt());
+    placeFacing(host, campus, frameToDir(orkney, -0.5, 0.4, R), frameToDir(orkney, -0.5, -4, R), R);
+    addElement('heriot', campus);
+
+    // Continent de l'horloge : l'emplacement de l'horloge au centre (elle est construite à la demande), l'EIGSI, le
+    // champ et la piste de l'ULM à côté, des arbres en couronne autour.
+    if (clockDir) {
+      host.add(clockSite);
+
+      const land = tangentFrame(clockDir);
+      const spot = ([x, y]) => frameToDir(land, x, y, R);
+      const eigsi = buildEigsi();
+      placeFacing(host, eigsi, spot(CLOCK_SPOTS.eigsi), clockDir, R);
+      const field = buildSolarField(R);
+      placeAtDir(host, field, spot(CLOCK_SPOTS.field), R);
+      field.rotateY(-0.4);
+      const { chip, glow } = buildBrainChip();
+      placeFacing(host, chip, spot(CLOCK_SPOTS.chip), clockDir, R);
+      chipGlow = glow;
+
+      const airfield = new THREE.Group();
+      host.add(airfield);
+      const stripFrame = tangentFrame(spot(CLOCK_SPOTS.strip));
+      const strip = buildAirstrip();
+      placeFacing(airfield, strip, stripFrame.center, frameToDir(stripFrame, 0, -3, R), R);
+      const { ulm, propeller } = buildMicrolight();
+      airfield.add(ulm);
+      if (ULM_FLIES) placeOnLoop(ulm, stripFrame, ULM_LOOP, 0, R, 2.4, 0.3);
+      else placeFacing(airfield, ulm, frameToDir(stripFrame, -0.8, 0, R), frameToDir(stripFrame, -0.8, -3, R), R);
+      flight = { ulm, propeller, stripFrame };
+
+      for (let placed = 0, tries = 0; placed < 20 && tries < 400; tries++) {
+        const angle = rand() * Math.PI * 2;
+        const r = 3.8 + rand() * 7;
+        const x = Math.cos(angle) * r;
+        const y = Math.sin(angle) * r;
+        const clear = (p, d) => Math.hypot(x - p[0], y - p[1]) > d;
+        if (!insideBlob(x, y, CLOCK_LAND_RADIUS * 0.85, JAGGED) || !clear(CLOCK_SPOTS.field, 4.6) || !clear(CLOCK_SPOTS.eigsi, 3.4)) continue;
+        if (!clear(CLOCK_SPOTS.chip, 1.8) || !clear(CLOCK_SPOTS.strip, 2.8)) continue;
+        placeAtDir(host, buildTree(rand), spot([x, y]), R);
+        placed++;
+      }
+
+      elements.push({ key: 'clock', root: clockSite, anchor: clockSite.position.clone() });
+      addElement('eigsi', eigsi);
+      addElement('field', field);
+      addElement('chip', chip);
+      addElement('ulm', airfield, strip);
+    }
+
+    // La timeline : seulement le continent de l'horloge.
+    if (onlyClockLand) return;
+
+    // Le désert n'est construit que si une zone le touche : c'est le dernier à tirer des nombres aléatoires.
+    if (!withDesert) return;
+
+    // Continent désert : la tour, le chantier d'Anjaza, le forum, l'usine de désalinisation sur la côte, ses deux
+    // champs solaires, des palmiers et des dunes.
+    const desert = tangentFrame(LANDS.desert);
+    const dspot = ([x, y]) => frameToDir(desert, x, y, R);
+    const burj = buildBurj();
+    const [bx, by] = DESERT_SPOTS.burj;
+    placeFacing(host, burj, dspot(DESERT_SPOTS.burj), dspot([bx, by - 5]), R);
+    const forum = buildForum();
+    placeFacing(host, forum, dspot(DESERT_SPOTS.forum), desert.center, R);
+    const desal = buildDesalination();
+    const [dx, dy] = DESERT_SPOTS.desal;
+    placeFacing(host, desal, dspot(DESERT_SPOTS.desal), dspot([dx - 6, dy]), R);
+    const desertField = buildSolarField(R, { rows: 3, cols: 5 });
+    const [fx, fy] = DESERT_SPOTS.field;
+    placeFacing(host, desertField, dspot(DESERT_SPOTS.field), dspot([fx, fy - 6]), R);
+    const troughs = buildTroughField(R, { length: 3 });
+    const [tx, ty] = DESERT_SPOTS.troughs;
+    placeFacing(host, troughs, dspot(DESERT_SPOTS.troughs), dspot([tx, ty - 6]), R);
+    const powerLines = new THREE.Group();
+    host.add(powerLines);
+    for (const { from, poles, to } of DESERT_LINES) {
+      const box = buildTransformer();
+      placeFacing(powerLines, box, dspot(from), dspot(poles[0]), R);
+      buildPowerLine(powerLines, poles.map(dspot), R, {
+        start: { dir: dspot(from), height: TRANSFORMER_HEIGHT },
+        end: { dir: dspot(to), height: to[2] },
+      });
+    }
+    crane = buildCrane();
+    placeFacing(host, crane.site, dspot(DESERT_SPOTS.crane), desert.center, R);
+
+    const desertSpots = Object.entries(DESERT_SPOTS);
+    const desertClear = { burj: 1.6, forum: 3, field: 2.8, troughs: 2.8, desal: 3, crane: 2 };
+    for (let placed = 0, tries = 0; placed < 26 && tries < 600; tries++) {
+      const x = (rand() - 0.5) * DESERT_RADIUS * 2;
+      const y = (rand() - 0.5) * DESERT_RADIUS * 2;
+      if (!insideBlob(x, y, DESERT_RADIUS * 0.85, JAGGED)) continue;
+      if (desertSpots.some(([key, [px, py]]) => Math.hypot(x - px, y - py) < desertClear[key])) continue;
+      if (DESERT_LINES.some(({ from, poles }) => [from, ...poles].some(([px, py]) => Math.hypot(x - px, y - py) < 0.9))) continue;
+      placeAtDir(host, placed % 3 ? buildPalm(rand) : buildDune(rand), dspot([x, y]), R);
+      placed++;
+    }
+    addElement('burj', burj);
+    addElement('forum', forum);
+    addElement('desal', desal);
+    addElement('desertField', desertField);
+    addElement('troughs', troughs);
+    addElement('crane', crane.site);
+  }
+
+  if (late) {
+    finish(false);
+    // Groupe des terres lointaines et des nuages, pas encore ajouté à la planète, construit en deux étapes (deux tâches
+    // courtes plutôt qu'une longue pendant l'intro).
+    const lateGroup = new THREE.Group();
+    let farBuilt = false;
+    const lateSteps = [
+      () => {
+        buildFar(lateGroup);
+        farBuilt = true;
+      },
+      () => {
+        lateGroup.add(makeClouds());
+        enableShadows(lateGroup);
+      },
+    ];
+    return { planet, globe, pad, padTop: 0.3, smoke, clockSite, elements, animate: (time) => farBuilt && animate(time), lateGroup, lateSteps };
+  }
+
+  buildFar(planet);
+  if (onlyClockLand) {
+    keepNear(planet, zones, R, [globe, atmosphere]);
+    finish(false);
+    return { planet, globe, clockSite, elements: [], animate: animateClockLand };
+  }
+  if (!withDesert) {
+    keepNear(planet, zones, R, [globe, atmosphere]);
+    finish();
+    return { planet, globe, pad, smoke, clockSite, elements: keptElements(), animate };
+  }
+
+  if (zones) keepNear(planet, zones, R, [globe, atmosphere]);
+  finish();
+  return { planet, globe, pad, padTop: 0.3, smoke, clockSite, elements: keptElements(), animate };
+
+  // Éléments encore présents après le tri des zones.
+  function keptElements() {
+    return elements.filter((el) => el.root.parent);
   }
 
   // L'ULM et la puce, seuls éléments animés du continent de l'horloge.
@@ -774,80 +886,6 @@ export function buildPlanet({ radius = PLANET_RADIUS, treeCount = 46, clockDir =
       if (ULM_FLIES) placeOnLoop(ulm, stripFrame, ULM_LOOP, ((time * ULM_SPEED) / loopLength(ULM_LOOP)) * Math.PI * 2, R, 2.4, 0.3);
     }
     if (chipGlow) chipGlow.opacity = 0.35 + 0.35 * (0.5 + 0.5 * Math.sin(time * 3));
-  }
-
-  // La timeline : seulement le continent de l'horloge.
-  if (focus && !Array.isArray(focus)) {
-    keepNear(planet, zones, R, [globe, atmosphere]);
-    finish(false);
-    return { planet, globe, clockSite, elements: [], animate: animateClockLand };
-  }
-
-  // Le désert n'est construit que si une zone le touche : c'est le dernier à tirer des nombres aléatoires.
-  let crane = null;
-  const desertDir = LANDS.desert.clone().normalize();
-  if (zones && !zones.some(({ dir, radius: r }) => dir.angleTo(desertDir) * R < r + DESERT_RADIUS)) {
-    keepNear(planet, zones, R, [globe, atmosphere]);
-    finish();
-    return { planet, globe, pad, smoke, clockSite, elements: keptElements(), animate };
-  }
-
-  // Continent désert : la tour, le chantier d'Anjaza, le forum, l'usine de désalinisation sur la côte, ses deux
-  // champs solaires, des palmiers et des dunes.
-  const desert = tangentFrame(LANDS.desert);
-  const dspot = ([x, y]) => frameToDir(desert, x, y, R);
-  const burj = buildBurj();
-  const [bx, by] = DESERT_SPOTS.burj;
-  placeFacing(planet, burj, dspot(DESERT_SPOTS.burj), dspot([bx, by - 5]), R);
-  const forum = buildForum();
-  placeFacing(planet, forum, dspot(DESERT_SPOTS.forum), desert.center, R);
-  const desal = buildDesalination();
-  const [dx, dy] = DESERT_SPOTS.desal;
-  placeFacing(planet, desal, dspot(DESERT_SPOTS.desal), dspot([dx - 6, dy]), R);
-  const desertField = buildSolarField(R, { rows: 3, cols: 5 });
-  const [fx, fy] = DESERT_SPOTS.field;
-  placeFacing(planet, desertField, dspot(DESERT_SPOTS.field), dspot([fx, fy - 6]), R);
-  const troughs = buildTroughField(R, { length: 3 });
-  const [tx, ty] = DESERT_SPOTS.troughs;
-  placeFacing(planet, troughs, dspot(DESERT_SPOTS.troughs), dspot([tx, ty - 6]), R);
-  const powerLines = new THREE.Group();
-  planet.add(powerLines);
-  for (const { from, poles, to } of DESERT_LINES) {
-    const box = buildTransformer();
-    placeFacing(powerLines, box, dspot(from), dspot(poles[0]), R);
-    buildPowerLine(powerLines, poles.map(dspot), R, {
-      start: { dir: dspot(from), height: TRANSFORMER_HEIGHT },
-      end: { dir: dspot(to), height: to[2] },
-    });
-  }
-  crane = buildCrane();
-  placeFacing(planet, crane.site, dspot(DESERT_SPOTS.crane), desert.center, R);
-
-  const desertSpots = Object.entries(DESERT_SPOTS);
-  const desertClear = { burj: 1.6, forum: 3, field: 2.8, troughs: 2.8, desal: 3, crane: 2 };
-  for (let placed = 0, tries = 0; placed < 26 && tries < 600; tries++) {
-    const x = (rand() - 0.5) * DESERT_RADIUS * 2;
-    const y = (rand() - 0.5) * DESERT_RADIUS * 2;
-    if (!insideBlob(x, y, DESERT_RADIUS * 0.85, JAGGED)) continue;
-    if (desertSpots.some(([key, [px, py]]) => Math.hypot(x - px, y - py) < desertClear[key])) continue;
-    if (DESERT_LINES.some(({ from, poles }) => [from, ...poles].some(([px, py]) => Math.hypot(x - px, y - py) < 0.9))) continue;
-    placeAtDir(planet, placed % 3 ? buildPalm(rand) : buildDune(rand), dspot([x, y]), R);
-    placed++;
-  }
-  addElement('burj', burj);
-  addElement('forum', forum);
-  addElement('desal', desal);
-  addElement('desertField', desertField);
-  addElement('troughs', troughs);
-  addElement('crane', crane.site);
-
-  if (zones) keepNear(planet, zones, R, [globe, atmosphere]);
-  finish();
-  return { planet, globe, pad, padTop: 0.3, smoke, clockSite, elements: keptElements(), animate, addClouds: () => addClouds() };
-
-  // Éléments encore présents après le tri des zones.
-  function keptElements() {
-    return elements.filter((el) => el.root.parent);
   }
 
   function animate(time) {

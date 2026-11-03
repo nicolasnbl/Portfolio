@@ -301,6 +301,32 @@ function findSun(scene) {
 const CLOUD_SPEED = 0.025; // rad/s : un tour en un peu plus de 4 minutes
 const MAX_AVOID = 2;
 
+// Bouffée : icosphère à sommets partagés (les normales seront lissées sur toute la bouffée, sans facettes). La fusion
+// des sommets (mergeVertices, lente) ne dépend pas du rayon : calculée une fois par niveau de détail, elle donne les
+// triangles et, pour chaque sommet gardé, le sommet de l'icosphère d'origine qu'il reprend.
+const puffTopology = [];
+function puffGeometry(radius, detail) {
+  const ico = new THREE.IcosahedronGeometry(radius, detail);
+  if (!puffTopology[detail]) {
+    ico.deleteAttribute('normal');
+    ico.deleteAttribute('uv');
+    const merged = mergeVertices(ico);
+    const source = new Uint32Array(merged.attributes.position.count).fill(0xffffffff);
+    merged.index.array.forEach((n, i) => {
+      if (source[n] === 0xffffffff) source[n] = i;
+    });
+    puffTopology[detail] = { index: merged.index, source };
+  }
+  const { index, source } = puffTopology[detail];
+  const from = ico.attributes.position.array;
+  const position = new Float32Array(source.length * 3);
+  source.forEach((i, n) => position.set(from.subarray(i * 3, i * 3 + 3), n * 3));
+  const g = new THREE.BufferGeometry();
+  g.setIndex(index);
+  g.setAttribute('position', new THREE.BufferAttribute(position, 3));
+  return g;
+}
+
 export function buildClouds(R, avoid = [], count = 20) {
   const rand = seededRandom(11);
   const parts = [];
@@ -331,15 +357,13 @@ export function buildClouds(R, avoid = [], count = 20) {
       const a = rand() * Math.PI * 2;
       const r = Math.sqrt(rand()) * 0.75 * k * width;
       const radius = (0.42 - (r / (k * width)) * 0.22 + rand() * 0.12) * k * puff;
-      const ico = new THREE.IcosahedronGeometry(radius, radius > 0.45 * k ? 3 : 2);
-      ico.deleteAttribute('normal');
-      ico.deleteAttribute('uv');
-      // Sommets partagés : les normales seront lissées sur toute la bouffée, sans facettes.
-      const g = mergeVertices(ico);
+      const g = puffGeometry(radius, radius > 0.45 * k ? 3 : 2);
       const pos = g.attributes.position;
-      const colors = new Float32Array(pos.count * 3);
+      const count = pos.count;
+      const colors = new Float32Array(count * 3);
+      const centers = new Float32Array(count * 3);
       const lift = Math.cos(a) * r * 0.1 + radius * 0.35;
-      for (let j = 0; j < pos.count; j++) {
+      for (let j = 0; j < count; j++) {
         v.fromBufferAttribute(pos, j);
         // Petites bosses, puis base aplatie : le dessous d'un cumulus est plat.
         v.multiplyScalar(1 + 0.08 * Math.sin(v.x * 9 / k + i) * Math.sin(v.z * 8 / k + i * 2));
@@ -347,13 +371,16 @@ export function buildClouds(R, avoid = [], count = 20) {
         v.z += Math.sin(a) * r * 0.7;
         v.y = Math.max(v.y * 0.75 + lift, 0);
         c.copy(bottom).lerp(top, THREE.MathUtils.clamp(v.y / (0.5 * k * puff), 0, 1));
-        colors.set([c.r, c.g, c.b], j * 3);
+        colors[j * 3] = c.r;
+        colors[j * 3 + 1] = c.g;
+        colors[j * 3 + 2] = c.b;
         v.applyMatrix4(m);
         pos.setXYZ(j, v.x, v.y, v.z);
+        centers[j * 3] = center.x;
+        centers[j * 3 + 1] = center.y;
+        centers[j * 3 + 2] = center.z;
       }
       g.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-      const centers = new Float32Array(pos.count * 3);
-      for (let j = 0; j < pos.count; j++) centers.set([center.x, center.y, center.z], j * 3);
       g.setAttribute('aCloud', new THREE.BufferAttribute(centers, 3));
       parts.push(g);
     }
