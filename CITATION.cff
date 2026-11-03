@@ -1,0 +1,15 @@
+cff-version: 1.2.0
+message: "Si ce code vous inspire ou si vous en reprenez une partie, merci de citer ce dépôt. / If you reuse or draw inspiration from this code, please cite this repository."
+title: "Portfolio de Nicolas Noblet : site 3D interactif"
+type: software
+authors:
+  - family-names: Noblet
+    given-names: Nicolas
+repository-code: "https://github.com/nicolasnbl/Portfolio"
+url: "https://portfolio-sable-six-98.vercel.app/"
+license: MIT
+keywords:
+  - portfolio
+  - three.js
+  - webgl
+  - vite

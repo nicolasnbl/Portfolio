@@ -39,3 +39,13 @@ npm run dev
 ```
 
 `npm run build` produit le site statique dans `dist/`.
+
+## Licence et crédit
+
+Le **code** est sous [licence MIT](LICENSE) : vous pouvez le réutiliser, le modifier et le partager, à condition de conserver la mention de copyright « Nicolas Noblet » et le texte de la licence dans votre copie.
+
+Le **contenu personnel** (textes, photos, CV, thèse, nom et image) n'est **pas** couvert par la licence MIT : tous droits réservés, voir [NOTICE.md](NOTICE.md). Les logos appartiennent à leurs propriétaires.
+
+**Vous vous en inspirez ?** C'est avec plaisir. Un lien vers ce dépôt ou vers le site, ou une mention « Inspiré du portfolio de Nicolas Noblet », fait toujours plaisir. Le bouton « Cite this repository » de GitHub (fichier [CITATION.cff](CITATION.cff)) donne une citation prête à copier.
+
+*Code: MIT. Personal content (texts, photos, CV, thesis): all rights reserved. If this inspires you, a credit or a link back is appreciated.*
