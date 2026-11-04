@@ -51,8 +51,7 @@ export const EXPLORE = {
   elements: {
     solar: {
       title: 'La centrale solaire flottante',
-      text: 'Le solaire flottant, c’est mon fil rouge. Chez TotalEnergies OneTech, j’ai analysé les données de sites tests et du prototype de la startup SolarinBlue pour mieux comprendre comment des panneaux se comportent sur l’eau. Une page dédiée racontera ce projet.',
-      page: true,
+      text: 'Le solaire flottant, c’est mon fil rouge. Chez TotalEnergies OneTech, j’ai analysé les données de sites tests et du prototype de la startup SolarinBlue pour mieux comprendre comment des panneaux se comportent sur l’eau.',
     },
     forest: {
       title: 'La forêt',

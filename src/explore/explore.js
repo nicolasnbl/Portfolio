@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { EXPLORE, EXPLORE_T } from '../config.js';
 import { easeInOutCubic, lerp } from '../intro/math.js';
 import { COMPANION_FOV } from './companion.js';
-import { pick } from '../i18n/lang.js';
+import { pick as tr } from '../i18n/lang.js';
 
 // Mode « Explorer le monde » : la planète au milieu de l'écran, que l'on fait tourner en la glissant. Survoler un
 // élément l'éclaire et affiche son nom ; cliquer dessus le fait venir devant la caméra, avec sa fiche à côté.
@@ -92,7 +92,7 @@ export function createExplore({ planet, globe, radius, elements, camera, canvas,
     <p class="explore-hint"></p>
     <p class="explore-label" aria-hidden="true"></p>
     <aside class="explore-card" aria-live="polite">
-      <button class="explore-close" type="button" aria-label="${pick('Fermer la fiche', 'Close')}">×</button>
+      <button class="explore-close" type="button" aria-label="${tr('Fermer la fiche', 'Close')}">×</button>
       <h2></h2>
       <p class="explore-text"></p>
       <a class="explore-page"></a>
