@@ -1,6 +1,8 @@
 {
   "name": "portfolio",
   "private": true,
+  "license": "MIT",
+  "author": "Nicolas Noblet",
   "version": "0.1.0",
   "type": "module",
   "description": "Portfolio de Nicolas : intro 3D et sections façon pitch de startup.",
