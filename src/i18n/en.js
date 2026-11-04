@@ -234,7 +234,7 @@ export const CONFIG_EN = {
     elements: {
       solar: {
         title: 'The floating solar plant',
-        text: 'Floating solar is the common thread of my work. At TotalEnergies OneTech, I analysed data from test sites and from the SolarinBlue startup’s prototype to better understand how panels behave on water. A dedicated page will tell the story of this project.',
+        text: 'Floating solar is the common thread of my work. At TotalEnergies OneTech, I analysed data from test sites and from the SolarinBlue startup’s prototype to better understand how panels behave on water.',
       },
       forest: {
         title: 'The forest',

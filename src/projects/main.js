@@ -8,7 +8,10 @@ import { buildRocket } from '../intro/rocket.js';
 import { PROJECT_SUN, RIGHT, STOPS, stopQuat, stopTarget, stopView, zonesFor } from './view.js';
 import { modelsReady } from '../intro/models.js';
 import { loadGlobeMask } from '../intro/globe-masks.js';
+import { setupMaintenance } from './cibel.js';
 import { PLANET_RADIUS } from '../intro/planet.js';
+
+setupMaintenance();
 
 // Fond des pages side projects : la planète de l'accueil, dont on ne construit que les terres des projets de la page.
 // Les blocs marqués data-stop sont les projets que la planète peut montrer. Sur une page projet, la caméra est au
