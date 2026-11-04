@@ -110,7 +110,7 @@ export const PAGE_EN = {
 
   // Page side projects
   'side.intro':
-    'My mindset: an engineer by training, I love the technical side of things, and being proactive has always pushed me to take on personal projects. That drive to get things done is what naturally led me to renewable energy, a field that’s exciting for the scale of what’s at stake as much as for its day-to-day challenges.',
+    'My mindset: an engineer by training, I love the technical side of things, and being proactive has always pushed me to take on personal projects. It all started in middle school, in a club where I designed my own rockets, and I’ve never stopped launching new projects since.',
   'side.anjaza.text':
     'With a friend who lives in the UAE, I launched a platform that connects people with trusted professionals for everyday jobs. I built the website and the mobile app. More than 25 pros already trust us.',
   'side.anjaza.k1': 'Website + mobile app',
