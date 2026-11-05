@@ -34,10 +34,27 @@
     </script>
     <style>
       .i18n-wait [data-i18n] { visibility: hidden; }
+      /* Écran de chargement en attendant la première image 3D : le nom et une ligne d'horizon qui balaie.
+         Tout est ici, dans la page, pour s'afficher sans rien télécharger. Il n'apparaît qu'après 150 ms
+         (pas de flash quand la 3D est rapide) et s'efface quand la première image est dessinée (.scene-ready). */
+      .page-loader { position: fixed; inset: 0; z-index: 2; display: grid; place-content: center; pointer-events: none;
+        color: #fff; font: 500 13px/1 'Space Grotesk', system-ui, sans-serif; letter-spacing: 0.32em; text-transform: uppercase;
+        text-align: center; animation: loader-in 0.4s 0.15s both, loader-in 0.6s 12s reverse forwards; }
+      .page-loader p { margin: 0 0 0 0.32em; }
+      .page-loader b { font-weight: 500; color: #ffd89a; }
+      .page-loader i { position: relative; display: block; width: 160px; height: 1px; margin: 16px auto 0; overflow: hidden;
+        background: rgba(255, 255, 255, 0.22); }
+      .page-loader i::after { content: ''; position: absolute; inset: 0; width: 40%; background: #fff;
+        animation: loader-sweep 1.6s cubic-bezier(0.6, 0, 0.4, 1) infinite; }
+      .scene-ready .page-loader { opacity: 0; visibility: hidden; transition: opacity 0.45s, visibility 0s 0.45s; animation: none; }
+      @keyframes loader-in { from { opacity: 0; } }
+      @keyframes loader-sweep { from { transform: translateX(-100%); } to { transform: translateX(250%); } }
+      @media (prefers-reduced-motion: reduce) { .page-loader i::after { animation-duration: 3.2s; } }
     </style>
   </head>
   <body>
     <canvas id="scene"></canvas>
+    <div class="page-loader" aria-hidden="true"><p>Nicolas <b>Noblet</b></p><i></i></div>
 
     <div class="intro-overlay" aria-live="polite">
       <div class="intro-name">

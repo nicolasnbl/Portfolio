@@ -759,7 +759,11 @@ export function createIntro({ canvas, overlay, onStart, onEnd }) {
     .catch(() => {})
     .then(() => {
       last = performance.now();
-      requestAnimationFrame(frame);
+      requestAnimationFrame((now) => {
+        frame(now);
+        // Première image dessinée : l'écran de chargement s'efface en fondu (index.html).
+        document.documentElement.classList.add('scene-ready');
+      });
       // Après la première image, quand le navigateur est libre : terres lointaines puis nuages construits, puis leurs
       // shaders compilés hors de la scène, avant de les poser sur la planète.
       const idle = window.requestIdleCallback ?? setTimeout;
